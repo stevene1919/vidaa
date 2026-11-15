@@ -25,10 +25,11 @@ def send_key(client: VidaaClient, key: str) -> None:
         client.mqtt_client.publish(f"{client.topics.remote}actions/sendkey", key)
 
 
-async def async_send_key(client: VidaaClient, key: str) -> None:
+async def async_send_key(client: VidaaClient, key: str) -> bool:
     """Publishes a raw keypress event to the TV asynchronously."""
     if client.connected and client.mqtt_client:
-        await client.async_publish(f"{client.topics.remote}actions/sendkey", key)
+        return await client.async_publish(f"{client.topics.remote}actions/sendkey", key)
+    return False
 
 
 def send_command(client: VidaaClient, command: str) -> bool:
@@ -95,17 +96,15 @@ async def async_send_command(client: VidaaClient, command: str) -> bool:
         elif raw_val.lower() == "clear":
             action = "clear"
             raw_val = ""
-        await client.async_send_text_input(raw_val, action=action)
-        return True
+        return bool(await client.async_send_text_input(raw_val, action=action))
     if normalized_command in ("clear_text", "text_clear"):
-        await client.async_send_text_input("", action="clear")
-        return True
+        return bool(await client.async_send_text_input("", action="clear"))
     if normalized_command.startswith("app:"):
         app_target = command.split(":", 1)[1].strip()
-        return await client.async_launch_app_by_name(app_target)
+        return bool(await client.async_launch_app_by_name(app_target))
     if normalized_command.startswith("source:"):
         source_target = command.split(":", 1)[1].strip()
-        return await client.async_change_source_by_name_or_id(source_target)
+        return bool(await client.async_change_source_by_name_or_id(source_target))
     if normalized_command in (
         "input",
         "source",
@@ -115,14 +114,12 @@ async def async_send_command(client: VidaaClient, command: str) -> bool:
         "key_input",
         "key_source",
     ):
-        return await client.async_cycle_source()
+        return bool(await client.async_cycle_source())
     if normalized_command in ("input_menu", "source_menu", "key_input_menu", "key_source_menu"):
-        await client.async_send_key("KEY_MENU")
-        return True
+        return bool(await client.async_send_key("KEY_MENU"))
 
     key_to_send = resolve_command_key(command)
-    await client.async_send_key(key_to_send)
-    return True
+    return bool(await client.async_send_key(key_to_send))
 
 
 def cycle_source(client: VidaaClient) -> bool:
@@ -141,12 +138,10 @@ async def async_cycle_source(client: VidaaClient) -> bool:
     """Cycles to the next available input source asynchronously."""
     next_source = get_next_cycled_source(client.sources, client.current_source)
     if not next_source:
-        await client.async_send_key("KEY_MENU")
-        return True
+        return bool(await client.async_send_key("KEY_MENU"))
 
     next_source_id, next_source_name = next_source
-    await client.async_change_source(next_source_id, next_source_name)
-    return True
+    return bool(await client.async_change_source(next_source_id, next_source_name))
 
 
 def launch_app_by_name(client: VidaaClient, name_or_id: str) -> bool:
@@ -174,19 +169,15 @@ async def async_launch_app_by_name(client: VidaaClient, name_or_id: str) -> bool
     """Launches an app by name or app ID from cached applist asynchronously."""
     matched = match_app(client.apps, name_or_id)
     if matched:
-        await client.async_launch_app(matched["appId"], matched["name"], matched["url"])
-        return True
+        return bool(await client.async_launch_app(matched["appId"], matched["name"], matched["url"]))
 
     target_clean = name_or_id.strip().lower()
     if target_clean in ("netflix", "app_netflix"):
-        await client.async_send_key("KEY_NETFLIX")
-        return True
+        return bool(await client.async_send_key("KEY_NETFLIX"))
     if target_clean in ("youtube", "app_youtube"):
-        await client.async_send_key("KEY_YOUTUBE")
-        return True
+        return bool(await client.async_send_key("KEY_YOUTUBE"))
     if target_clean in ("prime", "prime video", "app_prime"):
-        await client.async_send_key("KEY_PRIME")
-        return True
+        return bool(await client.async_send_key("KEY_PRIME"))
 
     return False
 
@@ -201,8 +192,7 @@ def change_source_by_name_or_id(client: VidaaClient, target: str) -> bool:
 async def async_change_source_by_name_or_id(client: VidaaClient, target: str) -> bool:
     """Switches to source by name or numeric sourceid asynchronously."""
     resolved_source_id, resolved_source_name = resolve_source(client.sources, target)
-    await client.async_change_source(resolved_source_id or target.strip(), resolved_source_name)
-    return True
+    return bool(await client.async_change_source(resolved_source_id or target.strip(), resolved_source_name))
 
 
 def change_source(client: VidaaClient, source_id: str, source_name: str | None = None) -> None:
@@ -249,10 +239,10 @@ def change_source(client: VidaaClient, source_id: str, source_name: str | None =
         client.send_key("KEY_LIVETV")
 
 
-async def async_change_source(client: VidaaClient, source_id: str, source_name: str | None = None) -> None:
+async def async_change_source(client: VidaaClient, source_id: str, source_name: str | None = None) -> bool:
     """Switches the active input source on the TV asynchronously."""
     if not client.connected or not client.mqtt_client:
-        return
+        return False
 
     clean_source_id = str(source_id).strip()
     clean_source_name = source_name.strip() if source_name else None
@@ -272,7 +262,7 @@ async def async_change_source(client: VidaaClient, source_id: str, source_name: 
         payload_dict = {"sourceid": source_id}
 
     payload = json.dumps(payload_dict)
-    await client.async_publish(f"{client.topics.ui}actions/changesource", payload)
+    res = await client.async_publish(f"{client.topics.ui}actions/changesource", payload)
 
     # Dual publish for newer VIDAA firmware expecting source name
     if clean_source_name and clean_source_id != clean_source_name and str(clean_source_id).isdigit():
@@ -291,6 +281,8 @@ async def async_change_source(client: VidaaClient, source_id: str, source_name: 
     ):
         await client.async_send_key("KEY_LIVETV")
 
+    return res
+
 
 def launch_app(client: VidaaClient, app_id: str, app_name: str, url: str) -> None:
     """Launches an installed Smart TV application."""
@@ -308,7 +300,7 @@ def launch_app(client: VidaaClient, app_id: str, app_name: str, url: str) -> Non
         client.mqtt_client.publish(f"{client.topics.ui}actions/launchapp", payload)
 
 
-async def async_launch_app(client: VidaaClient, app_id: str, app_name: str, url: str) -> None:
+async def async_launch_app(client: VidaaClient, app_id: str, app_name: str, url: str) -> bool:
     """Launches an installed Smart TV application asynchronously."""
     if client.connected and client.mqtt_client:
         payload = json.dumps(
@@ -321,7 +313,8 @@ async def async_launch_app(client: VidaaClient, app_id: str, app_name: str, url:
                 "appUrl": url,
             }
         )
-        await client.async_publish(f"{client.topics.ui}actions/launchapp", payload)
+        return await client.async_publish(f"{client.topics.ui}actions/launchapp", payload)
+    return False
 
 
 def send_text_input(client: VidaaClient, text: str, action: str = "insert") -> None:
@@ -332,12 +325,14 @@ def send_text_input(client: VidaaClient, text: str, action: str = "insert") -> N
         client.mqtt_client.publish(f"{client.topics.platform}actions/bwsinputdata", payload)
 
 
-async def async_send_text_input(client: VidaaClient, text: str, action: str = "insert") -> None:
+async def async_send_text_input(client: VidaaClient, text: str, action: str = "insert") -> bool:
     """Sends virtual keyboard string input asynchronously."""
     if client.connected and client.mqtt_client:
         payload = json.dumps({"text": text, "action": action})
-        await client.async_publish(f"{client.topics.platform}actions/txtinputdata", payload)
-        await client.async_publish(f"{client.topics.platform}actions/bwsinputdata", payload)
+        res1 = await client.async_publish(f"{client.topics.platform}actions/txtinputdata", payload)
+        res2 = await client.async_publish(f"{client.topics.platform}actions/bwsinputdata", payload)
+        return bool(res1 or res2)
+    return False
 
 
 class TvInputActionsMixin:
@@ -347,9 +342,9 @@ class TvInputActionsMixin:
         """Publishes a raw keypress event to the TV."""
         send_key(self, key=key)  # type: ignore[arg-type]
 
-    async def async_send_key(self, key: str) -> None:
+    async def async_send_key(self, key: str) -> bool:
         """Publishes a raw keypress event to the TV asynchronously."""
-        await async_send_key(self, key=key)  # type: ignore[arg-type]
+        return await async_send_key(self, key=key)  # type: ignore[arg-type]
 
     def send_command(self, command: str) -> bool:
         """Sends a key command to the TV, automatically resolving known key aliases."""
@@ -387,22 +382,22 @@ class TvInputActionsMixin:
         """Switches the active input source on the TV."""
         change_source(self, source_id=source_id, source_name=source_name)  # type: ignore[arg-type]
 
-    async def async_change_source(self, source_id: str, source_name: str | None = None) -> None:
+    async def async_change_source(self, source_id: str, source_name: str | None = None) -> bool:
         """Switches the active input source on the TV asynchronously."""
-        await async_change_source(self, source_id=source_id, source_name=source_name)  # type: ignore[arg-type]
+        return await async_change_source(self, source_id=source_id, source_name=source_name)  # type: ignore[arg-type]
 
     def launch_app(self, app_id: str, app_name: str, url: str) -> None:
         """Launches an installed Smart TV application."""
         launch_app(self, app_id=app_id, app_name=app_name, url=url)  # type: ignore[arg-type]
 
-    async def async_launch_app(self, app_id: str, app_name: str, url: str) -> None:
+    async def async_launch_app(self, app_id: str, app_name: str, url: str) -> bool:
         """Launches an installed Smart TV application asynchronously."""
-        await async_launch_app(self, app_id=app_id, app_name=app_name, url=url)  # type: ignore[arg-type]
+        return await async_launch_app(self, app_id=app_id, app_name=app_name, url=url)  # type: ignore[arg-type]
 
     def send_text_input(self, text: str, action: str = "insert") -> None:
         """Sends virtual keyboard string input to active on-screen input/search field."""
         send_text_input(self, text=text, action=action)  # type: ignore[arg-type]
 
-    async def async_send_text_input(self, text: str, action: str = "insert") -> None:
+    async def async_send_text_input(self, text: str, action: str = "insert") -> bool:
         """Sends virtual keyboard string input asynchronously."""
-        await async_send_text_input(self, text=text, action=action)  # type: ignore[arg-type]
+        return await async_send_text_input(self, text=text, action=action)  # type: ignore[arg-type]

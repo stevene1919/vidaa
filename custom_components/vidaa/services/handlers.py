@@ -39,11 +39,20 @@ async def handle_send_key(hass: HomeAssistant, call: ServiceCall) -> dict[str, A
     target_clients = _resolve_service_targets(hass, call)
 
     for client in target_clients:
+        if getattr(client, "connected", True) is False:
+            raise HomeAssistantError(
+                f"Failed to send key {key}: TV is disconnected",
+                translation_domain=DOMAIN,
+                translation_key="send_key_failed",
+                translation_placeholders={"key": str(key), "error": "TV is disconnected"},
+            )
         for i in range(repeat):
             if i > 0 and delay > 0:
                 await asyncio.sleep(delay)
             try:
-                await client.async_send_command(key)
+                res = await client.async_send_command(key)
+                if res is False:
+                    raise ConnectionError(f"Command execution failed for {key}")
             except Exception as err:
                 raise HomeAssistantError(
                     f"Failed to send key {key}: {err}",
@@ -75,11 +84,20 @@ async def handle_send_key_sequence(hass: HomeAssistant, call: ServiceCall) -> di
         )
 
     for client in target_clients:
+        if getattr(client, "connected", True) is False:
+            raise HomeAssistantError(
+                "Failed to execute key sequence: TV is disconnected",
+                translation_domain=DOMAIN,
+                translation_key="send_key_sequence_failed",
+                translation_placeholders={"key": str(sequence[0]), "error": "TV is disconnected"},
+            )
         for i, key in enumerate(sequence):
             if i > 0 and delay > 0:
                 await asyncio.sleep(delay)
             try:
-                await client.async_send_command(key)
+                res = await client.async_send_command(key)
+                if res is False:
+                    raise ConnectionError(f"Command execution failed for {key}")
             except Exception as err:
                 raise HomeAssistantError(
                     f"Failed to execute key sequence at step {key}: {err}",
@@ -113,12 +131,21 @@ async def handle_change_channel(hass: HomeAssistant, call: ServiceCall) -> dict[
         )
 
     for client in target_clients:
+        if getattr(client, "connected", True) is False:
+            raise HomeAssistantError(
+                "Failed to change channel: TV is disconnected",
+                translation_domain=DOMAIN,
+                translation_key="change_channel_digit_failed",
+                translation_placeholders={"digit": str(digits[0]), "error": "TV is disconnected"},
+            )
         for i, digit in enumerate(digits):
             if i > 0 and delay > 0:
                 await asyncio.sleep(delay)
             key = f"KEY_{digit}"
             try:
-                await client.async_send_command(key)
+                res = await client.async_send_command(key)
+                if res is False:
+                    raise ConnectionError(f"Command execution failed for {key}")
             except Exception as err:
                 raise HomeAssistantError(
                     f"Failed to send channel digit {digit}: {err}",
@@ -131,7 +158,9 @@ async def handle_change_channel(hass: HomeAssistant, call: ServiceCall) -> dict[
             if delay > 0:
                 await asyncio.sleep(delay)
             try:
-                await client.async_send_command("KEY_OK")
+                res = await client.async_send_command("KEY_OK")
+                if res is False:
+                    raise ConnectionError("Command execution failed for KEY_OK")
             except Exception as err:
                 raise HomeAssistantError(
                     f"Failed to send channel confirm command: {err}",
@@ -180,12 +209,22 @@ async def handle_launch_app(hass: HomeAssistant, call: ServiceCall) -> dict[str,
         app_name = str(call.data.get(ATTR_APP_NAME, app_name))
         app_url = str(call.data.get(ATTR_URL, app_url))
 
+        if getattr(client, "connected", True) is False:
+            raise HomeAssistantError(
+                f"Failed to launch app {app_name}: TV is disconnected",
+                translation_domain=DOMAIN,
+                translation_key="launch_app_failed",
+                translation_placeholders={"app_name": str(app_name), "error": "TV is disconnected"},
+            )
+
         try:
-            await client.async_launch_app(
+            res = await client.async_launch_app(
                 app_id,
                 app_name,
                 app_url,
             )
+            if res is False:
+                raise ConnectionError(f"App launch command failed for {app_name}")
         except Exception as err:
             raise HomeAssistantError(
                 f"Failed to launch app {app_name}: {err}",
@@ -216,8 +255,17 @@ async def handle_set_picture_setting(hass: HomeAssistant, call: ServiceCall) -> 
     menu_val = call.data.get(ATTR_MENU_VALUE)
     target_clients = _resolve_service_targets(hass, call)
     for client in target_clients:
+        if getattr(client, "connected", True) is False:
+            raise HomeAssistantError(
+                f"Failed to set picture setting (menu_id={menu_id}): TV is disconnected",
+                translation_domain=DOMAIN,
+                translation_key="set_picture_setting_failed",
+                translation_placeholders={"menu_id": str(menu_id), "error": "TV is disconnected"},
+            )
         try:
-            await client.async_set_picture_setting(menu_id, menu_val)
+            res = await client.async_set_picture_setting(menu_id, menu_val)
+            if res is False:
+                raise ConnectionError(f"Picture setting update failed for menu_id {menu_id}")
         except Exception as err:
             raise HomeAssistantError(
                 f"Failed to set picture setting (menu_id={menu_id}): {err}",
@@ -239,8 +287,17 @@ async def handle_set_sound_setting(hass: HomeAssistant, call: ServiceCall) -> di
     menu_val = call.data.get(ATTR_MENU_VALUE)
     target_clients = _resolve_service_targets(hass, call)
     for client in target_clients:
+        if getattr(client, "connected", True) is False:
+            raise HomeAssistantError(
+                f"Failed to set sound setting (menu_id={menu_id}): TV is disconnected",
+                translation_domain=DOMAIN,
+                translation_key="set_sound_setting_failed",
+                translation_placeholders={"menu_id": str(menu_id), "error": "TV is disconnected"},
+            )
         try:
-            await client.async_set_sound_setting(menu_id, menu_val)
+            res = await client.async_set_sound_setting(menu_id, menu_val)
+            if res is False:
+                raise ConnectionError(f"Sound setting update failed for menu_id {menu_id}")
         except Exception as err:
             raise HomeAssistantError(
                 f"Failed to set sound setting (menu_id={menu_id}): {err}",
@@ -262,8 +319,17 @@ async def handle_send_text_input(hass: HomeAssistant, call: ServiceCall) -> dict
     action = call.data.get(ATTR_ACTION, "insert")
     target_clients = _resolve_service_targets(hass, call)
     for client in target_clients:
+        if getattr(client, "connected", True) is False:
+            raise HomeAssistantError(
+                "Failed to send text input: TV is disconnected",
+                translation_domain=DOMAIN,
+                translation_key="send_text_input_failed",
+                translation_placeholders={"error": "TV is disconnected"},
+            )
         try:
-            await client.async_send_text_input(text, action)
+            res = await client.async_send_text_input(text, action)
+            if res is False:
+                raise ConnectionError("Text input delivery failed")
         except Exception as err:
             raise HomeAssistantError(
                 f"Failed to send text input: {err}",

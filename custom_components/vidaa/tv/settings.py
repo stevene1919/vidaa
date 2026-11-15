@@ -332,7 +332,7 @@ async def async_get_picture_settings(client: VidaaClient) -> None:
         )
 
 
-async def async_set_picture_setting(client: VidaaClient, menu_id: int, menu_value: str | int | float) -> None:
+async def async_set_picture_setting(client: VidaaClient, menu_id: int, menu_value: str | int | float) -> bool:
     """Changes a specific picture setting value asynchronously."""
     if client.connected and client.mqtt_client:
         payload = json.dumps(
@@ -342,44 +342,54 @@ async def async_set_picture_setting(client: VidaaClient, menu_id: int, menu_valu
                 "menu_value": str(menu_value),
             }
         )
-        await client.async_publish(f"{client.topics.platform}actions/picturesetting", payload)
-        if int(menu_id) in client.picture_settings:
+        res = await client.async_publish(f"{client.topics.platform}actions/picturesetting", payload)
+        if res and int(menu_id) in client.picture_settings:
             client.picture_settings[int(menu_id)].value = menu_value
+        return res
+    return False
 
 
-async def async_set_picture_mode(client: VidaaClient, mode: str) -> None:
+async def async_set_picture_mode(client: VidaaClient, mode: str) -> bool:
     """Sets the TV picture mode preset asynchronously."""
     pm_item = find_menu_item_by_name(client.picture_settings, "Picture Mode", DEFAULT_MENU_ID_PICTURE_MODE)
     menu_id = pm_item.menu_id if pm_item else DEFAULT_MENU_ID_PICTURE_MODE
-    await client.async_set_picture_setting(menu_id, mode)
-    client.picture_mode = mode
+    res = await client.async_set_picture_setting(menu_id, mode)
+    if res:
+        client.picture_mode = mode
+    return res
 
 
-async def async_set_backlight(client: VidaaClient, level: int) -> None:
+async def async_set_backlight(client: VidaaClient, level: int) -> bool:
     """Sets the TV backlight level (0–100) asynchronously."""
     bl_item = find_menu_item_by_name(client.picture_settings, "Backlight", DEFAULT_MENU_ID_BACKLIGHT)
     menu_id = bl_item.menu_id if bl_item else DEFAULT_MENU_ID_BACKLIGHT
     clamped = max(0, min(100, int(level)))
-    await client.async_set_picture_setting(menu_id, clamped)
-    client.backlight = clamped
+    res = await client.async_set_picture_setting(menu_id, clamped)
+    if res:
+        client.backlight = clamped
+    return res
 
 
-async def async_set_brightness(client: VidaaClient, level: int) -> None:
+async def async_set_brightness(client: VidaaClient, level: int) -> bool:
     """Sets the TV brightness level (0–100) asynchronously."""
     br_item = find_menu_item_by_name(client.picture_settings, "Brightness", DEFAULT_MENU_ID_BRIGHTNESS)
     menu_id = br_item.menu_id if br_item else DEFAULT_MENU_ID_BRIGHTNESS
     clamped = max(0, min(100, int(level)))
-    await client.async_set_picture_setting(menu_id, clamped)
-    client.brightness = clamped
+    res = await client.async_set_picture_setting(menu_id, clamped)
+    if res:
+        client.brightness = clamped
+    return res
 
 
-async def async_set_contrast(client: VidaaClient, level: int) -> None:
+async def async_set_contrast(client: VidaaClient, level: int) -> bool:
     """Sets the TV contrast level (0–100) asynchronously."""
     ct_item = find_menu_item_by_name(client.picture_settings, "Contrast", DEFAULT_MENU_ID_CONTRAST)
     menu_id = ct_item.menu_id if ct_item else DEFAULT_MENU_ID_CONTRAST
     clamped = max(0, min(100, int(level)))
-    await client.async_set_picture_setting(menu_id, clamped)
-    client.contrast = clamped
+    res = await client.async_set_picture_setting(menu_id, clamped)
+    if res:
+        client.contrast = clamped
+    return res
 
 
 async def async_get_sound_settings(client: VidaaClient) -> None:
@@ -391,7 +401,7 @@ async def async_get_sound_settings(client: VidaaClient) -> None:
         )
 
 
-async def async_set_sound_setting(client: VidaaClient, menu_id: int, menu_value: str | int | float) -> None:
+async def async_set_sound_setting(client: VidaaClient, menu_id: int, menu_value: str | int | float) -> bool:
     """Changes a specific sound setting value asynchronously."""
     if client.connected and client.mqtt_client:
         payload = json.dumps(
@@ -401,14 +411,18 @@ async def async_set_sound_setting(client: VidaaClient, menu_id: int, menu_value:
                 "menu_value": str(menu_value),
             }
         )
-        await client.async_publish(f"{client.topics.platform}actions/soundsetting", payload)
-        if int(menu_id) in client.sound_settings:
+        res = await client.async_publish(f"{client.topics.platform}actions/soundsetting", payload)
+        if res and int(menu_id) in client.sound_settings:
             client.sound_settings[int(menu_id)].value = menu_value
+        return res
+    return False
 
 
-async def async_set_sound_mode(client: VidaaClient, mode: str) -> None:
+async def async_set_sound_mode(client: VidaaClient, mode: str) -> bool:
     """Sets the TV sound mode preset asynchronously."""
     sm_item = find_menu_item_by_name(client.sound_settings, "Sound Mode", DEFAULT_MENU_ID_SOUND_MODE)
     menu_id = sm_item.menu_id if sm_item else DEFAULT_MENU_ID_SOUND_MODE
-    await client.async_set_sound_setting(menu_id, mode)
-    client.sound_mode = mode
+    res = await client.async_set_sound_setting(menu_id, mode)
+    if res:
+        client.sound_mode = mode
+    return res

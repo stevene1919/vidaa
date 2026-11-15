@@ -5,16 +5,16 @@ from __future__ import annotations
 import asyncio
 from unittest.mock import MagicMock
 
-from custom_components.vidaa.client import HisenseTvClient
+from custom_components.vidaa.client import VidaaClient
 from custom_components.vidaa.protocol.dispatcher import (
     dispatch_incoming_mqtt_message,
     mask_sensitive_payload,
 )
 
 
-def _create_test_client() -> HisenseTvClient:
+def _create_test_client() -> VidaaClient:
     """Create a client with initialized topics for dispatcher testing."""
-    client = HisenseTvClient(ip="192.168.50.12", client_id="hisenseservice", auth_profile="legacy")
+    client = VidaaClient(ip="192.168.50.12", client_id="hisenseservice", auth_profile="legacy")
     client.update_topic_paths()
     return client
 
@@ -43,9 +43,7 @@ def test_dispatcher_auth_challenge_resolves_pin_future() -> None:
     loop = asyncio.new_event_loop()
     try:
         client._auth_future = loop.create_future()
-        dispatch_incoming_mqtt_message(
-            client, f"{client.topics.mobile}ui_service/data/authentication", ""
-        )
+        dispatch_incoming_mqtt_message(client, f"{client.topics.mobile}ui_service/data/authentication", "")
         assert client._auth_future.done()
         assert client._auth_future.result() == ""
     finally:
@@ -75,9 +73,7 @@ def test_dispatcher_ignores_topic_with_foreign_client_id() -> None:
     loop = asyncio.new_event_loop()
     try:
         client._auth_future = loop.create_future()
-        dispatch_incoming_mqtt_message(
-            client, "/remoteapp/mobile/someone_else/ui_service/data/authentication", ""
-        )
+        dispatch_incoming_mqtt_message(client, "/remoteapp/mobile/someone_else/ui_service/data/authentication", "")
         assert not client._auth_future.done()
     finally:
         loop.close()
@@ -89,18 +85,12 @@ def test_dispatcher_device_info_requires_exact_topic() -> None:
     client._dispatch_device_info_update = MagicMock()
 
     # Foreign basepath: an endswith match would wrongly sweep this in
-    dispatch_incoming_mqtt_message(
-        client, "/remoteapp/mobile/someone_else/platform_service/data/getdeviceinfo", "{}"
-    )
-    dispatch_incoming_mqtt_message(
-        client, "/remoteapp/mobile/someone_else/platform_service/data/gettvinfo", "{}"
-    )
+    dispatch_incoming_mqtt_message(client, "/remoteapp/mobile/someone_else/platform_service/data/getdeviceinfo", "{}")
+    dispatch_incoming_mqtt_message(client, "/remoteapp/mobile/someone_else/platform_service/data/gettvinfo", "{}")
     assert not client._dispatch_device_info_update.called
 
     # Exact topic for this client routes correctly
-    dispatch_incoming_mqtt_message(
-        client, f"{client.topics.mobile}platform_service/data/getdeviceinfo", "{}"
-    )
+    dispatch_incoming_mqtt_message(client, f"{client.topics.mobile}platform_service/data/getdeviceinfo", "{}")
     assert client._dispatch_device_info_update.called
 
 
@@ -116,6 +106,7 @@ def test_mask_sensitive_payload_tokens() -> None:
     )
     masked = mask_sensitive_payload(raw_payload, "/remoteapp/mobile/test/platform_service/data/tokenissuance")
     import json
+
     parsed = json.loads(masked)
     assert parsed["accesstoken"] == "***"
     assert parsed["refreshtoken"] == "***"
@@ -156,6 +147,7 @@ def test_mask_sensitive_payload_preserves_non_sensitive_data() -> None:
 def test_dispatcher_masks_token_payload_in_debug_logs(caplog) -> None:
     """Verify that dispatching incoming token messages masks tokens in debug logs."""
     import logging
+
     client = _create_test_client()
     raw_payload = (
         '{"accesstoken": "LEAK_SECRET_ACCESS_TOKEN", '
@@ -226,5 +218,3 @@ def test_auth_token_message_masks_tokens_in_debug_logs(caplog) -> None:
     assert "AUTH_REFRESH_SECRET_ACCESS" not in log_output
     assert "AUTH_REFRESH_SECRET_REFRESH" not in log_output
     assert "***" in log_output
-
-

@@ -1,4 +1,4 @@
-"""Media player platform for Hisense VIDAA TV integration."""
+"""Media player platform for VIDAA Smart TV integration."""
 
 from __future__ import annotations
 
@@ -109,9 +109,7 @@ class VidaaMediaPlayer(
                 from ..triggers.turn_on import async_get_turn_on_trigger
 
                 self.async_on_remove(
-                    runtime_data.turn_on.async_register(
-                        self.hass, async_get_turn_on_trigger(entry.device_id)
-                    )
+                    runtime_data.turn_on.async_register(self.hass, async_get_turn_on_trigger(entry.device_id))
                 )
 
     async def async_will_remove_from_hass(self) -> None:
@@ -142,9 +140,7 @@ class VidaaMediaPlayer(
     @property
     def assumed_state(self) -> bool:
         """Return True when TV is on so frontend displays playback and channel controls."""
-        enable_controls = self._options.get(
-            CONF_ENABLE_MEDIA_CONTROLS, DEFAULT_ENABLE_MEDIA_CONTROLS
-        )
+        enable_controls = self._options.get(CONF_ENABLE_MEDIA_CONTROLS, DEFAULT_ENABLE_MEDIA_CONTROLS)
         return bool(enable_controls and self._client and self._client.is_on)
 
     @property
@@ -308,9 +304,7 @@ class VidaaMediaPlayer(
     def source_list(self) -> list[str]:
         """Return list of available input sources and apps."""
         enable_cec = self._options.get(CONF_ENABLE_CEC_NAMES, DEFAULT_ENABLE_CEC_NAMES)
-        include_apps = self._options.get(
-            CONF_INCLUDE_APPS_IN_SOURCES, DEFAULT_INCLUDE_APPS_IN_SOURCES
-        )
+        include_apps = self._options.get(CONF_INCLUDE_APPS_IN_SOURCES, DEFAULT_INCLUDE_APPS_IN_SOURCES)
         configured_sources = self._options.get(CONF_SOURCES)
         return build_media_player_source_list(
             source_dict=self._source_dict,
@@ -376,9 +370,7 @@ class VidaaMediaPlayer(
         )
         if self.sound_mode_list:
             base |= MediaPlayerEntityFeature.SELECT_SOUND_MODE
-        enable_controls = self._options.get(
-            CONF_ENABLE_MEDIA_CONTROLS, DEFAULT_ENABLE_MEDIA_CONTROLS
-        )
+        enable_controls = self._options.get(CONF_ENABLE_MEDIA_CONTROLS, DEFAULT_ENABLE_MEDIA_CONTROLS)
         if enable_controls:
             base |= (
                 MediaPlayerEntityFeature.PLAY

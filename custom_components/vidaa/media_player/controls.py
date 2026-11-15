@@ -1,4 +1,4 @@
-"""Control actions mixin for Hisense VIDAA media player platform."""
+"""Control actions mixin for VIDAA media player platform."""
 
 from __future__ import annotations
 
@@ -16,15 +16,15 @@ from ..const import (
 from ..tv.media import async_execute_play_media, async_execute_select_source
 
 if TYPE_CHECKING:
-    from . import HisenseVidaaMediaPlayer
+    from . import VidaaMediaPlayer
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class MediaPlayerControlsMixin:
-    """Control and command mixin for HisenseVidaaMediaPlayer."""
+    """Control and command mixin for VidaaMediaPlayer."""
 
-    async def async_turn_on(self: HisenseVidaaMediaPlayer) -> None:
+    async def async_turn_on(self: VidaaMediaPlayer) -> None:
         """Turn on or wake the TV."""
         runtime_data = getattr(self._entry, "runtime_data", None)
         if runtime_data and getattr(runtime_data, "turn_on", None):
@@ -43,24 +43,24 @@ class MediaPlayerControlsMixin:
         await self._client.async_turn_on(mac_targets if mac_targets else None)
         self.async_write_ha_state()
 
-    async def async_turn_off(self: HisenseVidaaMediaPlayer) -> None:
+    async def async_turn_off(self: VidaaMediaPlayer) -> None:
         """Turn off the TV."""
         await self._client.async_turn_off()
         self.async_write_ha_state()
 
-    async def async_set_volume_level(self: HisenseVidaaMediaPlayer, volume: float) -> None:
+    async def async_set_volume_level(self: VidaaMediaPlayer, volume: float) -> None:
         """Set volume level (0.0 to 1.0)."""
         await self._client.async_set_volume(int(volume * 100))
 
-    async def async_volume_up(self: HisenseVidaaMediaPlayer) -> None:
+    async def async_volume_up(self: VidaaMediaPlayer) -> None:
         """Step volume up."""
         await self._client.async_send_key("KEY_VOLUMEUP")
 
-    async def async_volume_down(self: HisenseVidaaMediaPlayer) -> None:
+    async def async_volume_down(self: VidaaMediaPlayer) -> None:
         """Step volume down."""
         await self._client.async_send_key("KEY_VOLUMEDOWN")
 
-    async def async_mute_volume(self: HisenseVidaaMediaPlayer, mute: bool) -> None:
+    async def async_mute_volume(self: VidaaMediaPlayer, mute: bool) -> None:
         """Mute or unmute volume idempotently."""
         # KEY_MUTE is a toggle: only send it when the requested state differs from
         # the state tracked from TV broadcasts, so idempotent automations don't flip
@@ -69,35 +69,33 @@ class MediaPlayerControlsMixin:
             return
         await self._client.async_send_key("KEY_MUTE")
 
-    async def async_media_play(self: HisenseVidaaMediaPlayer) -> None:
+    async def async_media_play(self: VidaaMediaPlayer) -> None:
         """Send play command."""
         await self._client.async_send_key("KEY_PLAY")
 
-    async def async_media_pause(self: HisenseVidaaMediaPlayer) -> None:
+    async def async_media_pause(self: VidaaMediaPlayer) -> None:
         """Send pause command."""
         await self._client.async_send_key("KEY_PAUSE")
 
-    async def async_media_stop(self: HisenseVidaaMediaPlayer) -> None:
+    async def async_media_stop(self: VidaaMediaPlayer) -> None:
         """Send stop command."""
         await self._client.async_send_key("KEY_STOP")
 
-    async def async_media_next_track(self: HisenseVidaaMediaPlayer) -> None:
+    async def async_media_next_track(self: VidaaMediaPlayer) -> None:
         """Send next track command: Channel Up on Live TV, fast-forward/skip in media apps."""
         if hasattr(self, "is_live_tv") and self.is_live_tv():
             await self._client.async_send_key("KEY_CHANNELUP")
         else:
             await self._client.async_send_key("KEY_FORWARDS")
 
-    async def async_media_previous_track(self: HisenseVidaaMediaPlayer) -> None:
+    async def async_media_previous_track(self: VidaaMediaPlayer) -> None:
         """Send previous track command: Channel Down on Live TV, rewind/skip in media apps."""
         if hasattr(self, "is_live_tv") and self.is_live_tv():
             await self._client.async_send_key("KEY_CHANNELDOWN")
         else:
             await self._client.async_send_key("KEY_BACK")
 
-    async def async_play_media(
-        self: HisenseVidaaMediaPlayer, media_type: str, media_id: str, **kwargs: Any
-    ) -> None:
+    async def async_play_media(self: VidaaMediaPlayer, media_type: str, media_id: str, **kwargs: Any) -> None:
         """Launch an app, tune to channel, open URL/deep-link, or execute key command."""
         if self.state == STATE_OFF:
             _LOGGER.debug(
@@ -109,11 +107,9 @@ class MediaPlayerControlsMixin:
             await self.async_turn_on()
             await asyncio.sleep(0.5)
 
-        await async_execute_play_media(
-            self._client, self._app_dict, media_type, media_id
-        )
+        await async_execute_play_media(self._client, self._app_dict, media_type, media_id)
 
-    async def async_select_source(self: HisenseVidaaMediaPlayer, source: str) -> None:
+    async def async_select_source(self: VidaaMediaPlayer, source: str) -> None:
         """Select input source or smart application."""
         if self.state == STATE_OFF:
             _LOGGER.debug(
@@ -124,11 +120,9 @@ class MediaPlayerControlsMixin:
             await self.async_turn_on()
             await asyncio.sleep(0.5)
 
-        await async_execute_select_source(
-            self._client, self._source_dict, self._app_dict, source
-        )
+        await async_execute_select_source(self._client, self._source_dict, self._app_dict, source)
 
-    async def async_select_sound_mode(self: HisenseVidaaMediaPlayer, sound_mode: str) -> None:
+    async def async_select_sound_mode(self: VidaaMediaPlayer, sound_mode: str) -> None:
         """Select sound mode."""
         await self._client.async_set_sound_mode(sound_mode)
         self.async_write_ha_state()

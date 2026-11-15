@@ -1,16 +1,16 @@
-"""Unit tests for HisenseTvClient authentication algorithms and profile probing."""
+"""Unit tests for VidaaClient authentication algorithms and profile probing."""
 
 import asyncio
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from custom_components.vidaa.client import HisenseTvClient
+from custom_components.vidaa.client import VidaaClient
 
 
 def test_legacy_static_auth():
     """Test legacy static authentication profile initializes static credentials without PIN."""
-    client = HisenseTvClient(ip="192.168.50.12", auth_profile="legacy")
+    client = VidaaClient(ip="192.168.50.12", auth_profile="legacy")
 
     # Run async start auth for legacy
     asyncio.run(client.async_start_auth())
@@ -26,7 +26,7 @@ def test_legacy_static_auth():
 
 def test_probe_auth_methods():
     """Test probing various auth algorithms returns structured capability dict."""
-    client = HisenseTvClient(ip="192.168.50.12")
+    client = VidaaClient(ip="192.168.50.12")
 
     fake_results = {
         "legacy_static": {"rc": 0, "supported": True},
@@ -49,7 +49,7 @@ def test_probe_auth_methods():
 @pytest.mark.anyio
 async def test_async_start_auth_auto_fallback_on_rc5():
     """Test auto profile fallback from modern to middle when modern gets rc 5 rejection."""
-    client = HisenseTvClient(ip="192.168.50.12", auth_profile="auto")
+    client = VidaaClient(ip="192.168.50.12", auth_profile="auto")
 
     calls = []
 
@@ -61,8 +61,10 @@ async def test_async_start_auth_auto_fallback_on_rc5():
             return
         raise Exception(f"Unexpected profile {profile}")
 
-    with patch.object(client, "get_device_fingerprint", return_value={}), \
-         patch.object(client, "_async_start_auth_internal", side_effect=mock_internal):
+    with (
+        patch.object(client, "get_device_fingerprint", return_value={}),
+        patch.object(client, "_async_start_auth_internal", side_effect=mock_internal),
+    ):
         await client.async_start_auth()
 
     assert calls == ["modern", "middle"]
@@ -72,7 +74,7 @@ async def test_async_start_auth_auto_fallback_on_rc5():
 @pytest.mark.anyio
 async def test_async_start_auth_full_cascade_to_legacy():
     """Test auto profile cascades all dynamic profiles (modern, middle, remotenow) when all fail."""
-    client = HisenseTvClient(ip="192.168.50.12", auth_profile="auto")
+    client = VidaaClient(ip="192.168.50.12", auth_profile="auto")
 
     calls = []
 
@@ -80,8 +82,10 @@ async def test_async_start_auth_full_cascade_to_legacy():
         calls.append(profile)
         raise Exception("MQTT connection rejected with code 5")
 
-    with patch.object(client, "get_device_fingerprint", return_value={}), \
-         patch.object(client, "_async_start_auth_internal", side_effect=mock_internal):
+    with (
+        patch.object(client, "get_device_fingerprint", return_value={}),
+        patch.object(client, "_async_start_auth_internal", side_effect=mock_internal),
+    ):
         with pytest.raises(Exception, match="rejected with code 5"):
             await client.async_start_auth()
         assert calls[:3] == ["modern", "middle", "remotenow"]
@@ -163,4 +167,3 @@ async def test_async_probe_tv_auth_methods_toptro_rejection_diagnostics():
     # Verify brand prefix and timestamp on probed credentials
     usernames = [call_kw.get("username") for call_kw in probed_creds]
     assert any(u and u.startswith("tpo$") for u in usernames)
-

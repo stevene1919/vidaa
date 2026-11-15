@@ -1,4 +1,4 @@
-"""Helper functions and schema definitions for Hisense VIDAA config flow."""
+"""Helper functions and schema definitions for VIDAA config flow."""
 
 from __future__ import annotations
 
@@ -54,27 +54,27 @@ from ..protocol import normalize_brand_code, resolve_certificates
 from ..tv.fingerprint import get_arp_mac
 
 if TYPE_CHECKING:
-    from ..client import HisenseTvClient
+    from ..client import VidaaClient
 
 _LOGGER = logging.getLogger(__name__)
 
 
 def build_options_schema(picture_supported: bool, sound_supported: bool) -> vol.Schema:
     """Build the configuration options schema for initial setup and options flow."""
-    return vol.Schema({
-        vol.Optional(CONF_ENABLE_REMOTE, default=DEFAULT_ENABLE_REMOTE): bool,
-        vol.Optional(CONF_ENABLE_WOL, default=DEFAULT_ENABLE_WOL): bool,
-        vol.Optional(CONF_INCLUDE_APPS_IN_SOURCES, default=DEFAULT_INCLUDE_APPS_IN_SOURCES): bool,
-        vol.Optional(CONF_ENABLE_MEDIA_CONTROLS, default=DEFAULT_ENABLE_MEDIA_CONTROLS): bool,
-        vol.Optional(CONF_ENABLE_PICTURE_CONTROLS, default=picture_supported): bool,
-        vol.Optional(CONF_ENABLE_SOUND_CONTROLS, default=sound_supported): bool,
-        vol.Optional(CONF_ENABLE_AUDIO_ONLY, default=DEFAULT_ENABLE_AUDIO_ONLY): bool,
-    })
+    return vol.Schema(
+        {
+            vol.Optional(CONF_ENABLE_REMOTE, default=DEFAULT_ENABLE_REMOTE): bool,
+            vol.Optional(CONF_ENABLE_WOL, default=DEFAULT_ENABLE_WOL): bool,
+            vol.Optional(CONF_INCLUDE_APPS_IN_SOURCES, default=DEFAULT_INCLUDE_APPS_IN_SOURCES): bool,
+            vol.Optional(CONF_ENABLE_MEDIA_CONTROLS, default=DEFAULT_ENABLE_MEDIA_CONTROLS): bool,
+            vol.Optional(CONF_ENABLE_PICTURE_CONTROLS, default=picture_supported): bool,
+            vol.Optional(CONF_ENABLE_SOUND_CONTROLS, default=sound_supported): bool,
+            vol.Optional(CONF_ENABLE_AUDIO_ONLY, default=DEFAULT_ENABLE_AUDIO_ONLY): bool,
+        }
+    )
 
 
-def build_entry_options(
-    user_input: dict[str, Any], picture_supported: bool, sound_supported: bool
-) -> dict[str, Any]:
+def build_entry_options(user_input: dict[str, Any], picture_supported: bool, sound_supported: bool) -> dict[str, Any]:
     """Map user input to config entry options dictionary."""
     return {
         CONF_ENABLE_REMOTE: user_input.get(CONF_ENABLE_REMOTE, DEFAULT_ENABLE_REMOTE),
@@ -105,7 +105,7 @@ def resolve_ssl_certs(
 
 
 async def async_discover_device_details(
-    hass: HomeAssistant, client: HisenseTvClient | None, default_ip: str | None
+    hass: HomeAssistant, client: VidaaClient | None, default_ip: str | None
 ) -> dict[str, str | None]:
     """Discovers friendly device name, model, manufacturer, and sw_version from UPnP/DLNA."""
     brand_initial = getattr(client, "brand", None) if client else None
@@ -124,11 +124,7 @@ async def async_discover_device_details(
     try:
         fp = await client.async_get_device_fingerprint(1.5)
         discovered_name = fp.get("friendly_name") or fp.get("model_code")
-        if (
-            discovered_name
-            and discovered_name.strip()
-            and discovered_name.strip() != "Renderer"
-        ):
+        if discovered_name and discovered_name.strip() and discovered_name.strip() != "Renderer":
             details["title"] = discovered_name.strip()
         candidate_model = (
             fp.get("model_code")
@@ -153,11 +149,7 @@ async def async_discover_device_details(
             details["brand"] = normalize_brand_code(fp.get("brand") or fp.get("manufacturer"))
         if fp.get("firmware_version"):
             details["sw_version"] = fp.get("firmware_version")
-        if (
-            not discovered_name
-            or not discovered_name.strip()
-            or discovered_name.strip() == "Renderer"
-        ):
+        if not discovered_name or not discovered_name.strip() or discovered_name.strip() == "Renderer":
             brand_code = details["brand"] or getattr(client, "brand", None) or DEFAULT_BRAND
             brand_display = BRAND_MAP.get(brand_code, "Hisense")
             details["title"] = f"{brand_display} TV ({default_ip})" if default_ip else f"{brand_display} TV"
@@ -168,7 +160,7 @@ async def async_discover_device_details(
 
 
 async def async_probe_device_capabilities(
-    hass: HomeAssistant, client: HisenseTvClient | None, ip_address: str | None
+    hass: HomeAssistant, client: VidaaClient | None, ip_address: str | None
 ) -> None:
     """Probe TV capabilities (picture/sound menus) to set intelligent default options."""
     if not client or not client.connected:
@@ -203,8 +195,7 @@ async def async_disconnect_existing_client(
         runtime_data = getattr(entry, "runtime_data", None)
         client = getattr(runtime_data, "client", runtime_data) if runtime_data else None
         if client and (
-            getattr(client, "ip", None) == ip_address
-            or (mac_address and getattr(client, "mac", None) == mac_address)
+            getattr(client, "ip", None) == ip_address or (mac_address and getattr(client, "mac", None) == mac_address)
         ):
             _LOGGER.debug("Disconnecting existing running client for %s during pairing flow", ip_address)
             with contextlib.suppress(Exception):
@@ -242,7 +233,7 @@ def collect_client_auth_data(
     auth_profile: str,
     use_ssl: bool,
     mac_address: str | None = None,
-    client: HisenseTvClient | None = None,
+    client: VidaaClient | None = None,
     certfile: str | None = None,
     keyfile: str | None = None,
     model: str | None = None,
@@ -260,17 +251,19 @@ def collect_client_auth_data(
     if mac_address:
         data[CONF_MAC_ADDRESS] = mac_address
     if client:
-        data.update({
-            CONF_CLIENT_ID: client.client_id,
-            CONF_USERNAME: client.username,
-            CONF_PASSWORD: client.password,
-            CONF_ACCESS_TOKEN: client.access_token,
-            CONF_ACCESS_TOKEN_TIME: client.access_token_time,
-            CONF_ACCESS_TOKEN_DURATION: client.access_token_duration,
-            CONF_REFRESH_TOKEN: client.refresh_token,
-            CONF_REFRESH_TOKEN_TIME: client.refresh_token_time,
-            CONF_REFRESH_TOKEN_DURATION: client.refresh_token_duration,
-        })
+        data.update(
+            {
+                CONF_CLIENT_ID: client.client_id,
+                CONF_USERNAME: client.username,
+                CONF_PASSWORD: client.password,
+                CONF_ACCESS_TOKEN: client.access_token,
+                CONF_ACCESS_TOKEN_TIME: client.access_token_time,
+                CONF_ACCESS_TOKEN_DURATION: client.access_token_duration,
+                CONF_REFRESH_TOKEN: client.refresh_token,
+                CONF_REFRESH_TOKEN_TIME: client.refresh_token_time,
+                CONF_REFRESH_TOKEN_DURATION: client.refresh_token_duration,
+            }
+        )
     if certfile:
         data[CONF_CERTFILE] = certfile
     if keyfile:
@@ -281,7 +274,11 @@ def collect_client_auth_data(
         data[CONF_MANUFACTURER] = manufacturer
     if sw_version:
         data[CONF_SW_VERSION] = sw_version
-    resolved_brand = (brand if brand and brand != "auto" else None) or (client.brand if client and client.brand != "auto" else None) or DEFAULT_BRAND
+    resolved_brand = (
+        (brand if brand and brand != "auto" else None)
+        or (client.brand if client and client.brand != "auto" else None)
+        or DEFAULT_BRAND
+    )
     data[CONF_BRAND] = resolved_brand
     data["brand_profile"] = brand_profile or (brand if brand == "auto" else resolved_brand)
     return data

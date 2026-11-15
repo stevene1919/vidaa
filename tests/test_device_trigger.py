@@ -9,7 +9,7 @@ from homeassistant.const import ATTR_DEVICE_ID, ATTR_ENTITY_ID, CONF_DEVICE_ID, 
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.trigger import PluggableAction, TriggerConfig
 
-from custom_components.vidaa import HisenseVidaaData
+from custom_components.vidaa import VidaaData
 from custom_components.vidaa.const import DOMAIN
 from custom_components.vidaa.device_trigger import (
     async_attach_trigger,
@@ -20,7 +20,7 @@ from custom_components.vidaa.helpers import (
     async_get_device_entry_by_device_id,
     async_get_device_id_from_entity_id,
 )
-from custom_components.vidaa.media_player import HisenseVidaaMediaPlayer
+from custom_components.vidaa.media_player import VidaaMediaPlayer
 from custom_components.vidaa.trigger import async_get_triggers as async_get_integration_triggers
 from custom_components.vidaa.triggers.turn_on import (
     PLATFORM_TYPE,
@@ -63,9 +63,7 @@ def test_turn_on_trigger_structure():
 
 def test_turn_on_description(mock_hass, mock_device_entry):
     """Test turn on trigger description helper."""
-    with patch(
-        "custom_components.vidaa.helpers.dr.async_get"
-    ) as mock_dr_get:
+    with patch("custom_components.vidaa.helpers.dr.async_get") as mock_dr_get:
         dev_reg = MagicMock()
         dev_reg.async_get.return_value = mock_device_entry
         mock_dr_get.return_value = dev_reg
@@ -76,9 +74,7 @@ def test_turn_on_description(mock_hass, mock_device_entry):
 
 def test_helpers_get_device_entry_invalid(mock_hass):
     """Test error raised when device entry not found."""
-    with patch(
-        "custom_components.vidaa.helpers.dr.async_get"
-    ) as mock_dr_get:
+    with patch("custom_components.vidaa.helpers.dr.async_get") as mock_dr_get:
         dev_reg = MagicMock()
         dev_reg.async_get.return_value = None
         mock_dr_get.return_value = dev_reg
@@ -89,9 +85,7 @@ def test_helpers_get_device_entry_invalid(mock_hass):
 
 def test_helpers_get_device_id_from_entity_id(mock_hass):
     """Test extracting device ID from entity registry entry."""
-    with patch(
-        "custom_components.vidaa.helpers.er.async_get"
-    ) as mock_er_get:
+    with patch("custom_components.vidaa.helpers.er.async_get") as mock_er_get:
         ent_reg = MagicMock()
         mock_entity = MagicMock()
         mock_entity.device_id = "device_xyz"
@@ -141,9 +135,7 @@ async def test_validate_trigger_config(mock_hass, mock_device_entry):
 
     mock_hass.config_entries.async_get_entry.return_value = mock_entry
 
-    with patch(
-        "custom_components.vidaa.helpers.dr.async_get"
-    ) as mock_dr_get:
+    with patch("custom_components.vidaa.helpers.dr.async_get") as mock_dr_get:
         dev_reg = MagicMock()
         dev_reg.async_get.return_value = mock_device_entry
         mock_dr_get.return_value = dev_reg
@@ -168,9 +160,7 @@ async def test_validate_trigger_config_not_loaded(mock_hass, mock_device_entry):
 
     mock_hass.config_entries.async_get_entry.return_value = mock_entry
 
-    with patch(
-        "custom_components.vidaa.helpers.dr.async_get"
-    ) as mock_dr_get:
+    with patch("custom_components.vidaa.helpers.dr.async_get") as mock_dr_get:
         dev_reg = MagicMock()
         dev_reg.async_get.return_value = mock_device_entry
         mock_dr_get.return_value = dev_reg
@@ -194,9 +184,7 @@ async def test_attach_trigger_and_pluggable_action(mock_hass, mock_device_entry)
         CONF_TYPE: PLATFORM_TYPE,
     }
 
-    with patch(
-        "custom_components.vidaa.helpers.dr.async_get"
-    ) as mock_dr_get:
+    with patch("custom_components.vidaa.helpers.dr.async_get") as mock_dr_get:
         dev_reg = MagicMock()
         dev_reg.async_get.return_value = mock_device_entry
         mock_dr_get.return_value = dev_reg
@@ -209,9 +197,7 @@ async def test_attach_trigger_and_pluggable_action(mock_hass, mock_device_entry)
         )
 
         pluggable = PluggableAction()
-        pluggable.async_register(
-            mock_hass, async_get_turn_on_trigger("test_device_123")
-        )
+        pluggable.async_register(mock_hass, async_get_turn_on_trigger("test_device_123"))
 
         assert bool(pluggable) is True
 
@@ -239,9 +225,7 @@ async def test_turn_on_trigger_class(mock_hass, mock_device_entry):
     )
     trigger = TurnOnTrigger(mock_hass, config)
 
-    with patch(
-        "custom_components.vidaa.helpers.dr.async_get"
-    ) as mock_dr_get:
+    with patch("custom_components.vidaa.helpers.dr.async_get") as mock_dr_get:
         dev_reg = MagicMock()
         dev_reg.async_get.return_value = mock_device_entry
         mock_dr_get.return_value = dev_reg
@@ -249,9 +233,7 @@ async def test_turn_on_trigger_class(mock_hass, mock_device_entry):
         unsub = await trigger.async_attach_runner(mock_runner)
 
         pluggable = PluggableAction()
-        pluggable.async_register(
-            mock_hass, async_get_turn_on_trigger("test_device_123")
-        )
+        pluggable.async_register(mock_hass, async_get_turn_on_trigger("test_device_123"))
         assert bool(pluggable) is True
 
         await pluggable.async_run(mock_hass)
@@ -274,14 +256,14 @@ async def test_media_player_turn_on_with_pluggable_action(mock_hass):
     mock_entry.options = {}
 
     pluggable = PluggableAction()
-    mock_entry.runtime_data = HisenseVidaaData(
+    mock_entry.runtime_data = VidaaData(
         client=mock_client,
         platforms=["media_player"],
         options={},
         turn_on=pluggable,
     )
 
-    player = HisenseVidaaMediaPlayer(mock_client, mock_entry)
+    player = VidaaMediaPlayer(mock_client, mock_entry)
     player.hass = mock_hass
 
     # 1. No action attached: fallback to client.async_turn_on
@@ -420,4 +402,3 @@ async def test_turn_on_trigger_with_entity_id(mock_hass, mock_device_entry):
 
         unsub()
         assert bool(pluggable) is False
-

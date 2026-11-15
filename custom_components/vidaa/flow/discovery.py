@@ -1,4 +1,4 @@
-"""Auto-discovery flow mixin for Hisense VIDAA TV (SSDP & Zeroconf)."""
+"""Auto-discovery flow mixin for VIDAA Smart TV (SSDP & Zeroconf)."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from ..protocol import DiscoveredTvInfo, parse_ssdp_discovery, parse_zeroconf_di
 from .helpers import async_resolve_mac
 
 if TYPE_CHECKING:
-    from ..config_flow import HisenseVidaaConfigFlow
+    from ..config_flow import VidaaConfigFlow
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class DiscoveryFlowMixin:
     """Mixin for SSDP and Zeroconf device discovery steps."""
 
     async def _async_handle_discovery(
-        self: HisenseVidaaConfigFlow, parsed: DiscoveredTvInfo | None
+        self: VidaaConfigFlow, parsed: DiscoveredTvInfo | None
     ) -> config_entries.ConfigFlowResult:
         """Handle common SSDP and Zeroconf device resolution and flow routing."""
         if not parsed or not parsed.host:
@@ -42,9 +42,7 @@ class DiscoveryFlowMixin:
         unique_id = self.mac_address or parsed.unique_id
         if unique_id:
             await self.async_set_unique_id(unique_id)
-            self._abort_if_unique_id_configured(
-                updates={CONF_IP_ADDRESS: self.ip_address}
-            )
+            self._abort_if_unique_id_configured(updates={CONF_IP_ADDRESS: self.ip_address})
 
         if hasattr(self, "_async_current_entries"):
             for existing in self._async_current_entries():
@@ -54,25 +52,21 @@ class DiscoveryFlowMixin:
         return await self.async_step_discovery_confirm()
 
     async def async_step_ssdp(
-        self: HisenseVidaaConfigFlow, discovery_info: SsdpServiceInfo
+        self: VidaaConfigFlow, discovery_info: SsdpServiceInfo
     ) -> config_entries.ConfigFlowResult:
         """Handle SSDP discovery."""
-        parsed = await self.hass.async_add_executor_job(
-            parse_ssdp_discovery, discovery_info
-        )
+        parsed = await self.hass.async_add_executor_job(parse_ssdp_discovery, discovery_info)
         return await self._async_handle_discovery(parsed)
 
     async def async_step_zeroconf(
-        self: HisenseVidaaConfigFlow, discovery_info: ZeroconfServiceInfo
+        self: VidaaConfigFlow, discovery_info: ZeroconfServiceInfo
     ) -> config_entries.ConfigFlowResult:
         """Handle Zeroconf / mDNS discovery."""
-        parsed = await self.hass.async_add_executor_job(
-            parse_zeroconf_discovery, discovery_info
-        )
+        parsed = await self.hass.async_add_executor_job(parse_zeroconf_discovery, discovery_info)
         return await self._async_handle_discovery(parsed)
 
     async def async_step_discovery_confirm(
-        self: HisenseVidaaConfigFlow, user_input: dict[str, Any] | None = None
+        self: VidaaConfigFlow, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         """Confirm discovery setup with user."""
         errors: dict[str, str] = {}

@@ -1,4 +1,4 @@
-"""Connectivity and handshake verification utilities for Hisense VIDAA TV broker."""
+"""Connectivity and handshake verification utilities for VIDAA Smart TV broker."""
 
 from __future__ import annotations
 

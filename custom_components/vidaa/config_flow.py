@@ -1,4 +1,4 @@
-"""Config flow for Hisense VIDAA TV integration."""
+"""Config flow for VIDAA Smart TV integration."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from homeassistant import config_entries
 from homeassistant.core import callback
 
-from .client import HisenseTvClient, VidaaClient
+from .client import VidaaClient
 from .const import (
     DEFAULT_AUTH_PROFILE,
     DEFAULT_BRAND,
@@ -28,7 +28,6 @@ if TYPE_CHECKING:
     from . import VidaaConfigEntry
 
 __all__ = [
-    "HisenseTvClient",
     "HisenseVidaaConfigFlow",
     "VidaaClient",
     "VidaaConfigFlow",

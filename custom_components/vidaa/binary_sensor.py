@@ -1,4 +1,4 @@
-"""Binary sensors for Hisense VIDAA TV."""
+"""Binary sensors for VIDAA Smart TV."""
 
 from __future__ import annotations
 
@@ -30,10 +30,12 @@ async def async_setup_entry(
     """Set up VIDAA binary sensors."""
     client: VidaaClient = entry.runtime_data.client
 
-    async_add_entities([
-        VidaaMqttConnectedBinarySensor(client, entry),
-        VidaaInUseBinarySensor(client, entry),
-    ])
+    async_add_entities(
+        [
+            VidaaMqttConnectedBinarySensor(client, entry),
+            VidaaInUseBinarySensor(client, entry),
+        ]
+    )
 
 
 class VidaaMqttConnectedBinarySensor(VidaaEntity, BinarySensorEntity):
@@ -121,4 +123,3 @@ class VidaaInUseBinarySensor(VidaaEntity, BinarySensorEntity):
 # Backwards-compatible aliases during migration
 HisenseVidaaMqttConnectedBinarySensor = VidaaMqttConnectedBinarySensor
 HisenseVidaaInUseBinarySensor = VidaaInUseBinarySensor
-

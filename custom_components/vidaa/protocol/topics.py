@@ -1,4 +1,4 @@
-"""MQTT topic path definitions and builders for Hisense VIDAA TV."""
+"""MQTT topic path definitions and builders for VIDAA Smart TV."""
 
 from __future__ import annotations
 

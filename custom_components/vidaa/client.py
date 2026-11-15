@@ -1,4 +1,4 @@
-"""Client for connecting to Hisense VIDAA TV MQTT broker over TLS."""
+"""Client for connecting to VIDAA Smart TV MQTT broker over TLS."""
 
 from __future__ import annotations
 
@@ -137,12 +137,16 @@ class VidaaClient(
         self.use_ssl = use_ssl
         self.verify_ssl = verify_ssl
 
-        if not use_ssl or auth_profile in ("legacy", "static") or (
-            certfile
-            and keyfile
-            and not (
-                (isinstance(certfile, str) and certfile.lower().endswith((".p12", ".pfx")))
-                or (isinstance(keyfile, str) and keyfile.lower().endswith((".p12", ".pfx")))
+        if (
+            not use_ssl
+            or auth_profile in ("legacy", "static")
+            or (
+                certfile
+                and keyfile
+                and not (
+                    (isinstance(certfile, str) and certfile.lower().endswith((".p12", ".pfx")))
+                    or (isinstance(keyfile, str) and keyfile.lower().endswith((".p12", ".pfx")))
+                )
             )
         ):
             self.certfile = certfile
@@ -222,7 +226,9 @@ class VidaaClient(
     # --------------------------------------------------------------------------
     def validate_certificates(self) -> None:
         """Validates that local client certificates exist on disk."""
-        self.certfile, self.keyfile = resolve_certificates(auth_profile=self.auth_profile, certfile=self.certfile, keyfile=self.keyfile)
+        self.certfile, self.keyfile = resolve_certificates(
+            auth_profile=self.auth_profile, certfile=self.certfile, keyfile=self.keyfile
+        )
         self.ca_cert = resolve_ca_certificate(self.ca_cert)
         if not self.certfile or not self.keyfile:
             raise FileNotFoundError(
@@ -341,9 +347,7 @@ class VidaaClient(
         """Starts the authentication handshake and triggers the TV to show PIN."""
         await async_start_pairing_handshake(self)
 
-    async def _async_start_auth_internal(
-        self, profile: str = "modern", use_new_auth: bool | None = None
-    ) -> None:
+    async def _async_start_auth_internal(self, profile: str = "modern", use_new_auth: bool | None = None) -> None:
         """Internal helper attempting a single auth handshake attempt."""
         await _async_execute_pairing_attempt(self, profile=profile, use_new_auth=use_new_auth)
 
@@ -362,5 +366,5 @@ class VidaaClient(
         return send_wake_on_lan(mac=mac, broadcast_ip=broadcast_ip, port=port, ip=ip)
 
 
-# Backwards-compatible alias during migration
+# Backwards-compatible alias for migration
 HisenseTvClient = VidaaClient

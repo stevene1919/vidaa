@@ -1,4 +1,4 @@
-"""State updates and broadcast callbacks mixin for Hisense VIDAA media player platform."""
+"""State updates and broadcast callbacks mixin for VIDAA media player platform."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from ..tv.media import (
 )
 
 if TYPE_CHECKING:
-    from . import HisenseVidaaMediaPlayer, VidaaMediaPlayer
+    from . import VidaaMediaPlayer
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,14 +30,14 @@ class MediaPlayerStateHandlerMixin:
         if getattr(self, "hass", None):
             self.schedule_update_ha_state()
 
-    def _handle_sound_update(self: HisenseVidaaMediaPlayer, data: dict[str, Any]) -> None:
+    def _handle_sound_update(self: VidaaMediaPlayer, data: dict[str, Any]) -> None:
         """Handle sound setting updates from TV."""
         self._schedule_ha_update()
 
-    def _apply_state_payload(self: HisenseVidaaMediaPlayer, parsed: dict[str, Any]) -> None:
+    def _apply_state_payload(self: VidaaMediaPlayer, parsed: dict[str, Any]) -> None:
         """Applies parsed state broadcast payload."""
         statetype = parsed["statetype"]
-        was_off = (self._state == STATE_OFF)
+        was_off = self._state == STATE_OFF
         self._state = STATE_ON if parsed["is_on"] else STATE_OFF
 
         if parsed["is_on"] and statetype not in ("fake_sleep_0", "fake_sleep_1"):
@@ -53,11 +53,7 @@ class MediaPlayerStateHandlerMixin:
             self._channel_name = None
             self._channel_num = None
 
-        if (
-            parsed["is_on"]
-            and (was_off or not self._source_dict or not self._app_dict)
-            and self.hass
-        ):
+        if parsed["is_on"] and (was_off or not self._source_dict or not self._app_dict) and self.hass:
             self.hass.async_create_background_task(
                 self._client.async_query_initial_state(),
                 "vidaa_media_player_initial_state",
@@ -91,7 +87,7 @@ class MediaPlayerStateHandlerMixin:
 
         self._debounce_handle = loop.call_later(debounce, _timed_apply)
 
-    def _handle_volume_update(self: HisenseVidaaMediaPlayer, data: dict[str, Any]) -> None:
+    def _handle_volume_update(self: VidaaMediaPlayer, data: dict[str, Any]) -> None:
         if not isinstance(data, dict):
             return
         self._volume, self._volume_type, self._muted = parse_volume_broadcast(
@@ -99,7 +95,7 @@ class MediaPlayerStateHandlerMixin:
         )
         self._schedule_ha_update()
 
-    def _handle_sourcelist_update(self: HisenseVidaaMediaPlayer, data: list[dict[str, Any]]) -> None:
+    def _handle_sourcelist_update(self: VidaaMediaPlayer, data: list[dict[str, Any]]) -> None:
         if not data:
             return
         self._source_dict = parse_sourcelist_data(data)
@@ -113,18 +109,18 @@ class MediaPlayerStateHandlerMixin:
                 self._state = STATE_ON
         self._schedule_ha_update()
 
-    def _handle_applist_update(self: HisenseVidaaMediaPlayer, data: list[dict[str, Any]]) -> None:
+    def _handle_applist_update(self: VidaaMediaPlayer, data: list[dict[str, Any]]) -> None:
         if not data:
             return
         self._app_list, self._app_dict = parse_applist_data(data)
         self._schedule_ha_update()
 
-    def _handle_connected(self: HisenseVidaaMediaPlayer) -> None:
+    def _handle_connected(self: VidaaMediaPlayer) -> None:
         # Power state is set by the retained state broadcast that follows the connect.
         self._state = STATE_ON if (self._client and self._client.is_on) else STATE_OFF
         self._schedule_ha_update()
 
-    def _handle_disconnected(self: HisenseVidaaMediaPlayer) -> None:
+    def _handle_disconnected(self: VidaaMediaPlayer) -> None:
         if self._client:
             self._client.is_on = False
         self._state = STATE_OFF

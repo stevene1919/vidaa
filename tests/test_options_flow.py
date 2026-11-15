@@ -187,17 +187,18 @@ async def test_options_flow_brand_change_updates_data_and_triggers_reauth():
     flow.config_entry = entry
     flow.hass = hass
 
-    result = await flow.async_step_security(user_input={
-        CONF_AUTH_PROFILE: "modern",
-        CONF_BRAND: "tos",
-        CONF_USE_SSL: True,
-        CONF_CERTFILE: "",
-        CONF_KEYFILE: "",
-    })
+    result = await flow.async_step_security(
+        user_input={
+            CONF_AUTH_PROFILE: "modern",
+            CONF_BRAND: "tos",
+            CONF_USE_SSL: True,
+            CONF_CERTFILE: "",
+            CONF_KEYFILE: "",
+        }
+    )
 
     assert result["type"] == "create_entry"
     # Verify that entry.data was updated with new brand
     hass.config_entries.async_update_entry.assert_called_once()
     call_args = hass.config_entries.async_update_entry.call_args
     assert call_args.kwargs["data"][CONF_BRAND] == "tos"
-

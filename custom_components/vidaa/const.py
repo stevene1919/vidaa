@@ -150,9 +150,7 @@ BRAND_OPTIONS: list[dict[str, str]] = [
     {"value": "tpo", "label": "TOPTRO"},
 ]
 
-BRAND_PROFILES: dict[str, str] = {
-    opt["value"]: opt["label"] for opt in BRAND_OPTIONS
-}
+BRAND_PROFILES: dict[str, str] = {opt["value"]: opt["label"] for opt in BRAND_OPTIONS}
 
 BRAND_SELECTOR = (
     selector.SelectSelector(

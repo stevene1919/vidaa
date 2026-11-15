@@ -1,4 +1,4 @@
-"""Custom services registration and handlers for Hisense VIDAA TV."""
+"""Custom services registration and handlers for VIDAA Smart TV."""
 
 from __future__ import annotations
 
@@ -70,7 +70,7 @@ __all__ = [
 
 
 async def async_setup_services(hass: HomeAssistant) -> None:
-    """Register all custom services for the Hisense VIDAA TV integration."""
+    """Register all custom services for the VIDAA Smart TV integration."""
     services_map = [
         (
             SERVICE_SEND_KEY,
@@ -152,6 +152,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         # Register non-breaking alias under legacy domain (hisense_vidaa.<service>)
         if not hass.services.has_service(LEGACY_DOMAIN, service_name):
+
             def _make_legacy_handler(name: str, target_fn: Any):
                 async def _legacy_service_handler(call: Any) -> Any:
                     _LOGGER.warning(

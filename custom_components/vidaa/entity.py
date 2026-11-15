@@ -1,4 +1,4 @@
-"""Base entity for the Hisense VIDAA TV integration."""
+"""Base entity for the VIDAA Smart TV integration."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Number platform for Hisense VIDAA TV integration."""
+"""Number platform for VIDAA Smart TV integration."""
 
 from __future__ import annotations
 
@@ -189,9 +189,7 @@ async def async_setup_entry(
     """Set up the VIDAA number platform."""
     client: VidaaClient = config_entry.runtime_data.client
 
-    enable_picture = config_entry.options.get(
-        CONF_ENABLE_PICTURE_CONTROLS, DEFAULT_ENABLE_PICTURE_CONTROLS
-    )
+    enable_picture = config_entry.options.get(CONF_ENABLE_PICTURE_CONTROLS, DEFAULT_ENABLE_PICTURE_CONTROLS)
 
     # Clean up disabled/unsupported number entities from entity registry
     entity_reg = er.async_get(hass)

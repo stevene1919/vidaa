@@ -6,7 +6,7 @@ import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.service_info.ssdp import SsdpServiceInfo
 
-from custom_components.vidaa.config_flow import HisenseVidaaConfigFlow
+from custom_components.vidaa.config_flow import VidaaConfigFlow
 from custom_components.vidaa.const import (
     CONF_BRAND,
     CONF_IP_ADDRESS,
@@ -22,7 +22,7 @@ async def test_ssdp_discovery_vidaa_tv(monkeypatch):
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
 
@@ -57,7 +57,7 @@ async def test_ssdp_discovery_vidaa_tv(monkeypatch):
 async def test_ssdp_discovery_non_vidaa_ignored():
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
 
@@ -83,7 +83,7 @@ async def test_ssdp_discovery_non_vidaa_ignored():
 async def test_options_step_creates_entry():
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
 
@@ -131,7 +131,7 @@ async def test_options_step_creates_entry():
     assert result["options"]["enable_picture_controls"] is False
     assert result["options"]["enable_sound_controls"] is False
     assert result["options"]["enable_audio_only"] is False
-    assert (mock_client.async_disconnect.called or mock_client.disconnect.called)
+    assert mock_client.async_disconnect.called or mock_client.disconnect.called
     assert flow.client is None
 
 
@@ -141,7 +141,7 @@ async def test_capability_probing_in_config_flow(monkeypatch):
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
 
@@ -174,7 +174,7 @@ async def test_user_step_auto_certs_missing_routes_to_certs(monkeypatch):
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
 
@@ -183,9 +183,7 @@ async def test_user_step_auto_certs_missing_routes_to_certs(monkeypatch):
         lambda c, k: False,
     )
 
-    result = await flow.async_step_user(
-        user_input={"ip_address": "192.168.50.12", "auth_profile": "auto"}
-    )
+    result = await flow.async_step_user(user_input={"ip_address": "192.168.50.12", "auth_profile": "auto"})
     assert result["type"] == "form"
     assert result["step_id"] == "certs"
 
@@ -196,13 +194,11 @@ async def test_user_step_explicit_model_routes_to_certs():
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
 
-    result = await flow.async_step_user(
-        user_input={"ip_address": "192.168.50.12", "auth_profile": "modern"}
-    )
+    result = await flow.async_step_user(user_input={"ip_address": "192.168.50.12", "auth_profile": "modern"})
     assert result["type"] == "form"
     assert result["step_id"] == "certs"
 
@@ -213,7 +209,7 @@ async def test_certs_step_submission_valid(monkeypatch):
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
     flow.ip_address = "192.168.50.12"
@@ -234,7 +230,7 @@ async def test_certs_step_submission_valid(monkeypatch):
         lambda c, k: (True, None),
     )
     monkeypatch.setattr(
-        "custom_components.vidaa.client.HisenseTvClient.async_start_auth",
+        "custom_components.vidaa.client.VidaaClient.async_start_auth",
         AsyncMock(return_value=None),
     )
 
@@ -257,7 +253,7 @@ async def test_zeroconf_discovery(monkeypatch):
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
     flow.async_set_unique_id = AsyncMock(return_value=None)
@@ -298,11 +294,12 @@ async def test_config_flow_async_remove_cleans_up_client():
     """Test async_remove disconnects running flow client."""
     hass = MagicMock(spec=HomeAssistant)
     import asyncio
+
     hass.async_create_background_task = MagicMock(
         side_effect=lambda coro, *a, **kw: asyncio.get_running_loop().create_task(coro)
     )
 
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     mock_client = MagicMock()
     mock_client.async_disconnect = AsyncMock()
@@ -316,7 +313,7 @@ async def test_config_flow_async_remove_cleans_up_client():
 @pytest.mark.anyio
 async def test_config_flow_async_remove_noop_without_client():
     """Test async_remove executes cleanly when client is None."""
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.client = None
     flow.async_remove()
     assert flow.client is None
@@ -325,7 +322,7 @@ async def test_config_flow_async_remove_noop_without_client():
 @pytest.mark.anyio
 async def test_config_flow_async_remove_without_hass():
     """Test async_remove calls disconnect synchronously if hass is not set."""
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = None
     mock_client = MagicMock()
     mock_client.disconnect = MagicMock()
@@ -333,7 +330,7 @@ async def test_config_flow_async_remove_without_hass():
     flow.client = mock_client
 
     flow.async_remove()
-    assert (mock_client.async_disconnect.called or mock_client.disconnect.called)
+    assert mock_client.async_disconnect.called or mock_client.disconnect.called
     assert flow.client is None
 
 
@@ -343,7 +340,7 @@ async def test_certs_step_submission_invalid_pem(monkeypatch):
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
     flow.ip_address = "192.168.50.12"
@@ -376,7 +373,7 @@ async def test_ssdp_discovery_toshiba_tv(monkeypatch):
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
     flow.async_set_unique_id = AsyncMock(return_value=None)
@@ -429,7 +426,7 @@ async def test_manual_ip_upnp_brand_autodetect(monkeypatch):
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
     flow.async_set_unique_id = AsyncMock(return_value=None)
@@ -462,7 +459,7 @@ async def test_manual_ip_upnp_brand_autodetect(monkeypatch):
         created_clients.append(client)
         return client
 
-    monkeypatch.setattr("custom_components.vidaa.config_flow.HisenseTvClient", mock_client_factory)
+    monkeypatch.setattr("custom_components.vidaa.config_flow.VidaaClient", mock_client_factory)
     monkeypatch.setattr(flow, "_async_resolve_ssl_certs", AsyncMock(return_value=True))
     monkeypatch.setattr(flow, "async_step_auth", AsyncMock(return_value={"type": "form", "step_id": "auth"}))
 

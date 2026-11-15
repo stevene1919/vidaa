@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from custom_components.vidaa.client import HisenseTvClient
+from custom_components.vidaa.client import VidaaClient
 from custom_components.vidaa.protocol.pairing import (
     _async_execute_pairing_attempt,
     async_start_pairing_handshake,
@@ -18,9 +18,7 @@ from custom_components.vidaa.protocol.pairing import (
 # ---------------------------------------------------------------------------
 @pytest.mark.anyio
 async def test_dynamic_connect_ack_unblocks_retry_wait(monkeypatch):
-    client = HisenseTvClient(
-        ip="192.168.50.12", mac="e8:51:77:ec:98:1c", auth_profile="modern"
-    )
+    client = VidaaClient(ip="192.168.50.12", mac="e8:51:77:ec:98:1c", auth_profile="modern")
     client.client_id = "aa$his$BB_vidaacommon_001"
     client.username = "his$1"
     client.password = "pw"
@@ -64,9 +62,7 @@ async def test_dynamic_connect_ack_unblocks_retry_wait(monkeypatch):
 async def test_pairing_brand_fallback_target_profile():
     """Verify that when default brand 'his' is rejected with rc: 5, candidate OEM brands are tried."""
 
-    client = HisenseTvClient(
-        ip="192.168.50.12", mac="e8:51:77:ec:98:1c", auth_profile="modern", brand="his"
-    )
+    client = VidaaClient(ip="192.168.50.12", mac="e8:51:77:ec:98:1c", auth_profile="modern", brand="his")
 
     calls = []
 
@@ -91,9 +87,7 @@ async def test_pairing_brand_fallback_target_profile():
 async def test_pairing_brand_fallback_auto_profile():
     """Verify that in 'auto' mode, auth rejection cascades through candidate brands."""
 
-    client = HisenseTvClient(
-        ip="192.168.50.12", mac="e8:51:77:ec:98:1c", auth_profile="auto", brand="his"
-    )
+    client = VidaaClient(ip="192.168.50.12", mac="e8:51:77:ec:98:1c", auth_profile="auto", brand="his")
     client.get_device_fingerprint = MagicMock(return_value={})
 
     calls = []
@@ -123,9 +117,7 @@ async def test_pairing_brand_fallback_auto_profile():
 async def test_pairing_brand_fallback_exhausted_resets_brand():
     """Verify that when all candidate brands fail with auth rejection, brand is reset to 'his'."""
 
-    client = HisenseTvClient(
-        ip="192.168.50.12", mac="e8:51:77:ec:98:1c", auth_profile="modern", brand="his"
-    )
+    client = VidaaClient(ip="192.168.50.12", mac="e8:51:77:ec:98:1c", auth_profile="modern", brand="his")
 
     async def fake_start_auth_internal(profile="modern"):
         raise RuntimeError("Broker rejected connection with code 5")
@@ -136,6 +128,3 @@ async def test_pairing_brand_fallback_exhausted_resets_brand():
         await async_start_pairing_handshake(client)
 
     assert client.brand == "his"
-
-
-

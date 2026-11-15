@@ -235,7 +235,7 @@ $$\text{Username} = \text{brand} + (\text{timestamp} \oplus \text{0x569814772b03
 
 ```python
 # 64-bit XOR mask constant: 0x5698_1477_2b03_a968 (decimal 6239759785777146216)
-username = f"{brand}{timestamp ^ 0x5698_1477_2b03_a968}"
+username = f"{brand}{timestamp ^ 0x5698_1477_2B03_A968}"
 ```
 
 If the Home Assistant host and the TV clock drift by more than **120 seconds**, the TV broker rejects connection with `rc: 4`. 

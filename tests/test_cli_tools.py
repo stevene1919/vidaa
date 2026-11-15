@@ -52,6 +52,7 @@ def test_cli_tools_syntax_and_import() -> None:
 def test_do_send_text_mocked(monkeypatch) -> None:
     """Test do_send_text connects and dispatches send_text_input."""
     from unittest.mock import MagicMock
+
     scripts_dir = str(REPO_ROOT / "scripts")
     if scripts_dir not in sys.path:
         sys.path.insert(0, scripts_dir)
@@ -66,4 +67,3 @@ def test_do_send_text_mocked(monkeypatch) -> None:
     mock_client.connect_and_run.assert_called_once()
     mock_client.send_text_input.assert_called_once_with("Blade Runner", action="insert")
     mock_client.disconnect.assert_called_once()
-

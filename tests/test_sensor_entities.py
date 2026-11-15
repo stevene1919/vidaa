@@ -56,12 +56,14 @@ async def test_sensor_entities(mock_client, mock_entry):
     assert s_app.native_value == "Netflix"
 
     s_source = HisenseVidaaActiveSourceSensor(mock_client, mock_entry)
-    s_source._handle_sourcelist_update([
-        {"sourceName": "TV", "has_signal": 0, "is_active": False},
-        {"sourceName": "VIDAA tv", "has_signal": 1, "is_active": False},
-        {"sourceName": "HDMI 1", "displayname2": "Chromecast", "has_signal": 1, "is_active": True},
-        {"sourceName": "HDMI 2", "has_signal": 1, "is_active": False},
-    ])
+    s_source._handle_sourcelist_update(
+        [
+            {"sourceName": "TV", "has_signal": 0, "is_active": False},
+            {"sourceName": "VIDAA tv", "has_signal": 1, "is_active": False},
+            {"sourceName": "HDMI 1", "displayname2": "Chromecast", "has_signal": 1, "is_active": True},
+            {"sourceName": "HDMI 2", "has_signal": 1, "is_active": False},
+        ]
+    )
     assert s_source.native_value == "HDMI 1"
     assert "raw_source" not in s_source.extra_state_attributes
     assert "custom_labels" not in s_source.extra_state_attributes
@@ -72,20 +74,24 @@ async def test_sensor_entities(mock_client, mock_entry):
     assert "VIDAA tv" not in s_source.extra_state_attributes["available_sources"]
     assert "VIDAA tv" not in s_source.extra_state_attributes["connected_inputs"]
 
-    s_source._handle_state_update({
-        "statetype": "sourceswitch",
-        "sourcename": "HDMI 1",
-        "displayname2": "PlayStation 5",
-    })
+    s_source._handle_state_update(
+        {
+            "statetype": "sourceswitch",
+            "sourcename": "HDMI 1",
+            "displayname2": "PlayStation 5",
+        }
+    )
     assert s_source.native_value == "HDMI 1"
     assert s_source.extra_state_attributes["connected_device"] == "PlayStation 5"
     assert s_source.extra_state_attributes["display_name"] == "HDMI 1 (PlayStation 5)"
 
-    s_source._handle_state_update({
-        "statetype": "livetv",
-        "channel_name": "ABC HD",
-        "channel_num": "20",
-    })
+    s_source._handle_state_update(
+        {
+            "statetype": "livetv",
+            "channel_name": "ABC HD",
+            "channel_num": "20",
+        }
+    )
     assert s_source.native_value == "TV"
     assert "channel_name" not in s_source.extra_state_attributes
     assert "channel_num" not in s_source.extra_state_attributes
@@ -148,6 +154,7 @@ def test_binary_sensor_entities(mock_client, mock_entry):
 async def test_button_entities(mock_client, mock_entry, monkeypatch):
     """Test Force Reconnect and Sync Clock button entities."""
     import threading
+
     hass = MagicMock(spec=HomeAssistant)
     hass.loop_thread_id = threading.get_ident()
     hass.loop = MagicMock()
@@ -227,9 +234,11 @@ async def test_in_use_binary_sensor_and_active_app_cold_boot(mock_client, mock_e
     # Cold-boot recovery: ActiveAppSensor starts in Standby, then sourcelist reports HDMI2 active
     s_app = HisenseVidaaActiveAppSensor(mock_client, mock_entry)
     assert s_app.native_value == "Standby"
-    s_app._handle_sourcelist_update([
-        {"sourceName": "HDMI2", "has_signal": 1, "is_signal": 1},
-    ])
+    s_app._handle_sourcelist_update(
+        [
+            {"sourceName": "HDMI2", "has_signal": 1, "is_signal": 1},
+        ]
+    )
     assert s_app.native_value == "TV Input"
 
 
@@ -380,10 +389,12 @@ def test_active_app_and_source_remote_launcher_transition(mock_client, mock_entr
     app_sensor = HisenseVidaaActiveAppSensor(mock_client, mock_entry)
     source_sensor = HisenseVidaaActiveSourceSensor(mock_client, mock_entry)
 
-    app_sensor._handle_applist_update([
-        {"appId": "1", "appName": "netflix"},
-        {"appId": "3", "appName": "youtube"},
-    ])
+    app_sensor._handle_applist_update(
+        [
+            {"appId": "1", "appName": "netflix"},
+            {"appId": "3", "appName": "youtube"},
+        ]
+    )
     # Enter Netflix
     app_sensor._handle_state_update({"statetype": "app", "name": "netflix", "url": "netflix", "appId": "1"})
     assert app_sensor.native_value == "netflix"
@@ -457,4 +468,3 @@ def test_disabled_by_default_entities(mock_client, mock_entry):
 
     sw_debug = HisenseVidaaDebugLoggingSwitch(mock_client, mock_entry)
     assert sw_debug.entity_registry_enabled_default is False
-

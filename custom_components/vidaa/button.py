@@ -1,4 +1,4 @@
-"""Diagnostic utility buttons for Hisense VIDAA TV."""
+"""Diagnostic utility buttons for VIDAA Smart TV."""
 
 from __future__ import annotations
 
@@ -128,8 +128,10 @@ class VidaaProbeCapabilitiesButton(VidaaBaseButton):
         if pic_supported or sound_supported:
             new_options = {
                 **self._entry.options,
-                CONF_ENABLE_PICTURE_CONTROLS: pic_supported or self._entry.options.get(CONF_ENABLE_PICTURE_CONTROLS, False),
-                CONF_ENABLE_SOUND_CONTROLS: sound_supported or self._entry.options.get(CONF_ENABLE_SOUND_CONTROLS, False),
+                CONF_ENABLE_PICTURE_CONTROLS: pic_supported
+                or self._entry.options.get(CONF_ENABLE_PICTURE_CONTROLS, False),
+                CONF_ENABLE_SOUND_CONTROLS: sound_supported
+                or self._entry.options.get(CONF_ENABLE_SOUND_CONTROLS, False),
             }
             self.hass.config_entries.async_update_entry(self._entry, options=new_options)
 
@@ -156,4 +158,3 @@ HisenseVidaaForceReconnectButton = VidaaForceReconnectButton
 HisenseVidaaSyncClockButton = VidaaSyncClockButton
 HisenseVidaaProbeCapabilitiesButton = VidaaProbeCapabilitiesButton
 HisenseVidaaTriggerReauthButton = VidaaTriggerReauthButton
-

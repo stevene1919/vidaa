@@ -64,9 +64,10 @@ async def test_async_migrate_entry_v1_to_v2():
     mock_device = MagicMock()
     mock_device.id = "dev_reg_id_1"
 
-    with patch("custom_components.vidaa.er.async_get", return_value=ent_reg), \
-         patch("custom_components.vidaa.dr.async_get") as mock_dr_get:
-
+    with (
+        patch("custom_components.vidaa.er.async_get", return_value=ent_reg),
+        patch("custom_components.vidaa.dr.async_get") as mock_dr_get,
+    ):
         dev_reg = MagicMock()
         dev_reg.async_get_device.return_value = mock_device
         mock_dr_get.return_value = dev_reg
@@ -153,9 +154,10 @@ async def test_legacy_device_trigger_support():
     mock_device.id = "device_123"
     mock_device.config_entries = ["test_entry_456"]
 
-    with patch("custom_components.vidaa.helpers.dr.async_get") as mock_dr_get, \
-         patch("custom_components.vidaa.device_trigger.async_get_device_entry_by_device_id", return_value=mock_device):
-
+    with (
+        patch("custom_components.vidaa.helpers.dr.async_get") as mock_dr_get,
+        patch("custom_components.vidaa.device_trigger.async_get_device_entry_by_device_id", return_value=mock_device),
+    ):
         dev_reg = MagicMock()
         dev_reg.async_get.return_value = mock_device
         mock_dr_get.return_value = dev_reg
@@ -201,9 +203,7 @@ async def test_async_setup_auto_migrates_legacy_entries():
     hass.config_entries = MagicMock()
     hass.config_entries.async_entries.return_value = [legacy_entry]
 
-    with patch("custom_components.vidaa.er.async_get"), \
-         patch("custom_components.vidaa.dr.async_get"):
-
+    with patch("custom_components.vidaa.er.async_get"), patch("custom_components.vidaa.dr.async_get"):
         res = await async_setup(hass, {})
         assert res is True
         assert legacy_entry.domain == DOMAIN
@@ -225,9 +225,10 @@ async def test_legacy_directory_detection_issue():
     hass.config_entries.async_entries.return_value = []
     hass.config.path.return_value = "/config/custom_components/hisense_vidaa"
 
-    with patch("os.path.isdir", return_value=True), \
-         patch("custom_components.vidaa.ir.async_create_issue") as mock_create_issue:
-
+    with (
+        patch("os.path.isdir", return_value=True),
+        patch("custom_components.vidaa.ir.async_create_issue") as mock_create_issue,
+    ):
         res = await async_setup(hass, {})
         assert res is True
         mock_create_issue.assert_called_once()

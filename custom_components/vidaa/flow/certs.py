@@ -1,4 +1,4 @@
-"""Certificate handling mixin for Hisense VIDAA config flow."""
+"""Certificate handling mixin for VIDAA config flow."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ from ..protocol import (
 from .helpers import resolve_ssl_certs
 
 if TYPE_CHECKING:
-    from ..config_flow import HisenseVidaaConfigFlow
+    from ..config_flow import VidaaConfigFlow
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,17 +37,13 @@ _LOGGER = logging.getLogger(__name__)
 class CertsFlowMixin:
     """Mixin for SSL certificate selection and validation in config flows."""
 
-    async def _async_resolve_ssl_certs(self: HisenseVidaaConfigFlow) -> bool:
+    async def _async_resolve_ssl_certs(self: VidaaConfigFlow) -> bool:
         """Attempts to resolve certificates from disk or profile off the event loop."""
         if hasattr(self, "hass") and self.hass:
-            success, cert, key, use_ssl = await self.hass.async_add_executor_job(
-                resolve_ssl_certs, self.auth_profile
-            )
+            success, cert, key, use_ssl = await self.hass.async_add_executor_job(resolve_ssl_certs, self.auth_profile)
         else:
             loop = asyncio.get_running_loop()
-            success, cert, key, use_ssl = await loop.run_in_executor(
-                None, resolve_ssl_certs, self.auth_profile
-            )
+            success, cert, key, use_ssl = await loop.run_in_executor(None, resolve_ssl_certs, self.auth_profile)
         if success:
             self.certfile = cert
             self.keyfile = key
@@ -60,7 +56,7 @@ class CertsFlowMixin:
             return True
         return False
 
-    def _resolve_ssl_certs(self: HisenseVidaaConfigFlow) -> bool:
+    def _resolve_ssl_certs(self: VidaaConfigFlow) -> bool:
         """Synchronous fallback to resolve certificates from disk or profile."""
         success, cert, key, use_ssl = resolve_ssl_certs(self.auth_profile)
         if success:
@@ -76,7 +72,7 @@ class CertsFlowMixin:
         return False
 
     async def async_step_certs(
-        self: HisenseVidaaConfigFlow, user_input: dict[str, Any] | None = None
+        self: VidaaConfigFlow, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         """Handle certificate file configuration step."""
         errors: dict[str, str] = {}
@@ -88,9 +84,7 @@ class CertsFlowMixin:
                 default_cert_dir,
                 default_cert_name,
                 default_key_name,
-            ) = await self.hass.async_add_executor_job(
-                get_profile_default_cert_paths, self.auth_profile, config_dir
-            )
+            ) = await self.hass.async_add_executor_job(get_profile_default_cert_paths, self.auth_profile, config_dir)
         else:
             loop = asyncio.get_running_loop()
             (
@@ -99,9 +93,7 @@ class CertsFlowMixin:
                 default_cert_dir,
                 default_cert_name,
                 default_key_name,
-            ) = await loop.run_in_executor(
-                None, get_profile_default_cert_paths, self.auth_profile, config_dir
-            )
+            ) = await loop.run_in_executor(None, get_profile_default_cert_paths, self.auth_profile, config_dir)
 
         if user_input is not None:
             self.use_ssl = user_input.get(CONF_USE_SSL, DEFAULT_USE_SSL)
@@ -135,6 +127,7 @@ class CertsFlowMixin:
                     else:
                         errors["base"] = "certs_not_found"
                 else:
+
                     async def _validate(c: str | None, k: str | None) -> tuple[bool, str | None]:
                         if hasattr(self, "hass") and self.hass:
                             return await self.hass.async_add_executor_job(validate_ssl_certs, c, k)
@@ -167,11 +160,13 @@ class CertsFlowMixin:
 
         return self.async_show_form(
             step_id="certs",
-            data_schema=vol.Schema({
-                vol.Optional(CONF_USE_SSL, default=self.use_ssl): bool,
-                vol.Optional(CONF_CERTFILE, default=self.certfile or default_cert_path): str,
-                vol.Optional(CONF_KEYFILE, default=self.keyfile or default_key_path): str,
-            }),
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(CONF_USE_SSL, default=self.use_ssl): bool,
+                    vol.Optional(CONF_CERTFILE, default=self.certfile or default_cert_path): str,
+                    vol.Optional(CONF_KEYFILE, default=self.keyfile or default_key_path): str,
+                }
+            ),
             description_placeholders={
                 "cert_dir": str(default_cert_dir),
                 "cert_file": default_cert_name,

@@ -1,4 +1,4 @@
-"""TV remote input, app launch, and input source actions for Hisense VIDAA TV."""
+"""TV remote input, app launch, and input source actions for VIDAA Smart TV."""
 
 from __future__ import annotations
 
@@ -14,24 +14,24 @@ from .navigation import (
 )
 
 if TYPE_CHECKING:
-    from ..client import HisenseTvClient
+    from ..client import VidaaClient
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def send_key(client: HisenseTvClient, key: str) -> None:
+def send_key(client: VidaaClient, key: str) -> None:
     """Publishes a raw keypress event to the TV."""
     if client.connected and client.mqtt_client:
         client.mqtt_client.publish(f"{client.topics.remote}actions/sendkey", key)
 
 
-async def async_send_key(client: HisenseTvClient, key: str) -> None:
+async def async_send_key(client: VidaaClient, key: str) -> None:
     """Publishes a raw keypress event to the TV asynchronously."""
     if client.connected and client.mqtt_client:
         await client.async_publish(f"{client.topics.remote}actions/sendkey", key)
 
 
-def send_command(client: HisenseTvClient, command: str) -> bool:
+def send_command(client: VidaaClient, command: str) -> bool:
     """Sends a key command to the TV, automatically resolving known key aliases."""
     if not command:
         return False
@@ -78,7 +78,7 @@ def send_command(client: HisenseTvClient, command: str) -> bool:
     return True
 
 
-async def async_send_command(client: HisenseTvClient, command: str) -> bool:
+async def async_send_command(client: VidaaClient, command: str) -> bool:
     """Sends a key command to the TV asynchronously, resolving known key aliases."""
     if not command:
         return False
@@ -125,7 +125,7 @@ async def async_send_command(client: HisenseTvClient, command: str) -> bool:
     return True
 
 
-def cycle_source(client: HisenseTvClient) -> bool:
+def cycle_source(client: VidaaClient) -> bool:
     """Cycles to the next available input source."""
     next_source = get_next_cycled_source(client.sources, client.current_source)
     if not next_source:
@@ -137,7 +137,7 @@ def cycle_source(client: HisenseTvClient) -> bool:
     return True
 
 
-async def async_cycle_source(client: HisenseTvClient) -> bool:
+async def async_cycle_source(client: VidaaClient) -> bool:
     """Cycles to the next available input source asynchronously."""
     next_source = get_next_cycled_source(client.sources, client.current_source)
     if not next_source:
@@ -149,7 +149,7 @@ async def async_cycle_source(client: HisenseTvClient) -> bool:
     return True
 
 
-def launch_app_by_name(client: HisenseTvClient, name_or_id: str) -> bool:
+def launch_app_by_name(client: VidaaClient, name_or_id: str) -> bool:
     """Launches an app by name or app ID from cached applist."""
     matched = match_app(client.apps, name_or_id)
     if matched:
@@ -170,7 +170,7 @@ def launch_app_by_name(client: HisenseTvClient, name_or_id: str) -> bool:
     return False
 
 
-async def async_launch_app_by_name(client: HisenseTvClient, name_or_id: str) -> bool:
+async def async_launch_app_by_name(client: VidaaClient, name_or_id: str) -> bool:
     """Launches an app by name or app ID from cached applist asynchronously."""
     matched = match_app(client.apps, name_or_id)
     if matched:
@@ -191,23 +191,21 @@ async def async_launch_app_by_name(client: HisenseTvClient, name_or_id: str) -> 
     return False
 
 
-def change_source_by_name_or_id(client: HisenseTvClient, target: str) -> bool:
+def change_source_by_name_or_id(client: VidaaClient, target: str) -> bool:
     """Switches to source by name (e.g. HDMI1, TV) or numeric sourceid."""
     resolved_source_id, resolved_source_name = resolve_source(client.sources, target)
     client.change_source(resolved_source_id or target.strip(), resolved_source_name)
     return True
 
 
-async def async_change_source_by_name_or_id(client: HisenseTvClient, target: str) -> bool:
+async def async_change_source_by_name_or_id(client: VidaaClient, target: str) -> bool:
     """Switches to source by name or numeric sourceid asynchronously."""
     resolved_source_id, resolved_source_name = resolve_source(client.sources, target)
     await client.async_change_source(resolved_source_id or target.strip(), resolved_source_name)
     return True
 
 
-def change_source(
-    client: HisenseTvClient, source_id: str, source_name: str | None = None
-) -> None:
+def change_source(client: VidaaClient, source_id: str, source_name: str | None = None) -> None:
     """Switches the active input source on the TV."""
     if not client.connected or not client.mqtt_client:
         return
@@ -251,9 +249,7 @@ def change_source(
         client.send_key("KEY_LIVETV")
 
 
-async def async_change_source(
-    client: HisenseTvClient, source_id: str, source_name: str | None = None
-) -> None:
+async def async_change_source(client: VidaaClient, source_id: str, source_name: str | None = None) -> None:
     """Switches the active input source on the TV asynchronously."""
     if not client.connected or not client.mqtt_client:
         return
@@ -296,35 +292,39 @@ async def async_change_source(
         await client.async_send_key("KEY_LIVETV")
 
 
-def launch_app(client: HisenseTvClient, app_id: str, app_name: str, url: str) -> None:
+def launch_app(client: VidaaClient, app_id: str, app_name: str, url: str) -> None:
     """Launches an installed Smart TV application."""
     if client.connected and client.mqtt_client:
-        payload = json.dumps({
-            "appId": app_id,
-            "name": app_name,
-            "url": url,
-            "urlType": 37,
-            "appName": app_name,
-            "appUrl": url,
-        })
+        payload = json.dumps(
+            {
+                "appId": app_id,
+                "name": app_name,
+                "url": url,
+                "urlType": 37,
+                "appName": app_name,
+                "appUrl": url,
+            }
+        )
         client.mqtt_client.publish(f"{client.topics.ui}actions/launchapp", payload)
 
 
-async def async_launch_app(client: HisenseTvClient, app_id: str, app_name: str, url: str) -> None:
+async def async_launch_app(client: VidaaClient, app_id: str, app_name: str, url: str) -> None:
     """Launches an installed Smart TV application asynchronously."""
     if client.connected and client.mqtt_client:
-        payload = json.dumps({
-            "appId": app_id,
-            "name": app_name,
-            "url": url,
-            "urlType": 37,
-            "appName": app_name,
-            "appUrl": url,
-        })
+        payload = json.dumps(
+            {
+                "appId": app_id,
+                "name": app_name,
+                "url": url,
+                "urlType": 37,
+                "appName": app_name,
+                "appUrl": url,
+            }
+        )
         await client.async_publish(f"{client.topics.ui}actions/launchapp", payload)
 
 
-def send_text_input(client: HisenseTvClient, text: str, action: str = "insert") -> None:
+def send_text_input(client: VidaaClient, text: str, action: str = "insert") -> None:
     """Sends virtual keyboard string input to active on-screen input/search field."""
     if client.connected and client.mqtt_client:
         payload = json.dumps({"text": text, "action": action})
@@ -332,7 +332,7 @@ def send_text_input(client: HisenseTvClient, text: str, action: str = "insert") 
         client.mqtt_client.publish(f"{client.topics.platform}actions/bwsinputdata", payload)
 
 
-async def async_send_text_input(client: HisenseTvClient, text: str, action: str = "insert") -> None:
+async def async_send_text_input(client: VidaaClient, text: str, action: str = "insert") -> None:
     """Sends virtual keyboard string input asynchronously."""
     if client.connected and client.mqtt_client:
         payload = json.dumps({"text": text, "action": action})

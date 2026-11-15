@@ -43,6 +43,7 @@ async def test_select_platform_prunes_audio_output_select(mock_client, mock_entr
 async def test_picture_and_sound_mode_selects(mock_client, mock_entry):
     """Test Picture Mode and Sound Mode select dropdowns."""
     import threading
+
     hass = MagicMock(spec=HomeAssistant)
     hass.loop_thread_id = threading.get_ident()
     hass.loop = MagicMock()
@@ -79,6 +80,7 @@ async def test_picture_and_sound_mode_selects(mock_client, mock_entry):
 async def test_picture_calibration_numbers(mock_client, mock_entry):
     """Test Picture calibration number slider entities (Backlight, Brightness, Contrast)."""
     import threading
+
     hass = MagicMock(spec=HomeAssistant)
     hass.loop_thread_id = threading.get_ident()
     hass.loop = MagicMock()
@@ -256,4 +258,3 @@ async def test_entities_register_connection_callbacks():
     await sw_ent.async_added_to_hass()
     client.register_connected_callback.assert_called()
     client.register_disconnected_callback.assert_called()
-

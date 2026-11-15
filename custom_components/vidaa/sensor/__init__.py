@@ -1,4 +1,4 @@
-"""Operational and metadata sensors for Hisense VIDAA TV."""
+"""Operational and metadata sensors for VIDAA Smart TV."""
 
 from __future__ import annotations
 
@@ -66,13 +66,15 @@ async def async_setup_entry(
                 entity_reg.async_remove(entity_id)
 
     client: VidaaClient = entry.runtime_data.client
-    async_add_entities([
-        VidaaSessionStatusSensor(client, entry),
-        VidaaReportedNameSensor(client, entry),
-        VidaaActiveAppSensor(client, entry),
-        VidaaActiveSourceSensor(client, entry),
-        VidaaClockDriftSensor(client, entry),
-    ])
+    async_add_entities(
+        [
+            VidaaSessionStatusSensor(client, entry),
+            VidaaReportedNameSensor(client, entry),
+            VidaaActiveAppSensor(client, entry),
+            VidaaActiveSourceSensor(client, entry),
+            VidaaClockDriftSensor(client, entry),
+        ]
+    )
 
 
 class VidaaMqttTrackingSensor(VidaaBaseSensor):
@@ -238,7 +240,9 @@ class VidaaActiveSourceSensor(VidaaMqttTrackingSensor):
             self._attr_native_value = "Standby"
             self._connected_device = None
         elif statetype == "sourceswitch":
-            self._attr_native_value = state.get("sourcename") or state.get("sourceName") or state.get("displayname") or "HDMI"
+            self._attr_native_value = (
+                state.get("sourcename") or state.get("sourceName") or state.get("displayname") or "HDMI"
+            )
             self._last_known_source = self._attr_native_value
             self._connected_device = (
                 state.get("displayname2")
@@ -267,7 +271,9 @@ class VidaaActiveSourceSensor(VidaaMqttTrackingSensor):
 
     def _handle_sourcelist_update(self, sources: list[dict[str, Any]]) -> None:
         if sources:
-            self._available_sources, self._connected_inputs, self._custom_labels, active_src = parse_sourcelist_payload(sources)
+            self._available_sources, self._connected_inputs, self._custom_labels, active_src = parse_sourcelist_payload(
+                sources
+            )
             if active_src:
                 self._last_known_source = active_src
                 if self._client.connected and self._client.is_on:

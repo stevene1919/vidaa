@@ -1,4 +1,4 @@
-"""Service call execution handlers for Hisense VIDAA TV."""
+"""Service call execution handlers for VIDAA Smart TV."""
 
 from __future__ import annotations
 
@@ -194,12 +194,14 @@ async def handle_launch_app(hass: HomeAssistant, call: ServiceCall) -> dict[str,
                 translation_placeholders={"app_name": str(app_name), "error": str(err)},
             ) from err
 
-        launched.append({
-            "ip": getattr(client, "ip", "unknown"),
-            "app_name": app_name,
-            "app_id": app_id,
-            "app_url": app_url,
-        })
+        launched.append(
+            {
+                "ip": getattr(client, "ip", "unknown"),
+                "app_name": app_name,
+                "app_id": app_id,
+                "app_url": app_url,
+            }
+        )
 
     return {
         "app": app or requested_app_id,

@@ -1,4 +1,4 @@
-"""Protocol and network communication subpackage for Hisense VIDAA TV."""
+"""Protocol and network communication subpackage for VIDAA Smart TV."""
 
 from __future__ import annotations
 

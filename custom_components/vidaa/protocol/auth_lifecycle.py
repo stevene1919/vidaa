@@ -1,4 +1,4 @@
-"""Token lifecycle, background refresh, and connection retry management for Hisense VIDAA TV."""
+"""Token lifecycle, background refresh, and connection retry management for VIDAA Smart TV."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from .auth import is_token_expired
 
 if TYPE_CHECKING:
-    from ..client import HisenseTvClient
+    from ..client import VidaaClient
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class TokenLifecycleManager:
     PROACTIVE_REFRESH_SETTLE_SECONDS = 3.0
     MAX_BROKER_REJECTION_ATTEMPTS = 3
 
-    def __init__(self, client: HisenseTvClient) -> None:
+    def __init__(self, client: VidaaClient) -> None:
         self.client = client
         self.refresh_lock = asyncio.Lock()
         self.refreshing_token: bool = False
@@ -95,7 +95,7 @@ class TokenLifecycleManager:
         ):
             return
 
-        backoff = min(600 * (2 ** self.awake_refresh_failures), 6 * 3600)
+        backoff = min(600 * (2**self.awake_refresh_failures), 6 * 3600)
         now = time.time()
         async with self.refresh_lock:
             if (
@@ -127,7 +127,7 @@ class TokenLifecycleManager:
                 "[%s] Token refresh failed while the TV is awake (attempt %d); next retry in %d min",
                 client.ip,
                 self.awake_refresh_failures,
-                min(600 * (2 ** self.awake_refresh_failures), 6 * 3600) // 60,
+                min(600 * (2**self.awake_refresh_failures), 6 * 3600) // 60,
             )
 
     def maybe_refresh_while_awake(self) -> None:
@@ -163,7 +163,10 @@ class TokenLifecycleManager:
                         self.refreshing_token = True
                         self.last_refresh_attempt = current_time
                 if should_refresh:
-                    _LOGGER.info("[%s] Access token is near expiration (<12h remaining). Proactively renewing tokens...", client.ip)
+                    _LOGGER.info(
+                        "[%s] Access token is near expiration (<12h remaining). Proactively renewing tokens...",
+                        client.ip,
+                    )
                     await client.async_refresh_tokens()
         except Exception as e:
             _LOGGER.debug("[%s] Proactive token refresh check error: %s", client.ip, e)
@@ -192,7 +195,7 @@ class TokenLifecycleManager:
             clock_offset=client.clock_offset,
         ):
             current_time = time.time()
-            retry_after = min(60 * (2 ** self.rejected_refresh_failures), 1800)
+            retry_after = min(60 * (2**self.rejected_refresh_failures), 1800)
             should_refresh = False
             async with self.refresh_lock:
                 should_refresh = not self.refreshing_token and (current_time - self.last_refresh_attempt > retry_after)
@@ -205,7 +208,10 @@ class TokenLifecycleManager:
             else:
                 self.client._schedule_rejected_retry(max(5.0, retry_after - (current_time - self.last_refresh_attempt)))
         else:
-            _LOGGER.warning("[%s] MQTT authentication rejected and no valid refresh token available. Reauthentication required.", client.ip)
+            _LOGGER.warning(
+                "[%s] MQTT authentication rejected and no valid refresh token available. Reauthentication required.",
+                client.ip,
+            )
             client._dispatch_auth_failed()
 
     def handle_auth_rejection(self, rc: int) -> None:
@@ -265,7 +271,7 @@ class TokenLifecycleManager:
                     "[%s] Token refresh after rejected connection failed (attempt %d); next retry in %d min",
                     client.ip,
                     self.rejected_refresh_failures,
-                    min(60 * (2 ** self.rejected_refresh_failures), 1800) // 60,
+                    min(60 * (2**self.rejected_refresh_failures), 1800) // 60,
                 )
                 if self.broker_rejection_failures >= self.MAX_BROKER_REJECTION_ATTEMPTS:
                     _LOGGER.warning(

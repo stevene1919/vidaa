@@ -1,1 +1,1 @@
-"""Hisense VIDAA TV triggers."""
+"""VIDAA Smart TV triggers."""

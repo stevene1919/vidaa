@@ -1,11 +1,11 @@
-"""Unit tests for HisenseTvClient token lifecycle, proactive refresh, and clock drift."""
+"""Unit tests for VidaaClient token lifecycle, proactive refresh, and clock drift."""
 
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from custom_components.vidaa.client import HisenseTvClient
+from custom_components.vidaa.client import VidaaClient
 from custom_components.vidaa.protocol.auth import is_token_expired
 from custom_components.vidaa.protocol.auth_lifecycle import TokenLifecycleManager
 
@@ -13,7 +13,7 @@ from custom_components.vidaa.protocol.auth_lifecycle import TokenLifecycleManage
 def test_check_and_refresh_token_not_expired():
     """Test token refresh is skipped when token is still within validity window."""
     now = int(time.time())
-    client = HisenseTvClient(
+    client = VidaaClient(
         ip="192.168.50.12",
         client_id="test_client",
         access_token="valid_token",
@@ -32,7 +32,7 @@ def test_check_and_refresh_token_valid_within_12_hours_does_not_refresh():
     """Test token refresh is NOT triggered when token has <12 hours remaining but is still valid (>0s)."""
     now = int(time.time())
     # 2-day duration (172800s), issued 40 hours ago -> 8 hours (28800s) remaining
-    client = HisenseTvClient(
+    client = VidaaClient(
         ip="192.168.50.12",
         client_id="test_client",
         access_token="valid_token",
@@ -49,7 +49,7 @@ def test_check_and_refresh_token_valid_within_12_hours_does_not_refresh():
 
 def test_check_and_refresh_token_missing_metadata_does_not_refresh():
     """Test token refresh is skipped when metadata (time or duration) is missing."""
-    client = HisenseTvClient(
+    client = VidaaClient(
         ip="192.168.50.12",
         client_id="test_client",
         access_token="valid_token",
@@ -65,7 +65,7 @@ def test_check_and_refresh_token_missing_metadata_does_not_refresh():
 async def test_check_and_refresh_token_expired():
     """Test token refresh is triggered when token has expired (>48 hours)."""
     now = int(time.time())
-    client = HisenseTvClient(
+    client = VidaaClient(
         ip="192.168.50.12",
         client_id="test_client",
         username="test_client",
@@ -77,8 +77,10 @@ async def test_check_and_refresh_token_expired():
         refresh_token_duration=30,
     )
 
-    with patch("custom_components.vidaa.client.async_perform_token_refresh", return_value=None) as mock_refresh, \
-         patch.object(client, "async_sync_clock"):
+    with (
+        patch("custom_components.vidaa.client.async_perform_token_refresh", return_value=None) as mock_refresh,
+        patch.object(client, "async_sync_clock"),
+    ):
         assert await client.async_check_and_refresh_token(force=False) is False
         mock_refresh.assert_awaited_once()
         assert mock_refresh.call_args[1]["refresh_token"] == "valid_refresh"
@@ -88,7 +90,7 @@ async def test_check_and_refresh_token_expired():
 def test_check_and_refresh_token_network_error_resilience():
     """Test token refresh catches network / socket errors gracefully without crashing."""
     now = int(time.time())
-    client = HisenseTvClient(
+    client = VidaaClient(
         ip="192.168.50.12",
         client_id="test_client",
         access_token="old_token",
@@ -111,7 +113,7 @@ def test_check_and_refresh_token_network_error_resilience():
 
 def test_auth_failed_and_token_refreshed_callback_dispatches():
     """Test auth_failed and token_refreshed dispatch callbacks pass the client instance."""
-    client = HisenseTvClient(ip="192.168.50.12")
+    client = VidaaClient(ip="192.168.50.12")
 
     auth_failed_calls = []
     token_refreshed_calls = []
@@ -138,7 +140,7 @@ def test_auth_failed_and_token_refreshed_callback_dispatches():
 async def test_on_connect_rc4_with_valid_refresh_token_triggers_background_refresh():
     """Test rc=4 connection rejection with valid refresh token starts background task and does not dispatch auth_failed immediately."""
     now = int(time.time())
-    client = HisenseTvClient(
+    client = VidaaClient(
         ip="192.168.50.12",
         refresh_token="valid_refresh_token",
         refresh_token_time=now - 86400,  # 1 day old (valid 30 days)
@@ -147,8 +149,10 @@ async def test_on_connect_rc4_with_valid_refresh_token_triggers_background_refre
     mock_auth_failed = MagicMock()
     client.register_auth_failed_callback(mock_auth_failed)
 
-    with patch.object(client._token_manager, "async_refresh_token_and_update_creds") as mock_refresh, \
-         patch.object(client, "async_sync_clock"):
+    with (
+        patch.object(client._token_manager, "async_refresh_token_and_update_creds") as mock_refresh,
+        patch.object(client, "async_sync_clock"),
+    ):
         await client._token_manager.async_handle_auth_rejection(4)
         mock_refresh.assert_called_once()
         mock_auth_failed.assert_not_called()
@@ -157,7 +161,7 @@ async def test_on_connect_rc4_with_valid_refresh_token_triggers_background_refre
 def test_refresh_failure_with_valid_refresh_token_suppresses_auth_failed():
     """Test failed background refresh (e.g. TV in standby) suppresses auth_failed if refresh token is still unexpired."""
     now = int(time.time())
-    client = HisenseTvClient(
+    client = VidaaClient(
         ip="192.168.50.12",
         refresh_token="valid_refresh_token",
         refresh_token_time=now - 86400,  # 1 day old (valid 30 days)
@@ -174,7 +178,7 @@ def test_refresh_failure_with_valid_refresh_token_suppresses_auth_failed():
 def test_refresh_failure_with_expired_refresh_token_dispatches_auth_failed():
     """Test failed background refresh when refresh token IS expired (>30 days) dispatches auth_failed."""
     now = int(time.time())
-    client = HisenseTvClient(
+    client = VidaaClient(
         ip="192.168.50.12",
         refresh_token="expired_refresh_token",
         refresh_token_time=now - (31 * 86400),  # 31 days old (expired)
@@ -191,7 +195,7 @@ def test_refresh_failure_with_expired_refresh_token_dispatches_auth_failed():
 def test_proactive_token_refresh_triggers_within_12_hours():
     """Test proactive token refresh triggers renewal when access token has <12h remaining."""
     now = int(time.time())
-    client = HisenseTvClient(
+    client = VidaaClient(
         ip="192.168.50.12",
         access_token="expiring_soon_token",
         access_token_time=now - (40 * 3600),  # 40 hours old (8h left on 48h token)
@@ -212,7 +216,7 @@ def test_proactive_token_refresh_triggers_within_12_hours():
 def test_proactive_token_refresh_deferred_in_standby():
     """Proactive refresh must not drop the working connection while the TV is in standby."""
     now = int(time.time())
-    client = HisenseTvClient(
+    client = VidaaClient(
         ip="192.168.50.12",
         access_token="expiring_soon_token",
         access_token_time=now - (40 * 3600),
@@ -230,9 +234,9 @@ def test_proactive_token_refresh_deferred_in_standby():
     assert client._refreshing_token is False
 
 
-def _standby_client(access_age_hours: float, refresh_in_standby: bool) -> HisenseTvClient:
+def _standby_client(access_age_hours: float, refresh_in_standby: bool) -> VidaaClient:
     now = int(time.time())
-    client = HisenseTvClient(
+    client = VidaaClient(
         ip="192.168.50.12",
         access_token="token",
         access_token_time=int(now - access_age_hours * 3600),
@@ -280,7 +284,7 @@ def test_token_watch_refreshes_in_standby_when_enabled():
 @pytest.mark.anyio
 async def test_refresh_tokens_restores_connection_on_failure():
     """A failed refresh (TV in standby) must reconnect with the current access token."""
-    client = HisenseTvClient(
+    client = VidaaClient(
         ip="192.168.50.12",
         client_id="cid",
         username="his$1",
@@ -290,9 +294,11 @@ async def test_refresh_tokens_restores_connection_on_failure():
     client.mqtt_client = MagicMock()
     client.connected = True
 
-    with patch("custom_components.vidaa.client.async_perform_token_refresh", return_value=None), \
-         patch.object(client, "async_sync_clock"), \
-         patch.object(client, "async_connect_and_run") as mock_connect:
+    with (
+        patch("custom_components.vidaa.client.async_perform_token_refresh", return_value=None),
+        patch.object(client, "async_sync_clock"),
+        patch.object(client, "async_connect_and_run") as mock_connect,
+    ):
         assert await client.async_refresh_tokens() is False
         mock_connect.assert_awaited_once()
 
@@ -312,8 +318,8 @@ def test_is_token_expired_with_clock_offset():
 
 
 def test_sync_clock_and_clock_drift_callback():
-    """Test HisenseTvClient.sync_clock updates offset and dispatches callback."""
-    client = HisenseTvClient(ip="192.168.50.12")
+    """Test VidaaClient.sync_clock updates offset and dispatches callback."""
+    client = VidaaClient(ip="192.168.50.12")
     host_now = int(time.time())
     mock_tv_ts = host_now - 500000
 
@@ -337,7 +343,7 @@ def test_check_and_refresh_token_respects_clock_offset():
     tv_now = host_now + tv_offset
     token_time = tv_now - 3600
 
-    client = HisenseTvClient(
+    client = VidaaClient(
         ip="192.168.50.12",
         client_id="test_client",
         access_token="valid_token",
@@ -383,12 +389,13 @@ async def test_token_refresh_failure_honors_clock_offset():
 @pytest.mark.anyio
 async def test_async_sync_clock_fallback_uses_thread():
     """Test async_sync_clock falls back to synchronous fn in a thread without blocking (Issue #59)."""
-    client = HisenseTvClient(ip="192.168.50.12")
+    client = VidaaClient(ip="192.168.50.12")
     host_now = int(time.time())
     mock_tv_ts = host_now - 100
 
     def mock_sync_get_tv_timestamp(ip, timeout=2.0):
         import threading
+
         assert threading.current_thread() is not threading.main_thread()
         return mock_tv_ts
 
@@ -400,4 +407,3 @@ async def test_async_sync_clock_fallback_uses_thread():
 
     assert offset == mock_tv_ts - host_now
     assert client.tv_timestamp == mock_tv_ts
-

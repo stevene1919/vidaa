@@ -1,4 +1,4 @@
-"""Hisense VIDAA TV device turn on trigger."""
+"""VIDAA Smart TV device turn on trigger."""
 
 from __future__ import annotations
 
@@ -76,24 +76,18 @@ def async_get_turn_on_description(hass: HomeAssistant, device_id: str) -> str:
 
 
 class TurnOnTrigger(Trigger):
-    """Hisense VIDAA TV turn on trigger."""
+    """VIDAA Smart TV turn on trigger."""
 
     _options: dict[str, Any]
 
     @classmethod
-    async def async_validate_complete_config(
-        cls, hass: HomeAssistant, complete_config: ConfigType
-    ) -> ConfigType:
+    async def async_validate_complete_config(cls, hass: HomeAssistant, complete_config: ConfigType) -> ConfigType:
         """Validate complete config, moving legacy fields to options."""
-        complete_config = move_top_level_schema_fields_to_options(
-            complete_config, _OPTIONS_SCHEMA_DICT
-        )
+        complete_config = move_top_level_schema_fields_to_options(complete_config, _OPTIONS_SCHEMA_DICT)
         return await super().async_validate_complete_config(hass, complete_config)
 
     @classmethod
-    async def async_validate_config(
-        cls, hass: HomeAssistant, config: ConfigType
-    ) -> ConfigType:
+    async def async_validate_config(cls, hass: HomeAssistant, config: ConfigType) -> ConfigType:
         """Validate config."""
         return cast(ConfigType, _TRIGGER_SCHEMA(config))
 

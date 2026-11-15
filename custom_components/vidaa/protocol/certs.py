@@ -1,4 +1,4 @@
-"""Certificate resolution and PKCS#12 bundle extraction for Hisense VIDAA TV."""
+"""Certificate resolution and PKCS#12 bundle extraction for VIDAA Smart TV."""
 
 from __future__ import annotations
 
@@ -77,7 +77,6 @@ def detect_brand_from_cert_paths(certfile: str | None, keyfile: str | None) -> s
     return None
 
 
-
 def validate_ssl_certs(certfile: str | None, keyfile: str | None) -> tuple[bool, str | None]:
     """Validate that certificate and key files exist and can be loaded into an SSLContext.
 
@@ -91,6 +90,7 @@ def validate_ssl_certs(certfile: str | None, keyfile: str | None) -> tuple[bool,
         return False, "certs_not_found"
 
     import ssl
+
     try:
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         context.check_hostname = False
@@ -101,6 +101,7 @@ def validate_ssl_certs(certfile: str | None, keyfile: str | None) -> tuple[bool,
         return False, f"invalid_ssl_cert: {err}"
     except Exception as err:
         return False, f"invalid_ssl_cert: {err}"
+
 
 def check_certs_exist(certfile: str | None, keyfile: str | None) -> bool:
     """Check if certificate and key files exist and are readable."""
@@ -288,40 +289,168 @@ def resolve_ca_certificate(
 PROFILE_CERT_CANDIDATES: dict[str, tuple[list[str], list[str], list[str]]] = {
     "modern": (
         [
-            "vidaa_client_v01.pem", "vidaa_client_v01.crt", "vidaa_client_v02.pem", "vidaa_2024_cert.pem", "vidaa2024_cert.pem", "vidaa_client.pem", "hisense.crt", "toshiba.crt", "toshiba.pem", "loewe.crt", "loewe.pem", "philips.crt", "philips.pem", "tpv.crt", "tpv.pem", "client_cert.pem", "cert.pem",
+            "vidaa_client_v01.pem",
+            "vidaa_client_v01.crt",
+            "vidaa_client_v02.pem",
+            "vidaa_2024_cert.pem",
+            "vidaa2024_cert.pem",
+            "vidaa_client.pem",
+            "hisense.crt",
+            "toshiba.crt",
+            "toshiba.pem",
+            "loewe.crt",
+            "loewe.pem",
+            "philips.crt",
+            "philips.pem",
+            "tpv.crt",
+            "tpv.pem",
+            "client_cert.pem",
+            "cert.pem",
         ],
         [
-            "vidaa_client_v01.key", "vidaa_client_v02.key", "vidaa_2024_key.pem", "vidaa2024_key.pem", "vidaa_client.key", "hisense.key", "toshiba.key", "loewe.key", "philips.key", "tpv.key", "client_key.pem", "key.pem",
+            "vidaa_client_v01.key",
+            "vidaa_client_v02.key",
+            "vidaa_2024_key.pem",
+            "vidaa2024_key.pem",
+            "vidaa_client.key",
+            "hisense.key",
+            "toshiba.key",
+            "loewe.key",
+            "philips.key",
+            "tpv.key",
+            "client_key.pem",
+            "key.pem",
         ],
         [
-            "vidaa_2024_client_mobile_android.p12", "client_mobile_android.p12", "El.p12", "el.p12", "3R.p12", "vidaa_cert.p12", "vidaa.p12", "toshiba.p12", "loewe.p12", "philips.p12", "tpv.p12",
+            "vidaa_2024_client_mobile_android.p12",
+            "client_mobile_android.p12",
+            "El.p12",
+            "el.p12",
+            "3R.p12",
+            "vidaa_cert.p12",
+            "vidaa.p12",
+            "toshiba.p12",
+            "loewe.p12",
+            "philips.p12",
+            "tpv.p12",
         ],
     ),
     "middle": (
         [
-            "vidaa_client_v01.pem", "vidaa_client_v01.crt", "vidaa_client_v02.pem", "vidaa_client.pem", "remotenow_2018_cert.pem", "hisense.crt", "toshiba.crt", "toshiba.pem", "loewe.crt", "loewe.pem", "philips.crt", "philips.pem", "tpv.crt", "tpv.pem", "client_cert.pem", "cert.pem",
+            "vidaa_client_v01.pem",
+            "vidaa_client_v01.crt",
+            "vidaa_client_v02.pem",
+            "vidaa_client.pem",
+            "remotenow_2018_cert.pem",
+            "hisense.crt",
+            "toshiba.crt",
+            "toshiba.pem",
+            "loewe.crt",
+            "loewe.pem",
+            "philips.crt",
+            "philips.pem",
+            "tpv.crt",
+            "tpv.pem",
+            "client_cert.pem",
+            "cert.pem",
         ],
         [
-            "vidaa_client_v01.key", "vidaa_client_v02.key", "vidaa_client.key", "remotenow_2018_key.pem", "hisense.key", "toshiba.key", "loewe.key", "philips.key", "tpv.key", "client_key.pem", "key.pem",
+            "vidaa_client_v01.key",
+            "vidaa_client_v02.key",
+            "vidaa_client.key",
+            "remotenow_2018_key.pem",
+            "hisense.key",
+            "toshiba.key",
+            "loewe.key",
+            "philips.key",
+            "tpv.key",
+            "client_key.pem",
+            "key.pem",
         ],
         [
-            "client_mobile_android.p12", "vidaa_2024_client_mobile_android.p12", "El.p12", "el.p12", "3R.p12", "rcamobile.p12", "hisense.p12", "toshiba.p12", "loewe.p12", "philips.p12", "tpv.p12",
+            "client_mobile_android.p12",
+            "vidaa_2024_client_mobile_android.p12",
+            "El.p12",
+            "el.p12",
+            "3R.p12",
+            "rcamobile.p12",
+            "hisense.p12",
+            "toshiba.p12",
+            "loewe.p12",
+            "philips.p12",
+            "tpv.p12",
         ],
     ),
     "remotenow": (
-        ["remotenow_2018_cert.pem", "vidaa_client_v01.pem", "vidaa_client_v01.crt", "vidaa_client.pem", "hisense.crt", "client_cert.pem", "cert.pem"],
-        ["remotenow_2018_key.pem", "vidaa_client_v01.key", "vidaa_client.key", "hisense.key", "client_key.pem", "key.pem"],
+        [
+            "remotenow_2018_cert.pem",
+            "vidaa_client_v01.pem",
+            "vidaa_client_v01.crt",
+            "vidaa_client.pem",
+            "hisense.crt",
+            "client_cert.pem",
+            "cert.pem",
+        ],
+        [
+            "remotenow_2018_key.pem",
+            "vidaa_client_v01.key",
+            "vidaa_client.key",
+            "hisense.key",
+            "client_key.pem",
+            "key.pem",
+        ],
         ["rcamobile.p12", "hisense.p12", "remotenow.p12"],
     ),
     "auto": (
         [
-            "vidaa_client_v01.pem", "vidaa_client_v01.crt", "vidaa_client_v02.pem", "vidaa_client.pem", "hisense.crt", "toshiba.crt", "toshiba.pem", "loewe.crt", "loewe.pem", "philips.crt", "philips.pem", "tpv.crt", "tpv.pem", "client_cert.pem", "vidaa_2024_cert.pem", "vidaa2024_cert.pem", "remotenow_2018_cert.pem", "cert.pem",
+            "vidaa_client_v01.pem",
+            "vidaa_client_v01.crt",
+            "vidaa_client_v02.pem",
+            "vidaa_client.pem",
+            "hisense.crt",
+            "toshiba.crt",
+            "toshiba.pem",
+            "loewe.crt",
+            "loewe.pem",
+            "philips.crt",
+            "philips.pem",
+            "tpv.crt",
+            "tpv.pem",
+            "client_cert.pem",
+            "vidaa_2024_cert.pem",
+            "vidaa2024_cert.pem",
+            "remotenow_2018_cert.pem",
+            "cert.pem",
         ],
         [
-            "vidaa_client_v01.key", "vidaa_client_v02.key", "vidaa_client.key", "hisense.key", "toshiba.key", "loewe.key", "philips.key", "tpv.key", "client_key.pem", "vidaa_2024_key.pem", "vidaa2024_key.pem", "remotenow_2018_key.pem", "key.pem",
+            "vidaa_client_v01.key",
+            "vidaa_client_v02.key",
+            "vidaa_client.key",
+            "hisense.key",
+            "toshiba.key",
+            "loewe.key",
+            "philips.key",
+            "tpv.key",
+            "client_key.pem",
+            "vidaa_2024_key.pem",
+            "vidaa2024_key.pem",
+            "remotenow_2018_key.pem",
+            "key.pem",
         ],
         [
-            "client_mobile_android.p12", "vidaa_2024_client_mobile_android.p12", "El.p12", "el.p12", "3R.p12", "vidaa_cert.p12", "vidaa.p12", "rcamobile.p12", "hisense.p12", "toshiba.p12", "loewe.p12", "philips.p12", "tpv.p12",
+            "client_mobile_android.p12",
+            "vidaa_2024_client_mobile_android.p12",
+            "El.p12",
+            "el.p12",
+            "3R.p12",
+            "vidaa_cert.p12",
+            "vidaa.p12",
+            "rcamobile.p12",
+            "hisense.p12",
+            "toshiba.p12",
+            "loewe.p12",
+            "philips.p12",
+            "tpv.p12",
         ],
     ),
 }

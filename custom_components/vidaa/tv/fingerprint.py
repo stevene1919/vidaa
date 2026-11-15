@@ -1,4 +1,4 @@
-"""UPnP, DLNA, mDNS, and ARP device fingerprinting for Hisense VIDAA TVs."""
+"""UPnP, DLNA, mDNS, and ARP device fingerprinting for VIDAA Smart TVs."""
 
 from __future__ import annotations
 
@@ -48,7 +48,9 @@ __all__ = [
 def probe_upnp_services(ip: str, verbose: bool = True) -> dict[str, Any]:
     """Probes UPnP services (RenderingControl, AVTransport, LanControl) on the target TV."""
     if verbose:
-        print(f"\n=======================================================\n  UPnP / DLNA Diagnostic Probe ({ip})\n=======================================================")
+        print(
+            f"\n=======================================================\n  UPnP / DLNA Diagnostic Probe ({ip})\n======================================================="
+        )
 
     results: dict[str, Any] = {
         "active_port": None,
@@ -185,7 +187,9 @@ def probe_upnp_services(ip: str, verbose: bool = True) -> dict[str, Any]:
         if status == 200:
             print(f"  [LanControlInfo] Status: 200 OK -> Response: {resp_xml[:200]}")
         elif status == 404:
-            print("  [LanControlInfo] Status: 404 Not Found (Standard behavior on transport_protocol=3160; U6+ specific)")
+            print(
+                "  [LanControlInfo] Status: 404 Not Found (Standard behavior on transport_protocol=3160; U6+ specific)"
+            )
         else:
             print(f"  [LanControlInfo] Status: {status} -> {resp_xml[:120]}")
 

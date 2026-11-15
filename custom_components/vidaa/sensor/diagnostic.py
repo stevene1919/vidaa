@@ -1,4 +1,4 @@
-"""Diagnostic sensor entities for Hisense VIDAA TV."""
+"""Diagnostic sensor entities for VIDAA Smart TV."""
 
 from __future__ import annotations
 

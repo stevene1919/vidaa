@@ -1,4 +1,4 @@
-"""Diagnostics support for Hisense VIDAA TV."""
+"""Diagnostics support for VIDAA Smart TV."""
 
 from __future__ import annotations
 
@@ -45,9 +45,7 @@ TO_REDACT = {
 }
 
 
-async def async_get_config_entry_diagnostics(
-    hass: HomeAssistant, entry: HisenseVidaaConfigEntry
-) -> dict[str, Any]:
+async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: HisenseVidaaConfigEntry) -> dict[str, Any]:
     """Return diagnostics for a config entry."""
     runtime_data = getattr(entry, "runtime_data", None)
     if runtime_data is None and hasattr(hass, "data") and isinstance(hass.data, dict):

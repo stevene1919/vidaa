@@ -1,4 +1,4 @@
-"""TV power actions and initial query operations for Hisense VIDAA TV."""
+"""TV power actions and initial query operations for VIDAA Smart TV."""
 
 from __future__ import annotations
 
@@ -10,12 +10,12 @@ import time
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..client import HisenseTvClient
+    from ..client import VidaaClient
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def query_initial_state(client: HisenseTvClient, min_interval: float = 3.0) -> None:
+def query_initial_state(client: VidaaClient, min_interval: float = 3.0) -> None:
     """Queries initial state, volume, source list, app list, and settings from TV."""
     if not (client.connected and client.mqtt_client):
         return
@@ -49,7 +49,7 @@ def query_initial_state(client: HisenseTvClient, min_interval: float = 3.0) -> N
         client.mqtt_client.publish(f"{client.topics.platform}actions/gettvinfo", "")
 
 
-async def async_query_initial_state(client: HisenseTvClient, min_interval: float = 3.0) -> None:
+async def async_query_initial_state(client: VidaaClient, min_interval: float = 3.0) -> None:
     """Queries initial state, volume, source list, app list, and settings from TV asynchronously."""
     if not (client.connected and client.mqtt_client):
         return
@@ -79,7 +79,7 @@ async def async_query_initial_state(client: HisenseTvClient, min_interval: float
 
 
 def turn_on_tv(
-    client: HisenseTvClient,
+    client: VidaaClient,
     mac_targets: list[str] | None = None,
 ) -> None:
     """Powers on or wakes the TV safely and idempotently."""
@@ -122,7 +122,7 @@ def turn_on_tv(
 
 
 async def async_turn_on_tv(
-    client: HisenseTvClient,
+    client: VidaaClient,
     mac_targets: list[str] | None = None,
 ) -> None:
     """Powers on or wakes the TV safely and idempotently asynchronously."""
@@ -167,14 +167,14 @@ async def async_turn_on_tv(
     client.is_on = True
 
 
-def turn_off_tv(client: HisenseTvClient) -> None:
+def turn_off_tv(client: VidaaClient) -> None:
     """Powers off the TV safely."""
     if client.connected and client.is_on:
         client.send_key("KEY_POWER")
     client.is_on = False
 
 
-async def async_turn_off_tv(client: HisenseTvClient) -> None:
+async def async_turn_off_tv(client: VidaaClient) -> None:
     """Powers off the TV safely asynchronously."""
     if client.connected and client.is_on:
         await client.async_send_key("KEY_POWER")

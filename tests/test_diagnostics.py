@@ -52,13 +52,7 @@ async def test_diagnostics_redaction():
     mock_client.get_device_fingerprint.return_value = fingerprint_data
     mock_client.async_get_device_fingerprint = AsyncMock(return_value=fingerprint_data)
 
-    hass.data = {
-        DOMAIN: {
-            "test_entry_id": {
-                "client": mock_client
-            }
-        }
-    }
+    hass.data = {DOMAIN: {"test_entry_id": {"client": mock_client}}}
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
     diag = await async_get_config_entry_diagnostics(hass, entry)
@@ -132,6 +126,7 @@ async def test_diagnostics_redacts_fingerprint_and_topic_client_id():
     mock_client.refresh_token = "secret_refresh_token"
     mock_client.refresh_token_duration = 86400
     from custom_components.vidaa.protocol.topics import TopicPaths
+
     mock_client.topics = TopicPaths(
         ui=f"ui_service/{client_id}/",
         platform=f"platform_service/{client_id}/",
@@ -199,5 +194,3 @@ async def test_diagnostics_clock_offset_and_pii_redaction():
     assert diag["entry"]["data"]["secondary_mac_address"] == "**REDACTED**"
     assert diag["entry"]["data"]["mac"] == "**REDACTED**"
     assert diag["entry"]["data"]["uuid"] == "**REDACTED**"
-
-

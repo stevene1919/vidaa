@@ -8,18 +8,19 @@ import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import AbortFlow
 
-from custom_components.vidaa.client import HisenseTvClient
-from custom_components.vidaa.config_flow import HisenseVidaaConfigFlow
+from custom_components.vidaa.client import VidaaClient
+from custom_components.vidaa.config_flow import VidaaConfigFlow
 from custom_components.vidaa.const import DOMAIN
 
 PROBE_PATH = "custom_components.vidaa.config_flow.async_probe_pairing_challenge"
 
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-def _static_client() -> HisenseTvClient:
+def _static_client() -> VidaaClient:
     """A static-session (legacy) client with its topic paths defined."""
-    client = HisenseTvClient(ip="192.168.50.12", auth_profile="legacy")
+    client = VidaaClient(ip="192.168.50.12", auth_profile="legacy")
     client.client_id = "hisenseservice"
     client.username = "hisenseservice"
     client.password = "multimqttservice"
@@ -34,8 +35,8 @@ def _hass() -> MagicMock:
     return hass
 
 
-def _flow(hass: MagicMock, *, profile: str = "legacy") -> HisenseVidaaConfigFlow:
-    flow = HisenseVidaaConfigFlow()
+def _flow(hass: MagicMock, *, profile: str = "legacy") -> VidaaConfigFlow:
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
     flow.ip_address = "192.168.50.12"
@@ -50,11 +51,11 @@ def _flow(hass: MagicMock, *, profile: str = "legacy") -> HisenseVidaaConfigFlow
 def no_network_start_auth(monkeypatch):
     """Keep the flow's client construction offline."""
     monkeypatch.setattr(
-        "custom_components.vidaa.client.HisenseTvClient.async_start_auth",
+        "custom_components.vidaa.client.VidaaClient.async_start_auth",
         AsyncMock(return_value=None),
     )
     monkeypatch.setattr(
-        "custom_components.vidaa.client.HisenseTvClient.get_device_fingerprint",
+        "custom_components.vidaa.client.VidaaClient.get_device_fingerprint",
         MagicMock(return_value={}),
     )
 
@@ -73,9 +74,7 @@ async def test_duplicate_tv_aborts_with_already_configured(monkeypatch, no_netwo
     )
 
     with pytest.raises(AbortFlow) as exc:
-        await flow.async_step_user(
-            user_input={"ip_address": "192.168.50.12", "auth_profile": "legacy"}
-        )
+        await flow.async_step_user(user_input={"ip_address": "192.168.50.12", "auth_profile": "legacy"})
     assert exc.value.reason == "already_configured"
 
 
@@ -94,9 +93,7 @@ async def test_certs_step_does_not_swallow_abort_flow(monkeypatch, no_network_st
     hass = _hass()
     flow = _flow(hass, profile="modern")
     flow._abort_if_unique_id_configured = MagicMock(side_effect=AbortFlow("already_configured"))
-    monkeypatch.setattr(
-        "custom_components.vidaa.flow.certs.check_certs_exist", lambda c, k: True
-    )
+    monkeypatch.setattr("custom_components.vidaa.flow.certs.check_certs_exist", lambda c, k: True)
 
     with pytest.raises(AbortFlow):
         await flow.async_step_certs(user_input={"use_ssl": False, "certfile": "", "keyfile": ""})
@@ -149,7 +146,7 @@ async def test_reauth_disconnects_only_its_own_client():
 # F10-leg6: async_remove keeps and logs the background task future
 # ---------------------------------------------------------------------------
 def test_async_remove_registers_done_callback():
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     fut = MagicMock()
     fut.cancelled.return_value = False
     fut.exception.return_value = RuntimeError("disconnect failed")
@@ -163,5 +160,3 @@ def test_async_remove_registers_done_callback():
     assert fut.add_done_callback.called
     callback = fut.add_done_callback.call_args[0][0]
     callback(fut)  # must log and not raise
-
-

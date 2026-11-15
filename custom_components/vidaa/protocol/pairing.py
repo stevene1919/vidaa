@@ -1,4 +1,4 @@
-"""Authentication and PIN-pairing handshake protocol for Hisense VIDAA TV."""
+"""Authentication and PIN-pairing handshake protocol for VIDAA Smart TV."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 from .dispatcher import mask_sensitive_payload
 
 if TYPE_CHECKING:
-    from ..client import HisenseTvClient
+    from ..client import VidaaClient
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ class PairingStatusError(Exception):
         self.status = status
 
 
-async def async_probe_pairing_challenge(client: HisenseTvClient, timeout: float = 8.0) -> bool:
+async def async_probe_pairing_challenge(client: VidaaClient, timeout: float = 8.0) -> bool:
     """Opens the static session and probes whether the TV demands PIN pairing.
 
     On the static session ``gettvstate`` is answered by an ``authentication``
@@ -59,9 +59,7 @@ async def async_probe_pairing_challenge(client: HisenseTvClient, timeout: float 
     client._pairing_event_future = loop.create_future()
     try:
         try:
-            await client.async_open_pairing_session(
-                client.client_id, client.username, client.password, timeout=10.0
-            )
+            await client.async_open_pairing_session(client.client_id, client.username, client.password, timeout=10.0)
         except Exception as err:
             _LOGGER.warning("[%s] Static session could not connect for pairing probe: %s", client.ip, err)
             return False
@@ -71,13 +69,15 @@ async def async_probe_pairing_challenge(client: HisenseTvClient, timeout: float 
 
         # Mirror the push topics the pairing handshake subscribes to, plus the
         # close/toast topics so the TV's dialog events unblock the wait.
-        await client.async_subscribe([
-            (f"{client.topics.mobile}#", 0),
-            (f"{client.topics.mobile}ui_service/data/authentication", 0),
-            (f"{client.topics.mobile}ui_service/data/authenticationcode", 0),
-            (f"{client.topics.mobile}ui_service/data/authenticationcodeclose", 0),
-            (f"{client.topics.mobile}ui_service/data/authenticationcodetoast", 0),
-        ])
+        await client.async_subscribe(
+            [
+                (f"{client.topics.mobile}#", 0),
+                (f"{client.topics.mobile}ui_service/data/authentication", 0),
+                (f"{client.topics.mobile}ui_service/data/authenticationcode", 0),
+                (f"{client.topics.mobile}ui_service/data/authenticationcodeclose", 0),
+                (f"{client.topics.mobile}ui_service/data/authenticationcodetoast", 0),
+            ]
+        )
         await asyncio.sleep(0.3)
 
         deadline = loop.time() + timeout
@@ -99,7 +99,7 @@ async def async_probe_pairing_challenge(client: HisenseTvClient, timeout: float 
         client._pairing_event_future = None
 
 
-async def async_start_pairing_handshake(client: HisenseTvClient) -> None:
+async def async_start_pairing_handshake(client: VidaaClient) -> None:
     """Initiates pairing handshake cascade across auto/modern/middle/remotenow profiles."""
     if getattr(client, "auth_profile", "auto") in ("legacy", "static"):
         client.client_id = "hisenseservice"
@@ -126,8 +126,7 @@ async def async_start_pairing_handshake(client: HisenseTvClient) -> None:
         except Exception as error:
             error_message = str(error)
             is_auth_reject = any(
-                code in error_message
-                for code in ("code 5", "code 4", "code 134", "code 135", "Not authorized")
+                code in error_message for code in ("code 5", "code 4", "code 134", "code 135", "Not authorized")
             )
             if client.brand == "his" and is_auth_reject:
                 _LOGGER.info(
@@ -207,8 +206,7 @@ async def async_start_pairing_handshake(client: HisenseTvClient) -> None:
         if last_error:
             error_message = str(last_error)
             is_auth_reject = any(
-                code in error_message
-                for code in ("code 5", "code 4", "code 134", "code 135", "Not authorized")
+                code in error_message for code in ("code 5", "code 4", "code 134", "code 135", "Not authorized")
             )
             if client.brand == "his" and is_auth_reject:
                 _LOGGER.info(
@@ -246,22 +244,19 @@ async def async_start_pairing_handshake(client: HisenseTvClient) -> None:
                             break
                 client.brand = "his"
             raise Exception(
-                f"{last_error}; pairing brand={getattr(client, 'brand', 'his')}, "
-                f"profiles={','.join(profiles_to_try)}"
+                f"{last_error}; pairing brand={getattr(client, 'brand', 'his')}, profiles={','.join(profiles_to_try)}"
             ) from last_error
 
 
 async def _async_execute_pairing_attempt(
-    client: HisenseTvClient, profile: str = "modern", use_new_auth: bool | None = None
+    client: VidaaClient, profile: str = "modern", use_new_auth: bool | None = None
 ) -> None:
     loop = asyncio.get_running_loop()
     client._loop = loop
     await client.async_disconnect()
     await asyncio.sleep(0.2)
     tv_timestamp = await client.upnp.async_get_tv_timestamp(1.5)
-    client.derive_pairing_credentials(
-        use_new_auth=use_new_auth, auth_profile=profile, timestamp=tv_timestamp
-    )
+    client.derive_pairing_credentials(use_new_auth=use_new_auth, auth_profile=profile, timestamp=tv_timestamp)
 
     _LOGGER.debug(
         "[%s] Pairing attempt: brand=%s, profile=%s, clock_source=%s",
@@ -272,20 +267,20 @@ async def _async_execute_pairing_attempt(
     )
 
     # Raises the CONNACK rejection immediately so the profile cascade can fall back.
-    await client.async_open_pairing_session(
-        client.client_id, client.username, client.password, timeout=10.0
-    )
+    await client.async_open_pairing_session(client.client_id, client.username, client.password, timeout=10.0)
     client._auth_future = loop.create_future()
     client._connect_ack_future = loop.create_future()
 
-    await client.async_subscribe([
-        (f"{client.topics.ui}actions/vidaa_app_connect", 0),
-        (f"{client.topics.mobile}#", 0),
-        (f"{client.topics.mobile}ui_service/data/authentication", 0),
-        (f"{client.topics.mobile}ui_service/data/authenticationcode", 0),
-        (f"{client.topics.mobile}ui_service/data/vidaa_app_connect", 0),
-        (f"{client.topics.mobile}platform_service/data/tokenissuance", 0),
-    ])
+    await client.async_subscribe(
+        [
+            (f"{client.topics.ui}actions/vidaa_app_connect", 0),
+            (f"{client.topics.mobile}#", 0),
+            (f"{client.topics.mobile}ui_service/data/authentication", 0),
+            (f"{client.topics.mobile}ui_service/data/authenticationcode", 0),
+            (f"{client.topics.mobile}ui_service/data/vidaa_app_connect", 0),
+            (f"{client.topics.mobile}platform_service/data/tokenissuance", 0),
+        ]
+    )
 
     await asyncio.sleep(0.5)
 
@@ -302,12 +297,12 @@ async def _async_execute_pairing_attempt(
                 # The TV accepted the request but never announced a PIN dialog.
                 # Some firmware does this even with a PIN on screen; the ACK is
                 # weaker evidence than the authentication push but is all we get.
-                _LOGGER.info(
-                    "[%s] TV acknowledged vidaa_app_connect but sent no PIN notification", client.ip
-                )
+                _LOGGER.info("[%s] TV acknowledged vidaa_app_connect but sent no PIN notification", client.ip)
                 break
             if attempt < 2 and not client._auth_future.done():
-                _LOGGER.debug("[%s] No response to vidaa_app_connect on attempt %d, retrying...", client.ip, attempt + 1)
+                _LOGGER.debug(
+                    "[%s] No response to vidaa_app_connect on attempt %d, retrying...", client.ip, attempt + 1
+                )
                 await asyncio.sleep(0.5)
             else:
                 await client.async_disconnect()
@@ -316,7 +311,7 @@ async def _async_execute_pairing_attempt(
     client._connect_ack_future = None
 
 
-async def async_submit_pin_code(client: HisenseTvClient, pin_code: str) -> dict[str, Any]:
+async def async_submit_pin_code(client: VidaaClient, pin_code: str) -> dict[str, Any]:
     """Submits the PIN code entered by the user and retrieves token pair from TV."""
     loop = asyncio.get_running_loop()
     client._loop = loop

@@ -1,4 +1,4 @@
-"""Hisense VIDAA TV triggers."""
+"""VIDAA Smart TV triggers."""
 
 from __future__ import annotations
 
@@ -13,5 +13,5 @@ TRIGGERS: dict[str, type[Trigger]] = {
 
 
 async def async_get_triggers(_hass: HomeAssistant) -> dict[str, type[Trigger]]:
-    """Return the triggers for Hisense VIDAA TV."""
+    """Return the triggers for VIDAA Smart TV."""
     return TRIGGERS

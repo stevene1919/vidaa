@@ -1,4 +1,4 @@
-"""Feature probing, diagnostics collection, and report formatting for Hisense VIDAA TV."""
+"""Feature probing, diagnostics collection, and report formatting for VIDAA Smart TV."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from .fingerprint import format_drift_human, get_arp_mac, get_tv_timestamp
 from .settings import SettingMenuItem
 
 if TYPE_CHECKING:
-    from ..client import HisenseTvClient
+    from ..client import VidaaClient
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -58,11 +58,13 @@ def load_credentials_file(file_path: str = "credentials.json") -> dict[str, Any]
             candidate_paths.append(os.path.join(cur, file_path))
             candidate_paths.append(os.path.join(cur, "scripts", file_path))
             cur = os.path.dirname(cur)
-        candidate_paths.extend([
-            os.path.join("/config", file_path),
-            os.path.join("/config/custom_components/vidaa", file_path),
-            os.path.join("/config/custom_components/hisense_vidaa", file_path),
-        ])
+        candidate_paths.extend(
+            [
+                os.path.join("/config", file_path),
+                os.path.join("/config/custom_components/vidaa", file_path),
+                os.path.join("/config/custom_components/hisense_vidaa", file_path),
+            ]
+        )
 
     for path in candidate_paths:
         if os.path.isfile(path):
@@ -89,16 +91,14 @@ def create_client_from_creds(
     auth_profile: str = "auto",
     brand: str | None = None,
 ) -> Any:
-    """Create a configured HisenseTvClient from credentials."""
-    from ..client import HisenseTvClient
+    """Create a configured VidaaClient from credentials."""
+    from ..client import VidaaClient
 
-    resolved_cert, resolved_key = resolve_certificates(
-        auth_profile=auth_profile, certfile=certfile, keyfile=keyfile
-    )
+    resolved_cert, resolved_key = resolve_certificates(auth_profile=auth_profile, certfile=certfile, keyfile=keyfile)
     resolved_ca = resolve_ca_certificate(ca_cert)
     tv_brand = brand or creds.get("brand") or "his"
 
-    return HisenseTvClient(
+    return VidaaClient(
         ip=creds.get("ip_address"),
         mac=creds.get("mac_address"),
         client_id=creds.get("client_id"),
@@ -120,7 +120,7 @@ def create_client_from_creds(
 
 
 def probe_tv_features(
-    client: HisenseTvClient,
+    client: VidaaClient,
     wait_time: float = 2.5,
 ) -> FeatureProbeResult:
     """Connect to TV, query menu trees, sources, apps, and return probe results."""
@@ -229,9 +229,17 @@ def generate_markdown_report(
     tcp_status = "✅ OPEN" if ping_result.get("tcp_port_open") else "❌ CLOSED"
     tls_status = "✅ SUCCESS" if ping_result.get("tls_handshake") else "❌ FAILED"
     lines.append(f"- **Port 36669 (TCP):** {tcp_status}")
-    lines.append(f"- **TLS Handshake:** {tls_status} ({ping_result.get('tls_version') or 'N/A'}, {ping_result.get('cipher') or 'N/A'})")
-    cert_presented = ping_result.get("client_cert_presented") or (auth_probe.get("client_cert_presented") if isinstance(auth_probe, dict) else False)
-    cert_desc = f"✅ Presented (`{ping_result.get('certfile')}`)" if cert_presented and ping_result.get("certfile") else ("✅ Presented" if cert_presented else "⚠️ None Presented (Unauthenticated TLS)")
+    lines.append(
+        f"- **TLS Handshake:** {tls_status} ({ping_result.get('tls_version') or 'N/A'}, {ping_result.get('cipher') or 'N/A'})"
+    )
+    cert_presented = ping_result.get("client_cert_presented") or (
+        auth_probe.get("client_cert_presented") if isinstance(auth_probe, dict) else False
+    )
+    cert_desc = (
+        f"✅ Presented (`{ping_result.get('certfile')}`)"
+        if cert_presented and ping_result.get("certfile")
+        else ("✅ Presented" if cert_presented else "⚠️ None Presented (Unauthenticated TLS)")
+    )
     lines.append(f"- **Client Certificate:** {cert_desc}")
 
     lines.append("\n### 🔐 MQTT Authentication Capabilities")
@@ -289,7 +297,11 @@ def generate_markdown_report(
             )
 
     if ping_result.get("mqtt_rc") is not None:
-        stored_str = "✅ ACCEPTED (rc=0)" if ping_result.get("mqtt_connected") else f"❌ REJECTED (rc={ping_result.get('mqtt_rc')})"
+        stored_str = (
+            "✅ ACCEPTED (rc=0)"
+            if ping_result.get("mqtt_connected")
+            else f"❌ REJECTED (rc={ping_result.get('mqtt_rc')})"
+        )
         lines.append(f"- **Stored Credentials Auth:** {stored_str}")
 
     if probe_result and probe_result.connected:
@@ -298,14 +310,18 @@ def generate_markdown_report(
         # Dynamic Picture / Sound Menu Controls
         lines.append("#### 🖼️ Dynamic Calibration & Menu Trees")
         if probe_result.picture_settings:
-            lines.append("<details><summary><b>✅ Dynamic Picture Settings Discovered</b> (Click to expand)</summary>\n")
+            lines.append(
+                "<details><summary><b>✅ Dynamic Picture Settings Discovered</b> (Click to expand)</summary>\n"
+            )
             for item in probe_result.picture_settings:
                 opts = f" (Options: {', '.join(item.options)})" if item.options else ""
                 val = f" [Current: {item.value}]" if item.value is not None else ""
                 lines.append(f"- **{item.name}** (ID: `{item.menu_id}`){val}{opts}")
             lines.append("\n</details>")
         else:
-            lines.append("- **Picture Settings:** ⚠️ Not exposed over MQTT (Firmware uses internal OSD; dynamic picture mode/sliders not instantiated)")
+            lines.append(
+                "- **Picture Settings:** ⚠️ Not exposed over MQTT (Firmware uses internal OSD; dynamic picture mode/sliders not instantiated)"
+            )
 
         if probe_result.sound_settings:
             lines.append("<details><summary><b>✅ Dynamic Sound Settings Discovered</b> (Click to expand)</summary>\n")
@@ -315,12 +331,16 @@ def generate_markdown_report(
                 lines.append(f"- **{item.name}** (ID: `{item.menu_id}`){val}{opts}")
             lines.append("\n</details>")
         else:
-            lines.append("- **Sound Settings:** ⚠️ Not exposed over MQTT (Firmware uses internal OSD; dynamic sound mode selects not instantiated)")
+            lines.append(
+                "- **Sound Settings:** ⚠️ Not exposed over MQTT (Firmware uses internal OSD; dynamic sound mode selects not instantiated)"
+            )
 
         # Interactive Media & App Controls
         lines.append("\n#### 🎮 Interactive Media & Navigation Controls")
         if probe_result.sources:
-            lines.append(f"<details><summary><b>🔌 Controllable Input Sources ({len(probe_result.sources)})</b> (Click to expand)</summary>\n")
+            lines.append(
+                f"<details><summary><b>🔌 Controllable Input Sources ({len(probe_result.sources)})</b> (Click to expand)</summary>\n"
+            )
             for s in probe_result.sources:
                 active = " [ACTIVE]" if s.get("is_signal") in ("1", 1, True) or s.get("is_active") else ""
                 lines.append(f"- `{s.get('sourceid')}`: **{s.get('sourcename', 'Unknown')}**{active}")
@@ -329,7 +349,9 @@ def generate_markdown_report(
             lines.append("- **Input Sources:** 0 discovered")
 
         if probe_result.apps:
-            lines.append(f"<details><summary><b>📱 Launchable Smart TV Apps ({len(probe_result.apps)})</b> (Click to expand)</summary>\n")
+            lines.append(
+                f"<details><summary><b>📱 Launchable Smart TV Apps ({len(probe_result.apps)})</b> (Click to expand)</summary>\n"
+            )
             for a in probe_result.apps:
                 lines.append(f"- **{a.get('name') or a.get('appName', 'Unknown')}** (`appId`: `{a.get('appId')}`)")
             lines.append("\n</details>")
@@ -342,7 +364,9 @@ def generate_markdown_report(
         lines.append("- `remote.<tv>`: Fast Direct Remote Key Commands (`KEY_POWER`, `KEY_HOME`, `KEY_BACK`, etc.)")
         lines.append("- `sensor.<tv>_active_source`: Live input tracking")
         lines.append("- `sensor.<tv>_active_app`: Live foreground app tracking")
-        lines.append("- `media_player.<tv>` `audio_output` attribute: Live audio output routing (TV Speakers vs ARC/eARC)")
+        lines.append(
+            "- `media_player.<tv>` `audio_output` attribute: Live audio output routing (TV Speakers vs ARC/eARC)"
+        )
         lines.append("- `sensor.<tv>_session_status`: Token session health & encryption status")
         lines.append("- `binary_sensor.<tv>_mqtt_connected`: Real-time broker connection status")
 
@@ -357,7 +381,7 @@ format_probe_results_markdown = generate_markdown_report
 
 
 def probe_tv_features_and_report(
-    client: HisenseTvClient,
+    client: VidaaClient,
     ping_result: dict[str, Any],
     ip: str,
     mac: str | None = None,

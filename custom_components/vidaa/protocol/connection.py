@@ -26,7 +26,7 @@ from .mqtt_session import (
 )
 
 if TYPE_CHECKING:
-    from ..client import HisenseTvClient
+    from ..client import VidaaClient
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,18 +45,18 @@ class ConnectionManagerMixin:
     # ------------------------------------------------------------------
     # Future helpers (all callers run on the event loop)
     # ------------------------------------------------------------------
-    def _safe_set_future_result(self: HisenseTvClient, future: asyncio.Future | None, result: Any) -> None:
+    def _safe_set_future_result(self: VidaaClient, future: asyncio.Future | None, result: Any) -> None:
         if future and not future.done():
             future.set_result(result)
 
-    def _safe_set_future_exception(self: HisenseTvClient, future: asyncio.Future | None, exception: Exception) -> None:
+    def _safe_set_future_exception(self: VidaaClient, future: asyncio.Future | None, exception: Exception) -> None:
         if future and not future.done():
             future.set_exception(exception)
 
     # ------------------------------------------------------------------
     # TLS
     # ------------------------------------------------------------------
-    async def _async_build_ssl_context(self: HisenseTvClient) -> Any:
+    async def _async_build_ssl_context(self: VidaaClient) -> Any:
         """Builds and loads the client TLS context off the event loop (disk I/O)."""
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
@@ -72,9 +72,7 @@ class ConnectionManagerMixin:
     # ------------------------------------------------------------------
     # Connection lifecycle callbacks
     # ------------------------------------------------------------------
-    def _handle_connected(
-        self: HisenseTvClient, adapter: Any = None, standard: bool = True
-    ) -> None:
+    def _handle_connected(self: VidaaClient, adapter: Any = None, standard: bool = True) -> None:
         debounce_handle = getattr(self, "_disconnect_debounce_handle", None)
         if debounce_handle is not None:
             debounce_handle.cancel()
@@ -94,11 +92,11 @@ class ConnectionManagerMixin:
             self._spawn(self._token_manager.async_proactive_token_refresh())
         self._query_task = self._spawn(self._async_delayed_initial_query())
 
-    async def _async_delayed_initial_query(self: HisenseTvClient) -> None:
+    async def _async_delayed_initial_query(self: VidaaClient) -> None:
         await asyncio.sleep(0.5)
         await self.async_query_initial_state()
 
-    def _handle_disconnected(self: HisenseTvClient, *, debounce: bool = True) -> None:
+    def _handle_disconnected(self: VidaaClient, *, debounce: bool = True) -> None:
         was_connected = self.connected
         self.connected = False
         self._last_initial_query_time = 0.0
@@ -107,6 +105,11 @@ class ConnectionManagerMixin:
         if debounce_handle is not None:
             debounce_handle.cancel()
             self._disconnect_debounce_handle = None
+
+        for _topic, waiters in list(self._pending_queries.items()):
+            for fut in waiters:
+                self._safe_set_future_exception(fut, ConnectionError("Disconnected from TV MQTT broker"))
+        self._pending_queries.clear()
 
         if not was_connected:
             return
@@ -127,14 +130,14 @@ class ConnectionManagerMixin:
             _LOGGER.debug("[%s] Disconnected from TV MQTT broker", self.ip)
             self._dispatch_disconnected()
 
-    def _handle_message(self: HisenseTvClient, topic: str, payload: str) -> None:
+    def _handle_message(self: VidaaClient, topic: str, payload: str) -> None:
         waiters = self._pending_queries.pop(topic, None)
         if waiters:
             for fut in waiters:
                 self._safe_set_future_result(fut, payload)
         dispatch_incoming_mqtt_message(self, topic=topic, payload=payload)
 
-    def _spawn(self: HisenseTvClient, coro: Any) -> asyncio.Task | None:
+    def _spawn(self: VidaaClient, coro: Any) -> asyncio.Task | None:
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -150,7 +153,7 @@ class ConnectionManagerMixin:
     # Supervisor
     # ------------------------------------------------------------------
     async def _mqtt_session_loop(
-        self: HisenseTvClient,
+        self: VidaaClient,
         client_id: str,
         username: str,
         password: str,
@@ -192,9 +195,7 @@ class ConnectionManagerMixin:
                 rc = extract_connect_rc(err)
                 self.connected = False
                 _LOGGER.warning("[%s] Failed to connect to TV MQTT broker (return code: %d)", self.ip, rc)
-                rejected = Exception(
-                    f"MQTT connection rejected with code {rc} (Not authorized / invalid credentials)"
-                )
+                rejected = Exception(f"MQTT connection rejected with code {rc} (Not authorized / invalid credentials)")
                 if ready is not None and not ready.done():
                     ready.set_exception(rejected)
                 if self._auth_future and not self._auth_future.done():
@@ -219,7 +220,7 @@ class ConnectionManagerMixin:
             await asyncio.sleep(delay)
             delay = min(delay * 2, RECONNECT_MAX_DELAY)
 
-    async def _async_stop_session(self: HisenseTvClient) -> None:
+    async def _async_stop_session(self: VidaaClient) -> None:
         """Cancels the running MQTT supervisor task and waits for teardown."""
         debounce_handle = getattr(self, "_disconnect_debounce_handle", None)
         if debounce_handle is not None:
@@ -239,7 +240,7 @@ class ConnectionManagerMixin:
             self.mqtt_client = None
         self.connected = False
 
-    async def async_connect_and_run(self: HisenseTvClient) -> None:
+    async def async_connect_and_run(self: VidaaClient) -> None:
         """Starts the persistent supervised MQTT session using the access token as password.
 
         Raises ``FileNotFoundError``/``ssl.SSLError`` immediately when the client
@@ -253,7 +254,9 @@ class ConnectionManagerMixin:
             return
 
         if not self.access_token or not self.client_id or not self.username:
-            _LOGGER.error("[%s] Cannot connect to TV: missing credentials (client_id, username, or access_token)", self.ip)
+            _LOGGER.error(
+                "[%s] Cannot connect to TV: missing credentials (client_id, username, or access_token)", self.ip
+            )
             self._dispatch_auth_failed()
             return
         async with self._reconnect_lock:
@@ -275,7 +278,7 @@ class ConnectionManagerMixin:
             self._token_manager.start_token_watch()
 
     async def async_open_pairing_session(
-        self: HisenseTvClient,
+        self: VidaaClient,
         client_id: str,
         username: str,
         password: str,
@@ -306,7 +309,7 @@ class ConnectionManagerMixin:
             await self._async_stop_session()
             raise
 
-    async def async_ensure_connected(self: HisenseTvClient, min_interval: float = 5.0) -> bool:
+    async def async_ensure_connected(self: VidaaClient, min_interval: float = 5.0) -> bool:
         """Ensures the MQTT session is running, rate-limiting reconnect attempts."""
         sync_fn = self.__dict__.get("ensure_connected")
         if sync_fn is not None and callable(sync_fn):
@@ -336,7 +339,7 @@ class ConnectionManagerMixin:
             _LOGGER.error("[%s] Error during ensure_connected: %s", self.ip, e)
             return False
 
-    def ensure_connected(self: HisenseTvClient, min_interval: float = 5.0) -> bool:
+    def ensure_connected(self: VidaaClient, min_interval: float = 5.0) -> bool:
         """Synchronous wrapper for async_ensure_connected (CLI usage)."""
         loop = self._loop
         if loop is not None and loop.is_running():
@@ -346,43 +349,45 @@ class ConnectionManagerMixin:
                 running = None
             if running is loop:
                 raise RuntimeError("Synchronous ensure_connected called from event loop")
-            return asyncio.run_coroutine_threadsafe(
-                self.async_ensure_connected(min_interval), loop
-            ).result(timeout=10)
+            return asyncio.run_coroutine_threadsafe(self.async_ensure_connected(min_interval), loop).result(timeout=10)
         return asyncio.run(self.async_ensure_connected(min_interval))
 
     # ------------------------------------------------------------------
     # Publish / subscribe / query
     # ------------------------------------------------------------------
-    async def async_publish(self: HisenseTvClient, topic: str, payload: Any = None) -> bool:
+    async def async_publish(self: VidaaClient, topic: str, payload: Any = None, timeout: float = 10.0) -> bool:
         """Publishes a message on the live session (returns False when disconnected)."""
         adapter = self.mqtt_client
-        if not adapter:
+        if not adapter or getattr(adapter, "closed", False) is True:
             return False
         try:
-            await adapter.async_publish(topic, payload)
+            res = adapter.async_publish(topic, payload)
+            if asyncio.iscoroutine(res) or isinstance(res, asyncio.Future):
+                await asyncio.wait_for(res, timeout=timeout)
             return True
         except (Exception, asyncio.CancelledError) as err:
             _LOGGER.debug("[%s] Publish to %s failed: %s", self.ip, topic, err)
             return False
 
-    async def async_subscribe(self: HisenseTvClient, topics: Any) -> bool:
+    async def async_subscribe(self: VidaaClient, topics: Any, timeout: float = 10.0) -> bool:
         """Subscribes on the live session (returns False when disconnected)."""
         adapter = self.mqtt_client
-        if not adapter:
+        if not adapter or getattr(adapter, "closed", False) is True:
             return False
         try:
-            await adapter.async_subscribe(topics)
+            res = adapter.async_subscribe(topics)
+            if asyncio.iscoroutine(res) or isinstance(res, asyncio.Future):
+                await asyncio.wait_for(res, timeout=timeout)
             return True
         except (Exception, asyncio.CancelledError) as err:
             _LOGGER.debug("[%s] Subscribe to %s failed: %s", self.ip, topics, err)
             return False
 
     async def async_query(
-        self: HisenseTvClient, publish_topic: str, subscribe_topic: str, payload: str | None = None, timeout: float = 10.0
+        self: VidaaClient, publish_topic: str, subscribe_topic: str, payload: str | None = None, timeout: float = 10.0
     ) -> Any:
         """Publishes a query and awaits the JSON response on ``subscribe_topic``."""
-        if not self.mqtt_client:
+        if not self.mqtt_client or getattr(self.mqtt_client, "closed", False) is True:
             raise Exception("MQTT client not initialized")
         loop = asyncio.get_running_loop()
         future: asyncio.Future = loop.create_future()
@@ -402,7 +407,7 @@ class ConnectionManagerMixin:
                 if not waiters:
                     self._pending_queries.pop(subscribe_topic, None)
 
-    async def async_disconnect(self: HisenseTvClient) -> None:
+    async def async_disconnect(self: VidaaClient) -> None:
         """Cleanly stops the MQTT session and all background tasks."""
         self._token_manager.stop_token_watch()
         self._token_manager.cancel_rejected_retry()
@@ -415,7 +420,7 @@ class ConnectionManagerMixin:
     # ------------------------------------------------------------------
     # Synchronous compatibility wrappers (standalone CLI only)
     # ------------------------------------------------------------------
-    def connect_and_run(self: HisenseTvClient) -> None:
+    def connect_and_run(self: VidaaClient) -> None:
         """Starts the MQTT session; for standalone CLI tools outside HA."""
         loop = self._loop
         if loop is None or loop.is_closed():
@@ -426,16 +431,14 @@ class ConnectionManagerMixin:
 
                 loop = asyncio.new_event_loop()
                 self._loop = loop
-                t = threading.Thread(
-                    target=loop.run_forever, daemon=True, name=f"hisense_loop_{self.ip}"
-                )
+                t = threading.Thread(target=loop.run_forever, daemon=True, name=f"hisense_loop_{self.ip}")
                 t.start()
         if loop.is_running():
             asyncio.run_coroutine_threadsafe(self.async_connect_and_run(), loop).result(timeout=10)
         else:
             loop.run_until_complete(self.async_connect_and_run())
 
-    def disconnect(self: HisenseTvClient) -> None:
+    def disconnect(self: VidaaClient) -> None:
         """Non-blocking disconnect: schedules teardown on the client's loop."""
         loop = self._loop
         if loop is None or loop.is_closed():

@@ -11,14 +11,14 @@ from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant
 
 from custom_components.vidaa.const import CONF_ENABLE_MEDIA_CONTROLS, DOMAIN, LEGACY_DOMAIN
-from custom_components.vidaa.media_player import HisenseVidaaMediaPlayer
+from custom_components.vidaa.media_player import VidaaMediaPlayer
 from custom_components.vidaa.remote import HisenseVidaaRemote
 from custom_components.vidaa.tv.settings import SettingMenuItem
 
 
 def test_media_player_and_remote_device_info(mock_client, mock_entry):
     """Test device info registration for media player and remote."""
-    mp = HisenseVidaaMediaPlayer(
+    mp = VidaaMediaPlayer(
         client=mock_client,
         entry=mock_entry,
     )
@@ -41,7 +41,7 @@ def test_media_player_and_remote_device_info(mock_client, mock_entry):
 def test_media_player_assumed_state(mock_client, mock_entry):
     """Test media player assumed_state respects enable_media_controls option."""
     # 1. By default (enable_media_controls=False): assumed_state is False even when on
-    mp = HisenseVidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
     mock_client.is_on = True
     mock_client.connected = True
     assert mp.assumed_state is False
@@ -49,7 +49,7 @@ def test_media_player_assumed_state(mock_client, mock_entry):
 
     # 2. When enable_media_controls is explicitly enabled in options
     mock_entry.options = {CONF_ENABLE_MEDIA_CONTROLS: True}
-    mp_with_controls = HisenseVidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    mp_with_controls = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
     assert mp_with_controls.assumed_state is True
     assert bool(mp_with_controls.supported_features & MediaPlayerEntityFeature.PLAY)
 
@@ -84,11 +84,13 @@ async def test_media_player_play_media(mock_client, mock_entry):
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
     import asyncio
+
     def _mock_bg_task(coro, *a, **kw):
         return asyncio.get_running_loop().create_task(coro)
+
     hass.async_create_background_task = MagicMock(side_effect=_mock_bg_task)
 
-    mp = HisenseVidaaMediaPlayer(
+    mp = VidaaMediaPlayer(
         client=mock_client,
         entry=mock_entry,
     )
@@ -115,11 +117,13 @@ async def test_media_player_sound_mode_and_waking_state(mock_client, mock_entry)
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
     import asyncio
+
     def _mock_bg_task(coro, *a, **kw):
         return asyncio.get_running_loop().create_task(coro)
+
     hass.async_create_background_task = MagicMock(side_effect=_mock_bg_task)
 
-    mp = HisenseVidaaMediaPlayer(
+    mp = VidaaMediaPlayer(
         client=mock_client,
         entry=mock_entry,
     )
@@ -168,12 +172,14 @@ async def test_media_player_cec_source_naming(mock_client, mock_entry):
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
     import asyncio
+
     def _mock_bg_task(coro, *a, **kw):
         return asyncio.get_running_loop().create_task(coro)
+
     hass.async_create_background_task = MagicMock(side_effect=_mock_bg_task)
 
     mock_entry.options = {"enable_cec_names": True, "include_apps_in_sources": True}
-    mp = HisenseVidaaMediaPlayer(
+    mp = VidaaMediaPlayer(
         client=mock_client,
         entry=mock_entry,
     )
@@ -214,7 +220,7 @@ async def test_media_player_cec_source_naming_disabled_by_default(mock_client, m
 
     # Empty options, should use DEFAULT_ENABLE_CEC_NAMES (False)
     mock_entry.options = {"include_apps_in_sources": True}
-    mp = HisenseVidaaMediaPlayer(
+    mp = VidaaMediaPlayer(
         client=mock_client,
         entry=mock_entry,
     )
@@ -239,8 +245,10 @@ async def test_remote_and_media_player_idempotent_power_control(mock_client, moc
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
     import asyncio
+
     def _mock_bg_task(coro, *a, **kw):
         return asyncio.get_running_loop().create_task(coro)
+
     hass.async_create_background_task = MagicMock(side_effect=_mock_bg_task)
 
     rem = HisenseVidaaRemote(
@@ -270,7 +278,7 @@ async def test_remote_and_media_player_idempotent_power_control(mock_client, moc
     assert rem.is_on is True
 
     # Test media_player turn_on idempotence
-    mp = HisenseVidaaMediaPlayer(
+    mp = VidaaMediaPlayer(
         client=mock_client,
         entry=mock_entry,
     )
@@ -303,7 +311,7 @@ async def test_media_player_select_source_and_play_media_when_off(mock_client, m
 
     hass.async_create_background_task = MagicMock(side_effect=_mock_bg_task)
 
-    mp = HisenseVidaaMediaPlayer(
+    mp = VidaaMediaPlayer(
         client=mock_client,
         entry=mock_entry,
     )
@@ -364,11 +372,13 @@ async def test_media_player_mute_is_idempotent(mock_client, mock_entry):
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
     import asyncio
+
     def _mock_bg_task(coro, *a, **kw):
         return asyncio.get_running_loop().create_task(coro)
+
     hass.async_create_background_task = MagicMock(side_effect=_mock_bg_task)
 
-    mp = HisenseVidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
     mp.hass = hass
 
     # Already unmuted → requesting unmute must not toggle the TV.
@@ -419,16 +429,16 @@ async def test_media_player_parses_camelcase_source_and_app_payloads(mock_client
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
     import asyncio
+
     def _mock_bg_task(coro, *a, **kw):
         return asyncio.get_running_loop().create_task(coro)
+
     hass.async_create_background_task = MagicMock(side_effect=_mock_bg_task)
 
-    mp = HisenseVidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
     mp.hass = hass
 
-    mp._handle_sourcelist_update(
-        [{"sourceName": "HDMI 1", "sourceid": "HDMI1", "is_active": True}]
-    )
+    mp._handle_sourcelist_update([{"sourceName": "HDMI 1", "sourceid": "HDMI1", "is_active": True}])
     assert "HDMI 1" in mp._source_dict
     assert mp.state == "on"
     assert mp.source == "HDMI 1"
@@ -444,9 +454,7 @@ def test_sourcelist_and_applist_parsers_accept_camelcase():
         parse_sourcelist_data,
     )
 
-    assert parse_sourcelist_data([{"sourceName": "HDMI 1"}]) == {
-        "HDMI 1": {"sourceName": "HDMI 1"}
-    }
+    assert parse_sourcelist_data([{"sourceName": "HDMI 1"}]) == {"HDMI 1": {"sourceName": "HDMI 1"}}
     assert parse_sourcelist_data([{"sourcename": "TV"}]) == {"TV": {"sourcename": "TV"}}
     assert parse_applist_data([{"appId": "1", "appName": "Netflix"}])[1] == {
         "Netflix": {"appId": "1", "appName": "Netflix"}
@@ -460,11 +468,13 @@ async def test_media_player_play_media_accepts_alternate_app_keys(mock_client, m
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
     import asyncio
+
     def _mock_bg_task(coro, *a, **kw):
         return asyncio.get_running_loop().create_task(coro)
+
     hass.async_create_background_task = MagicMock(side_effect=_mock_bg_task)
 
-    mp = HisenseVidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
     mp.hass = hass
     mp._app_dict = {"Stan": {"app_id": "123", "name": "Stan", "appUrl": "stan://"}}
 
@@ -478,11 +488,13 @@ async def test_media_player_string_volume_broadcast(mock_client, mock_entry):
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
     import asyncio
+
     def _mock_bg_task(coro, *a, **kw):
         return asyncio.get_running_loop().create_task(coro)
+
     hass.async_create_background_task = MagicMock(side_effect=_mock_bg_task)
 
-    mp = HisenseVidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
     mp.hass = hass
 
     mp._handle_volume_update({"volume_type": "1", "volume_value": "35"})
@@ -496,9 +508,7 @@ async def test_media_player_string_volume_broadcast(mock_client, mock_entry):
 
 
 @pytest.mark.anyio
-async def test_remote_platform_purges_registry_when_disabled(
-    mock_client, mock_entry, monkeypatch
-):
+async def test_remote_platform_purges_registry_when_disabled(mock_client, mock_entry, monkeypatch):
     """[F10-leg4] remote registry entry is purged when the feature is disabled."""
     from custom_components.vidaa.const import CONF_ENABLE_REMOTE, DOMAIN
     from custom_components.vidaa.remote import async_setup_entry as async_setup_remote
@@ -507,9 +517,7 @@ async def test_remote_platform_purges_registry_when_disabled(
     hass.data = {DOMAIN: {mock_entry.entry_id: {"client": mock_client}}}
     mock_reg = MagicMock()
     mock_reg.async_get_entity_id.return_value = "remote.living_room_tv"
-    monkeypatch.setattr(
-        "homeassistant.helpers.entity_registry.async_get", lambda h: mock_reg
-    )
+    monkeypatch.setattr("homeassistant.helpers.entity_registry.async_get", lambda h: mock_reg)
     mock_entry.options = {CONF_ENABLE_REMOTE: False}
 
     entities = []
@@ -522,6 +530,7 @@ async def test_remote_platform_purges_registry_when_disabled(
 async def test_media_player_playback_state_debounce(mock_client, mock_entry):
     """Test transient state debounce delays state apply until timer expires."""
     import asyncio
+
     hass = MagicMock(spec=HomeAssistant)
     loop = asyncio.get_running_loop()
     hass.loop = loop
@@ -529,7 +538,7 @@ async def test_media_player_playback_state_debounce(mock_client, mock_entry):
     hass.async_create_background_task = MagicMock(side_effect=lambda coro, *a, **kw: loop.create_task(coro))
 
     mock_entry.options = {"playback_debounce": 0.05}
-    mp = HisenseVidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
     mp.hass = hass
 
     # Transient app state update
@@ -554,11 +563,13 @@ async def test_media_player_disconnected_and_cold_boot_recovery(mock_client, moc
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
     import asyncio
+
     def _mock_bg_task(coro, *a, **kw):
         return asyncio.get_running_loop().create_task(coro)
+
     hass.async_create_background_task = MagicMock(side_effect=_mock_bg_task)
 
-    mp = HisenseVidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
     mp.hass = hass
 
     # Initially connected and on
@@ -603,7 +614,7 @@ async def test_media_player_disconnected_and_cold_boot_recovery(mock_client, moc
 
 def test_media_player_dynamic_source_icons(mock_client, mock_entry):
     """Test dynamic MDI icon branding based on active app or source input."""
-    mp = HisenseVidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
 
     # When off, should return television-off
     mp._state = STATE_OFF
@@ -657,7 +668,7 @@ def test_media_player_extra_state_attributes_and_standard_properties(mock_client
     mock_client.brand = "his"
     mock_client.current_program = None
 
-    mp = HisenseVidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
     mp._state = STATE_ON
     mp._source = "HDMI2"
     mp._source_dict = {
@@ -713,7 +724,7 @@ def test_media_player_extra_state_attributes_and_standard_properties(mock_client
 def test_media_player_audio_output_attribute(mock_client, mock_entry):
     """audio_output attribute tracks volume_type (0=TV Speakers, 1=ARC/eARC); mute does not change it."""
     mock_client.connected = True
-    mp = HisenseVidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
     mp.hass = None
     assert mp.extra_state_attributes["audio_output"] == "TV Speakers"
 
@@ -732,12 +743,12 @@ def test_media_player_mro_precedence():
     from custom_components.vidaa.media_player.controls import MediaPlayerControlsMixin
 
     # Check that async control methods resolve to MediaPlayerControlsMixin
-    assert HisenseVidaaMediaPlayer.async_turn_on == MediaPlayerControlsMixin.async_turn_on
-    assert HisenseVidaaMediaPlayer.async_turn_off == MediaPlayerControlsMixin.async_turn_off
-    assert HisenseVidaaMediaPlayer.async_set_volume_level == MediaPlayerControlsMixin.async_set_volume_level
-    assert HisenseVidaaMediaPlayer.async_mute_volume == MediaPlayerControlsMixin.async_mute_volume
-    assert HisenseVidaaMediaPlayer.async_select_source == MediaPlayerControlsMixin.async_select_source
-    assert HisenseVidaaMediaPlayer.async_play_media == MediaPlayerControlsMixin.async_play_media
+    assert VidaaMediaPlayer.async_turn_on == MediaPlayerControlsMixin.async_turn_on
+    assert VidaaMediaPlayer.async_turn_off == MediaPlayerControlsMixin.async_turn_off
+    assert VidaaMediaPlayer.async_set_volume_level == MediaPlayerControlsMixin.async_set_volume_level
+    assert VidaaMediaPlayer.async_mute_volume == MediaPlayerControlsMixin.async_mute_volume
+    assert VidaaMediaPlayer.async_select_source == MediaPlayerControlsMixin.async_select_source
+    assert VidaaMediaPlayer.async_play_media == MediaPlayerControlsMixin.async_play_media
 
 
 @pytest.mark.anyio
@@ -745,7 +756,7 @@ async def test_media_player_context_aware_track_controls(mock_client, mock_entry
     """Test next/prev track context switching between Live TV channels and media fast-forward/rewind."""
     from homeassistant.components.media_player import MediaType
 
-    mp = HisenseVidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
     mp._state = "on"
 
     # 1. On Live TV
@@ -802,7 +813,7 @@ async def test_media_player_source_filtering_option(mock_client, mock_entry):
     """Test user-configured source filtering via CONF_SOURCES option."""
     from custom_components.vidaa.const import CONF_SOURCES
 
-    mp = HisenseVidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
     mp._source_dict = {"HDMI1": {}, "HDMI2": {}, "TV": {}, "AV": {}}
     mp._app_dict = {"Netflix": {}, "YouTube": {}, "Plex": {}, "Prime Video": {}}
 
@@ -829,7 +840,7 @@ async def test_media_player_source_filtering_option(mock_client, mock_entry):
 @pytest.mark.anyio
 async def test_play_media_channel_by_name(mock_client, mock_entry):
     """Test play_media tunes channel by resolving name to channel number."""
-    mp = HisenseVidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
     mock_client.channels = [
         {"channel_name": "ABC HD", "channel_num": "20"},
         {"channel_name": "SBS ONE", "channel_num": "3"},
@@ -842,8 +853,3 @@ async def test_play_media_channel_by_name(mock_client, mock_entry):
     calls = [call.args[0] for call in mock_client.async_send_key.call_args_list]
     assert "KEY_2" in calls
     assert "KEY_0" in calls
-
-
-
-
-

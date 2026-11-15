@@ -1,4 +1,4 @@
-"""Switch platform for Hisense VIDAA TV integration."""
+"""Switch platform for VIDAA Smart TV integration."""
 
 from __future__ import annotations
 
@@ -158,24 +158,18 @@ async def async_setup_entry(
     """Set up the VIDAA switch platform."""
     client = config_entry.runtime_data.client
 
-    enable_audio_only = config_entry.options.get(
-        CONF_ENABLE_AUDIO_ONLY, DEFAULT_ENABLE_AUDIO_ONLY
-    )
+    enable_audio_only = config_entry.options.get(CONF_ENABLE_AUDIO_ONLY, DEFAULT_ENABLE_AUDIO_ONLY)
 
     # Clean up audio_only switch from entity registry if disabled
     entity_reg = er.async_get(hass)
     unique_id = f"{config_entry.entry_id}_audio_only"
-    if not enable_audio_only and (
-        entity_id := entity_reg.async_get_entity_id("switch", DOMAIN, unique_id)
-    ):
+    if not enable_audio_only and (entity_id := entity_reg.async_get_entity_id("switch", DOMAIN, unique_id)):
         entity_reg.async_remove(entity_id)
 
     entities: list[SwitchEntity] = [
         VidaaDebugLoggingSwitch(client=client, entry=config_entry),
     ]
     if enable_audio_only:
-        entities.append(
-            VidaaAudioOnlySwitch(client=client, entry=config_entry)
-        )
+        entities.append(VidaaAudioOnlySwitch(client=client, entry=config_entry))
 
     async_add_entities(entities)

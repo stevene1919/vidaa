@@ -1,4 +1,4 @@
-"""Callback registry and event dispatcher mixin for Hisense VIDAA TV client."""
+"""Callback registry and event dispatcher mixin for VIDAA Smart TV client."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ __all__ = ["CallbackRegistryMixin"]
 
 
 class CallbackRegistryMixin:
-    """Mixin managing event subscription callbacks and dispatching for HisenseTvClient."""
+    """Mixin managing event subscription callbacks and dispatching for VidaaClient."""
 
     _callbacks: dict[str, list[Callable]]
 

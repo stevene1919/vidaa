@@ -67,14 +67,16 @@ def _setup_hass(mock_entry, mock_client, monkeypatch):
     hass.config_entries = MagicMock()
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
     hass.loop = MagicMock()
+
     def _mock_bg_task(coro, *a, **kw):
         if hasattr(coro, "close"):
             coro.close()
         return MagicMock()
+
     hass.async_create_background_task = MagicMock(side_effect=_mock_bg_task)
     hass.services = FakeServices()
     monkeypatch.setattr(
-        "custom_components.vidaa.HisenseTvClient",
+        "custom_components.vidaa.VidaaClient",
         lambda *args, **kwargs: mock_client,
     )
     mock_client.has_notifications = False
@@ -101,9 +103,7 @@ def _setup_hass(mock_entry, mock_client, monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_services_are_registered_again_after_last_entry_is_reloaded(
-    mock_entry, mock_client, monkeypatch
-):
+async def test_services_are_registered_again_after_last_entry_is_reloaded(mock_entry, mock_client, monkeypatch):
     """[F2-leg2/F2-leg4/F2-leg6] unloading the last entry unregisters the services; the next setup must restore them."""
     hass = _setup_hass(mock_entry, mock_client, monkeypatch)
 
@@ -121,18 +121,12 @@ async def test_services_are_registered_again_after_last_entry_is_reloaded(
 
 
 @pytest.mark.anyio
-async def test_connect_failure_raises_config_entry_not_ready(
-    mock_entry, mock_client, monkeypatch
-):
+async def test_connect_failure_raises_config_entry_not_ready(mock_entry, mock_client, monkeypatch):
     """[F10-leg2] a missing/invalid cert must fail setup cleanly, not leak a FileNotFoundError."""
     mock_entry.runtime_data = None
     hass = _setup_hass(mock_entry, mock_client, monkeypatch)
-    mock_client.connect_and_run = MagicMock(
-        side_effect=FileNotFoundError(2, "No such file or directory")
-    )
-    mock_client.async_connect_and_run = AsyncMock(
-        side_effect=FileNotFoundError(2, "No such file or directory")
-    )
+    mock_client.connect_and_run = MagicMock(side_effect=FileNotFoundError(2, "No such file or directory"))
+    mock_client.async_connect_and_run = AsyncMock(side_effect=FileNotFoundError(2, "No such file or directory"))
 
     with pytest.raises(ConfigEntryNotReady):
         await async_setup_entry(hass, mock_entry)
@@ -168,7 +162,7 @@ async def test_entry_lifecycle_setup_and_unload(mock_entry, mock_client, monkeyp
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
     hass.loop = MagicMock()
     monkeypatch.setattr(
-        "custom_components.vidaa.HisenseTvClient",
+        "custom_components.vidaa.VidaaClient",
         lambda *args, **kwargs: mock_client,
     )
     mock_client.has_notifications = False
@@ -220,7 +214,7 @@ async def test_entry_auth_failed_callback_creates_repair_issue_and_starts_reauth
     hass.loop.call_soon_threadsafe = MagicMock(side_effect=lambda func, *args: func(*args))
 
     monkeypatch.setattr(
-        "custom_components.vidaa.HisenseTvClient",
+        "custom_components.vidaa.VidaaClient",
         lambda *args, **kwargs: mock_client,
     )
     mock_client.has_notifications = False
@@ -266,7 +260,7 @@ async def test_update_listener_options_filtering(mock_entry, mock_client, monkey
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
     hass.loop = MagicMock()
     monkeypatch.setattr(
-        "custom_components.vidaa.HisenseTvClient",
+        "custom_components.vidaa.VidaaClient",
         lambda *args, **kwargs: mock_client,
     )
     mock_client.has_notifications = False
@@ -298,6 +292,7 @@ async def test_periodic_and_wake_clock_sync(mock_entry, mock_client, monkeypatch
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
     hass.loop = MagicMock()
     hass.loop.call_soon_threadsafe = MagicMock(side_effect=lambda func, *args: func(*args))
+
     def mock_create_bg_task(coro, name):
         coro.close()
         return None
@@ -315,7 +310,7 @@ async def test_periodic_and_wake_clock_sync(mock_entry, mock_client, monkeypatch
         mock_track_time,
     )
     monkeypatch.setattr(
-        "custom_components.vidaa.HisenseTvClient",
+        "custom_components.vidaa.VidaaClient",
         lambda *args, **kwargs: mock_client,
     )
     mock_client.has_notifications = False
@@ -380,7 +375,7 @@ async def test_device_info_update_enriches_device_registry(mock_entry, mock_clie
     hass.loop.call_soon_threadsafe = MagicMock(side_effect=lambda func, *args: func(*args))
 
     monkeypatch.setattr(
-        "custom_components.vidaa.HisenseTvClient",
+        "custom_components.vidaa.VidaaClient",
         lambda *args, **kwargs: mock_client,
     )
     mock_client.has_notifications = False
@@ -425,16 +420,18 @@ async def test_device_info_update_enriches_device_registry(mock_entry, mock_clie
 
 @pytest.mark.anyio
 async def test_async_setup_entry_passes_brand_to_client(mock_entry, monkeypatch):
-    """Test that async_setup_entry reads CONF_BRAND from entry.data and initializes HisenseTvClient with it."""
+    """Test that async_setup_entry reads CONF_BRAND from entry.data and initializes VidaaClient with it."""
     hass = MagicMock()
     hass.data = {}
     hass.config_entries = MagicMock()
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
     hass.loop = MagicMock()
+
     def _mock_bg_task(coro, *a, **kw):
         if hasattr(coro, "close"):
             coro.close()
         return MagicMock()
+
     hass.async_create_background_task = MagicMock(side_effect=_mock_bg_task)
     hass.services = FakeServices()
     hass.config_entries.async_forward_entry_setups = AsyncMock(return_value=True)
@@ -458,7 +455,7 @@ async def test_async_setup_entry_passes_brand_to_client(mock_entry, monkeypatch)
         return client
 
     monkeypatch.setattr(
-        "custom_components.vidaa.HisenseTvClient",
+        "custom_components.vidaa.VidaaClient",
         mock_client_factory,
     )
 
@@ -476,10 +473,12 @@ async def test_setup_entry_cleans_up_disabled_platforms():
     hass.config_entries.async_forward_entry_setups = AsyncMock(return_value=True)
     hass.config_entries.async_update_entry = MagicMock()
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
+
     def _mock_bg_task(coro, *a, **kw):
         if hasattr(coro, "close"):
             coro.close()
         return MagicMock()
+
     hass.async_create_background_task = MagicMock(side_effect=_mock_bg_task)
     hass.services = FakeServices()
     hass.loop = MagicMock()
@@ -510,10 +509,12 @@ async def test_setup_entry_cleans_up_disabled_platforms():
     mock_reg.async_get_entity_id = MagicMock(side_effect=lambda domain, platform, uid: f"{domain}.{uid}")
     mock_reg.async_remove = MagicMock(side_effect=lambda eid: removed_entities.append(eid))
 
-    with patch("custom_components.vidaa.HisenseTvClient", return_value=mock_client), \
-         patch("homeassistant.helpers.entity_registry.async_get", return_value=mock_reg), \
-         patch("homeassistant.helpers.issue_registry.async_create_issue"), \
-         patch("homeassistant.helpers.issue_registry.async_delete_issue"):
+    with (
+        patch("custom_components.vidaa.VidaaClient", return_value=mock_client),
+        patch("homeassistant.helpers.entity_registry.async_get", return_value=mock_reg),
+        patch("homeassistant.helpers.issue_registry.async_create_issue"),
+        patch("homeassistant.helpers.issue_registry.async_delete_issue"),
+    ):
         res = await async_setup_entry(hass, entry)
         assert res is True
 
@@ -541,7 +542,9 @@ async def test_async_setup_entry_resolves_certs_in_executor():
 
     hass.async_add_executor_job = AsyncMock(side_effect=fake_executor_job)
     hass.loop = MagicMock()
-    hass.async_create_background_task = MagicMock(side_effect=lambda coro, *a, **kw: coro.close() if hasattr(coro, "close") else MagicMock())
+    hass.async_create_background_task = MagicMock(
+        side_effect=lambda coro, *a, **kw: coro.close() if hasattr(coro, "close") else MagicMock()
+    )
     hass.services = FakeServices()
 
     entry = MagicMock()
@@ -567,15 +570,21 @@ async def test_async_setup_entry_resolves_certs_in_executor():
     mock_client.certfile = "/ssl/hisense.crt"
     mock_client.keyfile = "/ssl/hisense.key"
 
-    with patch("custom_components.vidaa.HisenseTvClient", return_value=mock_client), \
-         patch("custom_components.vidaa.resolve_certificates", return_value=("/ssl/hisense.crt", "/ssl/hisense.key")) as mock_resolve, \
-         patch("custom_components.vidaa.resolve_ca_certificate", return_value=None), \
-         patch("homeassistant.helpers.issue_registry.async_create_issue"), \
-         patch("homeassistant.helpers.issue_registry.async_delete_issue"):
+    with (
+        patch("custom_components.vidaa.VidaaClient", return_value=mock_client),
+        patch(
+            "custom_components.vidaa.resolve_certificates", return_value=("/ssl/hisense.crt", "/ssl/hisense.key")
+        ) as mock_resolve,
+        patch("custom_components.vidaa.resolve_ca_certificate", return_value=None),
+        patch("homeassistant.helpers.issue_registry.async_create_issue"),
+        patch("homeassistant.helpers.issue_registry.async_delete_issue"),
+    ):
         res = await async_setup_entry(hass, entry)
         assert res is True
         # Verify resolve_certificates was passed to executor
-        assert any(call is mock_resolve or getattr(call, "__name__", "") == "resolve_certificates" for call in executor_calls)
+        assert any(
+            call is mock_resolve or getattr(call, "__name__", "") == "resolve_certificates" for call in executor_calls
+        )
 
 
 @pytest.mark.anyio
@@ -586,7 +595,9 @@ async def test_setup_entry_prunes_retired_diagnostic_sensors():
     hass.loop = MagicMock()
     hass.config_entries = MagicMock()
     hass.config_entries.async_forward_entry_setups = AsyncMock(return_value=True)
-    hass.async_create_background_task = MagicMock(side_effect=lambda coro, *a, **kw: coro.close() if hasattr(coro, "close") else MagicMock())
+    hass.async_create_background_task = MagicMock(
+        side_effect=lambda coro, *a, **kw: coro.close() if hasattr(coro, "close") else MagicMock()
+    )
     hass.services = FakeServices()
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
@@ -604,10 +615,12 @@ async def test_setup_entry_prunes_retired_diagnostic_sensors():
     entry.options = {}
 
     mock_ent_reg = MagicMock()
+
     def _mock_get_entity_id(domain, platform, unique_id):
         if unique_id in ("test_prune_entry_brand_profile", "test_prune_entry_auth_profile"):
             return f"sensor.{unique_id}"
         return None
+
     mock_ent_reg.async_get_entity_id.side_effect = _mock_get_entity_id
 
     mock_client = MagicMock()
@@ -615,11 +628,12 @@ async def test_setup_entry_prunes_retired_diagnostic_sensors():
     mock_client.async_check_and_refresh_token = AsyncMock(return_value=False)
     mock_client.async_connect_and_run = AsyncMock()
 
-    with patch("custom_components.vidaa.HisenseTvClient", return_value=mock_client), \
-         patch("homeassistant.helpers.entity_registry.async_get", return_value=mock_ent_reg), \
-         patch("homeassistant.helpers.issue_registry.async_delete_issue"):
+    with (
+        patch("custom_components.vidaa.VidaaClient", return_value=mock_client),
+        patch("homeassistant.helpers.entity_registry.async_get", return_value=mock_ent_reg),
+        patch("homeassistant.helpers.issue_registry.async_delete_issue"),
+    ):
         res = await async_setup_entry(hass, entry)
         assert res is True
         mock_ent_reg.async_remove.assert_any_call("sensor.test_prune_entry_brand_profile")
         mock_ent_reg.async_remove.assert_any_call("sensor.test_prune_entry_auth_profile")
-

@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from custom_components.vidaa.client import HisenseTvClient
+from custom_components.vidaa.client import VidaaClient
 from custom_components.vidaa.protocol.auth import (
     apply_mqtt_tls,
     is_token_expired,
@@ -133,8 +133,10 @@ async def test_perform_token_refresh_subscriptions() -> None:
         async def __aexit__(self, exc_type, exc_val, exc_tb):
             pass
 
-    with patch("aiomqtt.Client", MockClientContext), \
-         patch("custom_components.vidaa.protocol.auth.build_mqtt_ssl_context"):
+    with (
+        patch("aiomqtt.Client", MockClientContext),
+        patch("custom_components.vidaa.protocol.auth.build_mqtt_ssl_context"),
+    ):
         await async_perform_token_refresh(
             ip="192.168.50.12",
             client_id="test_client_id",
@@ -174,7 +176,9 @@ def test_settings_item_and_probe_report() -> None:
     assert item.menu_id == 91
     assert item.name == "Picture Mode"
 
-    parsed = parse_settings_payload({"menu_info": [{"menu_id": 91, "menu_name": "Picture Mode", "menu_value": "Cinema"}]})
+    parsed = parse_settings_payload(
+        {"menu_info": [{"menu_id": 91, "menu_name": "Picture Mode", "menu_value": "Cinema"}]}
+    )
     found = find_menu_item_by_name(parsed, "Picture Mode", 91)
     assert found is not None
     assert found.value == "Cinema"
@@ -214,7 +218,9 @@ def test_dispatch_incoming_mqtt_message() -> None:
     mock_client._token_future = None
 
     # Test state update dispatch
-    dispatch_incoming_mqtt_message(mock_client, "hisense_broadcast/ui_service/state", '{"statetype": "app", "name": "Netflix"}')
+    dispatch_incoming_mqtt_message(
+        mock_client, "hisense_broadcast/ui_service/state", '{"statetype": "app", "name": "Netflix"}'
+    )
     mock_client._dispatch_state_update.assert_called_with({"statetype": "app", "name": "Netflix"})
 
     # Test volume update dispatch
@@ -222,7 +228,9 @@ def test_dispatch_incoming_mqtt_message() -> None:
     mock_client._dispatch_volume_update.assert_called_with({"volume_value": 25})
 
     # Test device info dispatch
-    dispatch_incoming_mqtt_message(mock_client, "hisense_sub_test/platform_service/data/getdeviceinfo", '{"devicename": "Living Room TV"}')
+    dispatch_incoming_mqtt_message(
+        mock_client, "hisense_sub_test/platform_service/data/getdeviceinfo", '{"devicename": "Living Room TV"}'
+    )
     mock_client._dispatch_device_info_update.assert_called_with({"devicename": "Living Room TV"})
 
 
@@ -241,8 +249,10 @@ async def test_test_tv_ssl_connection_unauthenticated():
     mock_ssock.version.return_value = "TLSv1.3"
     mock_writer.get_extra_info.return_value = mock_ssock
 
-    with patch("asyncio.open_connection", return_value=(mock_reader, mock_writer)), \
-         patch("custom_components.vidaa.protocol.auth.build_mqtt_ssl_context"):
+    with (
+        patch("asyncio.open_connection", return_value=(mock_reader, mock_writer)),
+        patch("custom_components.vidaa.protocol.auth.build_mqtt_ssl_context"),
+    ):
         res = await async_test_tv_ssl_connection("192.168.50.12")
         assert res["connected"] is True
         assert res["tls_version"] == "TLSv1.3"
@@ -261,23 +271,31 @@ async def test_ping_tv_client_cert_tracking():
     mock_reader = AsyncMock()
     mock_writer = AsyncMock()
     mock_writer.close = MagicMock()
-    with patch("asyncio.open_connection", return_value=(mock_reader, mock_writer)), \
-         patch("custom_components.vidaa.protocol.ping.async_test_tv_ssl_connection", return_value={
-             "connected": True,
-             "tls_version": "TLSv1.3",
-             "cipher": "TLS_AES_256_GCM_SHA384",
-             "client_cert_presented": False,
-             "certfile": None,
-             "keyfile": None,
-         }), \
-         patch("custom_components.vidaa.protocol.ping.async_probe_tv_auth_methods", return_value={
-             "legacy_static": {"rc": None, "supported": False},
-             "standard_dynamic": {"rc": None, "supported": False},
-             "middle_dynamic": {"rc": None, "supported": False},
-             "modern_dynamic": {"rc": None, "supported": False},
-             "client_cert_presented": False,
-         }), \
-         patch("custom_components.vidaa.tv.fingerprint.get_device_fingerprint", return_value={}):
+    with (
+        patch("asyncio.open_connection", return_value=(mock_reader, mock_writer)),
+        patch(
+            "custom_components.vidaa.protocol.ping.async_test_tv_ssl_connection",
+            return_value={
+                "connected": True,
+                "tls_version": "TLSv1.3",
+                "cipher": "TLS_AES_256_GCM_SHA384",
+                "client_cert_presented": False,
+                "certfile": None,
+                "keyfile": None,
+            },
+        ),
+        patch(
+            "custom_components.vidaa.protocol.ping.async_probe_tv_auth_methods",
+            return_value={
+                "legacy_static": {"rc": None, "supported": False},
+                "standard_dynamic": {"rc": None, "supported": False},
+                "middle_dynamic": {"rc": None, "supported": False},
+                "modern_dynamic": {"rc": None, "supported": False},
+                "client_cert_presented": False,
+            },
+        ),
+        patch("custom_components.vidaa.tv.fingerprint.get_device_fingerprint", return_value={}),
+    ):
         res = await async_ping_tv("192.168.50.12")
         assert res["tcp_port_open"] is True
         assert res["tls_handshake"] is True
@@ -286,7 +304,7 @@ async def test_ping_tv_client_cert_tracking():
 
 def test_on_connect_subscribes_client_own_mobile_push_tree() -> None:
     """F8-leg3: the live session must subscribe the client's own mobile/<cid>/# tree."""
-    client = HisenseTvClient(ip="192.168.50.12", client_id="cid", username="his$1", access_token="tok")
+    client = VidaaClient(ip="192.168.50.12", client_id="cid", username="his$1", access_token="tok")
     mqtt_mock = MagicMock()
     client.mqtt_client = mqtt_mock
     with patch.object(client, "query_initial_state"):
@@ -303,7 +321,7 @@ def test_on_connect_subscribes_client_own_mobile_push_tree() -> None:
 
 def test_query_initial_state_requests_capability() -> None:
     """F7-leg3: query_initial_state must publish ui_service/actions/capability (empty payload)."""
-    client = HisenseTvClient(ip="192.168.50.12", client_id="cid")
+    client = VidaaClient(ip="192.168.50.12", client_id="cid")
     mqtt_mock = MagicMock()
     client.mqtt_client = mqtt_mock
     client.connected = True
@@ -323,25 +341,20 @@ async def test_set_volume_and_async_set_volume() -> None:
 
     from custom_components.vidaa.tv.actions_media import async_set_volume, set_volume
 
-    client = HisenseTvClient(ip="192.168.50.12", client_id="cid")
+    client = VidaaClient(ip="192.168.50.12", client_id="cid")
     client.connected = True
     mqtt_mock = MagicMock()
     client.mqtt_client = mqtt_mock
     client.async_publish = AsyncMock()
 
     set_volume(client, 25)
-    mqtt_mock.publish.assert_called_once_with(
-        f"{client.topics.platform}actions/changevolume", "25"
-    )
+    mqtt_mock.publish.assert_called_once_with(f"{client.topics.platform}actions/changevolume", "25")
 
     await async_set_volume(client, 30)
-    client.async_publish.assert_called_once_with(
-        f"{client.topics.platform}actions/changevolume", "30"
-    )
+    client.async_publish.assert_called_once_with(f"{client.topics.platform}actions/changevolume", "30")
 
     # Test mixin methods on client
     client.set_volume(35)
     assert mqtt_mock.publish.call_count == 2
     await client.async_set_volume(40)
     assert client.async_publish.call_count == 2
-

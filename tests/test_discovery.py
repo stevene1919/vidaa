@@ -249,11 +249,7 @@ def test_parse_ssdp_discovery_toptro_projector():
         "manufacturer": "smarttv.com",
         "modelName": "X7",
         "modelDescription": (
-            "vidaa_support=1\n"
-            "transport_protocol=3290\n"
-            "brand=tpo\n"
-            "macwifi=00:11:22:33:44:55\n"
-            "model=X7\n"
+            "vidaa_support=1\ntransport_protocol=3290\nbrand=tpo\nmacwifi=00:11:22:33:44:55\nmodel=X7\n"
         ),
     }
 
@@ -265,5 +261,3 @@ def test_parse_ssdp_discovery_toptro_projector():
     assert info.manufacturer == "TOPTRO"
     assert info.brand == "tpo"
     assert info.mac_address == "00:11:22:33:44:55"
-
-

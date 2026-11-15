@@ -1,4 +1,4 @@
-"""Repairs implementation for Hisense VIDAA TV."""
+"""Repairs implementation for VIDAA Smart TV."""
 
 from __future__ import annotations
 
@@ -21,23 +21,15 @@ class CertificateMissingRepairFlow(RepairsFlow):
         super().__init__()
         self._entry_id = entry_id
 
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> data_entry_flow.FlowResult:
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> data_entry_flow.FlowResult:
         """Handle the first step of the fix flow."""
         return await self.async_step_confirm(user_input)
 
-    async def async_step_confirm(
-        self, user_input: dict[str, Any] | None = None
-    ) -> data_entry_flow.FlowResult:
+    async def async_step_confirm(self, user_input: dict[str, Any] | None = None) -> data_entry_flow.FlowResult:
         """Handle the confirmation step."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            entry = (
-                self.hass.config_entries.async_get_entry(self._entry_id)
-                if self._entry_id
-                else None
-            )
+            entry = self.hass.config_entries.async_get_entry(self._entry_id) if self._entry_id else None
             auth_profile = "auto"
             custom_cert = None
             custom_key = None
@@ -49,6 +41,7 @@ class CertificateMissingRepairFlow(RepairsFlow):
                 custom_key = opts.get(CONF_KEYFILE, d.get(CONF_KEYFILE))
 
             try:
+
                 def _verify_resolved_certs() -> bool:
                     try:
                         cert, key = resolve_certificates(
@@ -88,25 +81,17 @@ class AuthTokenInvalidatedRepairFlow(RepairsFlow):
         super().__init__()
         self._entry_id = entry_id
 
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> data_entry_flow.FlowResult:
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> data_entry_flow.FlowResult:
         """Handle the first step."""
         return await self.async_step_confirm(user_input)
 
-    async def async_step_confirm(
-        self, user_input: dict[str, Any] | None = None
-    ) -> data_entry_flow.FlowResult:
+    async def async_step_confirm(self, user_input: dict[str, Any] | None = None) -> data_entry_flow.FlowResult:
         """Prompt the user to reconfigure the integration."""
         if user_input is not None:
             # [F5-leg2/F6-leg6]: dismissing the card alone hides a still-broken
             # TV (the client stops dispatching auth_failed after the rejection),
             # so the advertised re-pairing must actually be started.
-            entry = (
-                self.hass.config_entries.async_get_entry(self._entry_id)
-                if self._entry_id
-                else None
-            )
+            entry = self.hass.config_entries.async_get_entry(self._entry_id) if self._entry_id else None
             if entry is not None:
                 entry.async_start_reauth(self.hass)
             return self.async_create_entry(data={})
@@ -123,7 +108,7 @@ def _entry_id_for_issue(issue_id: str, data: dict[str, Any] | None) -> str | Non
         return str(data["entry_id"])
     for prefix in ("auth_token_invalidated_", "certificate_missing_"):
         if issue_id.startswith(prefix):
-            return issue_id[len(prefix):] or None
+            return issue_id[len(prefix) :] or None
     return None
 
 
@@ -134,14 +119,7 @@ async def async_create_fix_flow(
 ) -> RepairsFlow:
     """Create a repair fix flow for the issue."""
     if issue_id.startswith("certificate_missing"):
-        return CertificateMissingRepairFlow(
-            entry_id=_entry_id_for_issue(issue_id, data)
-        )
+        return CertificateMissingRepairFlow(entry_id=_entry_id_for_issue(issue_id, data))
     if issue_id.startswith("auth_token_invalidated"):
-        return AuthTokenInvalidatedRepairFlow(
-            entry_id=_entry_id_for_issue(issue_id, data)
-        )
-    return CertificateMissingRepairFlow(
-        entry_id=_entry_id_for_issue(issue_id, data)
-    )
-
+        return AuthTokenInvalidatedRepairFlow(entry_id=_entry_id_for_issue(issue_id, data))
+    return CertificateMissingRepairFlow(entry_id=_entry_id_for_issue(issue_id, data))

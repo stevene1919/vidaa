@@ -92,7 +92,7 @@ class MqttSessionAdapter:
                     fut.set_result(True)
             except asyncio.CancelledError:
                 if fut is not None and not fut.done():
-                    fut.cancel()
+                    fut.set_exception(ConnectionError("MQTT session closed"))
                 raise
             except Exception as err:  # MqttError, ValueError
                 _LOGGER.debug("MQTT %s on %s failed: %s", kind, target, err)
@@ -100,16 +100,23 @@ class MqttSessionAdapter:
                     fut.set_exception(err)
 
     def _enqueue(self, item: tuple[str, Any, Any, asyncio.Future | None]) -> None:
+        fut = item[3]
         if self.closed:
+            if fut is not None and not fut.done():
+                fut.set_exception(ConnectionError("MQTT session is closed"))
             return
         try:
             running = asyncio.get_running_loop()
         except RuntimeError:
             running = None
-        if running is self._loop:
-            self._queue.put_nowait(item)
-        else:
-            self._loop.call_soon_threadsafe(self._queue.put_nowait, item)
+        try:
+            if running is self._loop:
+                self._queue.put_nowait(item)
+            else:
+                self._loop.call_soon_threadsafe(self._queue.put_nowait, item)
+        except RuntimeError as err:
+            if fut is not None and not fut.done():
+                fut.set_exception(err)
 
     def publish(self, topic: str, payload: Any = None, *_args: Any, **_kwargs: Any) -> None:
         """Enqueues a publish without blocking."""
@@ -131,7 +138,19 @@ class MqttSessionAdapter:
         self._enqueue(("sub", topics, None, fut))
         await fut
 
+    def _drain_queue(self) -> None:
+        """Fails any remaining queued items that were waiting for the writer task."""
+        while not self._queue.empty():
+            try:
+                _, _, _, fut = self._queue.get_nowait()
+                if fut is not None and not fut.done():
+                    fut.set_exception(ConnectionError("MQTT session is closed"))
+            except asyncio.QueueEmpty:
+                break
+
     def close(self) -> None:
-        """Stops the writer task."""
+        """Stops the writer task and drains any pending queued operations."""
         self.closed = True
-        self._writer.cancel()
+        if not self._writer.done():
+            self._writer.cancel()
+        self._drain_queue()

@@ -1,4 +1,4 @@
-"""Select platform for Hisense VIDAA TV integration."""
+"""Select platform for VIDAA Smart TV integration."""
 
 from __future__ import annotations
 
@@ -172,12 +172,8 @@ async def async_setup_entry(
     """Set up the VIDAA select platform."""
     client: VidaaClient = config_entry.runtime_data.client
 
-    enable_picture = config_entry.options.get(
-        CONF_ENABLE_PICTURE_CONTROLS, DEFAULT_ENABLE_PICTURE_CONTROLS
-    )
-    enable_sound = config_entry.options.get(
-        CONF_ENABLE_SOUND_CONTROLS, DEFAULT_ENABLE_SOUND_CONTROLS
-    )
+    enable_picture = config_entry.options.get(CONF_ENABLE_PICTURE_CONTROLS, DEFAULT_ENABLE_PICTURE_CONTROLS)
+    enable_sound = config_entry.options.get(CONF_ENABLE_SOUND_CONTROLS, DEFAULT_ENABLE_SOUND_CONTROLS)
 
     # Clean up disabled/unsupported entities from entity registry
     entity_reg = er.async_get(hass)
@@ -200,13 +196,9 @@ async def async_setup_entry(
 
     entities: list[SelectEntity] = []
     if enable_picture:
-        entities.append(
-            VidaaPictureModeSelect(client=client, entry=config_entry)
-        )
+        entities.append(VidaaPictureModeSelect(client=client, entry=config_entry))
     if enable_sound:
-        entities.append(
-            VidaaSoundModeSelect(client=client, entry=config_entry)
-        )
+        entities.append(VidaaSoundModeSelect(client=client, entry=config_entry))
 
     if entities:
         async_add_entities(entities)

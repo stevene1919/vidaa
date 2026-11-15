@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from custom_components.vidaa.client import HisenseTvClient, VidaaClient
+from custom_components.vidaa.client import VidaaClient
 from custom_components.vidaa.protocol.upnp import (
     PATH_LAN_CONTROL,
     HisenseUpnpClient,
@@ -216,8 +216,8 @@ async def test_upnp_send_lan_control(mock_session):
 
 @pytest.mark.anyio
 async def test_client_upnp_wrappers():
-    """Test that HisenseTvClient UPnP methods properly delegate to HisenseUpnpClient."""
-    tv_client = HisenseTvClient("192.168.1.50")
+    """Test that VidaaClient UPnP methods properly delegate to HisenseUpnpClient."""
+    tv_client = VidaaClient("192.168.1.50")
 
     with (
         patch.object(tv_client.upnp, "async_get_volume", AsyncMock(return_value=42)) as mock_vol,
@@ -381,7 +381,4 @@ macEthernet=001122334455</modelDescription>
 def test_upnp_client_alias() -> None:
     """Verify VidaaUpnpClient and HisenseUpnpClient aliases match."""
     assert HisenseUpnpClient is VidaaUpnpClient
-    assert HisenseTvClient is VidaaClient
-
-
-
+    assert VidaaClient is VidaaClient

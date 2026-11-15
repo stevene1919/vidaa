@@ -1,4 +1,4 @@
-"""UPnP and DLNA XML descriptor parsers for Hisense VIDAA TV."""
+"""UPnP and DLNA XML descriptor parsers for VIDAA Smart TV."""
 
 from __future__ import annotations
 
@@ -156,4 +156,3 @@ def parse_soap_transport_info_response(resp_xml: str) -> tuple[str, str]:
     except Exception as exc:
         _LOGGER.debug("Failed to parse SOAP transport info: %s", exc)
     return "Unknown", "Unknown"
-

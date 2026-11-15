@@ -1,4 +1,4 @@
-"""Auto-discovery handlers and network utilities for Hisense VIDAA smart TVs."""
+"""Auto-discovery handlers and network utilities for VIDAA Smart TVs."""
 
 from __future__ import annotations
 
@@ -143,7 +143,7 @@ def parse_ssdp_discovery(
             if k.lower() in ("macwifi", "macethernet", "mac", "network_device") and v:
                 mac_clean = v.replace(":", "").replace("-", "").replace(".", "").strip()
                 if len(mac_clean) == 12:
-                    mac_address = ":".join(mac_clean[i:i + 2] for i in range(0, 12, 2)).lower()
+                    mac_address = ":".join(mac_clean[i : i + 2] for i in range(0, 12, 2)).lower()
                 else:
                     mac_address = v.lower()
                 break
@@ -183,11 +183,7 @@ def parse_ssdp_discovery(
                 break
 
     if manufacturer_clean.lower() in GENERIC_MANUFACTURERS:
-        manufacturer = (
-            BRAND_MAP.get(detected_brand_code or "", "Hisense")
-            if detected_brand_code
-            else "Hisense"
-        )
+        manufacturer = BRAND_MAP.get(detected_brand_code or "", "Hisense") if detected_brand_code else "Hisense"
     elif not detected_brand_code:
         detected_brand_code = normalize_brand_code(manufacturer_clean)
 

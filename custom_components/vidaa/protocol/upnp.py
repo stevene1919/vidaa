@@ -1,4 +1,4 @@
-"""Asynchronous UPnP/DLNA LAN control client for Hisense VIDAA TV.
+"""Asynchronous UPnP/DLNA LAN control client for VIDAA Smart TV.
 
 Provides zero-certificate local volume, mute, playback state tracking,
 and fast device reachability probing via UPnP RenderingControl and AVTransport.
@@ -81,9 +81,7 @@ class VidaaUpnpClient:
         for port in ports_to_try:
             url = f"http://{self.host}:{port}/MediaServer/rendererdevicedesc.xml"
             try:
-                async with session.get(
-                    url, timeout=aiohttp.ClientTimeout(total=self._timeout)
-                ) as resp:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=self._timeout)) as resp:
                     if resp.status == 200:
                         text = await resp.read()
                         root = ET.fromstring(text.decode("utf-8", errors="ignore"))
@@ -328,9 +326,7 @@ class VidaaUpnpClient:
                 _LOGGER.debug("Failed parsing GetTransportInfo XML response: %s", err)
         return None
 
-    async def async_send_lan_control(
-        self, op_class: str, op_type: str, op_para: str = ""
-    ) -> tuple[int, str]:
+    async def async_send_lan_control(self, op_class: str, op_type: str, op_para: str = "") -> tuple[int, str]:
         """Sends proprietary LanControlInfo command (available on VIDAA U6+)."""
         args = f"<OpClass>{op_class}</OpClass><OpType>{op_type}</OpType><OpPara>{op_para}</OpPara>"
         return await self.async_send_soap(

@@ -1,4 +1,4 @@
-"""TV picture and sound settings action mixin for Hisense VIDAA TV."""
+"""TV picture and sound settings action mixin for VIDAA Smart TV."""
 
 from __future__ import annotations
 

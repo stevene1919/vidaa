@@ -1,4 +1,4 @@
-"""Remote platform for Hisense VIDAA TV integration."""
+"""Remote platform for VIDAA Smart TV integration."""
 
 from __future__ import annotations
 
@@ -162,9 +162,7 @@ class VidaaRemote(VidaaEntity, RemoteEntity):
         # (exact) or a statetype containing "off" is off; fake_sleep_1 is the TV waking.
         if isinstance(data, dict) and self._client:
             statetype_l = str(data.get("statetype") or "").lower()
-            self._client.is_on = not (
-                statetype_l == "fake_sleep_0" or "off" in statetype_l
-            )
+            self._client.is_on = not (statetype_l == "fake_sleep_0" or "off" in statetype_l)
         self._handle_update()
 
 

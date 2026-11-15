@@ -200,6 +200,7 @@ async def test_launch_app_service_with_app_id_and_url_overrides():
 
     # Schema validation: calling with neither app nor app_id should fail validation
     from custom_components.vidaa.services import _validate_launch_app_data
+
     with pytest.raises(vol.Invalid):
         _validate_launch_app_data({})
 
@@ -260,8 +261,6 @@ async def test_picture_sound_and_text_input_services():
     assert res_txt["text"] == "hello world"
 
 
-
-
 # ---------------------------------------------------------------------------
 # HA-surface fix leg: F7-leg2 (area/floor/label targets) and F8-leg2
 # (vol schemas + ServiceValidationError).
@@ -276,7 +275,6 @@ ALL_SERVICE_NAMES = [
     SERVICE_SEND_KEY_SEQUENCE,
     SERVICE_CHANGE_CHANNEL,
 ]
-
 
 
 def _two_tv_hass():
@@ -307,7 +305,6 @@ def _two_tv_hass():
         }
     }
     return hass, client_living, client_kitchen
-
 
 
 async def _register_handlers(hass):
@@ -373,7 +370,6 @@ async def test_services_register_schemas_that_coerce_repeat_and_delay():
         assert _field(fields, key) is not None
 
 
-
 @pytest.mark.anyio
 async def test_call_against_disconnected_tvs_raises_not_connected():
     """[F8-leg2] a call that can only reach disconnected TVs must raise not_connected."""
@@ -382,9 +378,7 @@ async def test_call_against_disconnected_tvs_raises_not_connected():
     client_living.connected = False
     client_kitchen.connected = False
 
-    call = ServiceCall(
-        domain=DOMAIN, service=SERVICE_SEND_KEY, data={ATTR_KEY: "KEY_HOME", "entity_id": "all"}
-    )
+    call = ServiceCall(domain=DOMAIN, service=SERVICE_SEND_KEY, data={ATTR_KEY: "KEY_HOME", "entity_id": "all"})
 
     with pytest.raises(ServiceValidationError) as err:
         await handlers[SERVICE_SEND_KEY](call)
@@ -567,6 +561,3 @@ async def test_legacy_service_descriptions_registered_without_integration_not_fo
             assert desc["name"].startswith("[Deprecated]")
             assert f"[Deprecated alias for {DOMAIN}." in desc["description"]
             assert "fields" in desc
-
-
-

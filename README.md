@@ -58,6 +58,10 @@ VIDAA TVs enforce mutual TLS on port 36669. Drop the universal **`client_mobile_
 > The TV must have **Smart / Connected Services** enabled and the vendor terms of use accepted (`Settings → Support / System → Terms & Conditions / Smart Services`). If left disabled, the TV blocks the on-screen 4-digit PIN dialog from appearing during pairing.  
 > *(Privacy Tip: It is completely safe to block the TV from internet/WAN access at your router once paired; local control via Home Assistant operates 100% offline).*
 
+> [!TIP]
+> **Diagnostic Baseline — Testing with the Official Mobile App**:  
+> If the 4-digit PIN never appears or pairing fails, test pairing with the official **VIDAA** companion app ([iOS App Store](https://apps.apple.com/us/app/vidaa/id1526408639) or [Google Play Store](https://play.google.com/store/apps/details?id=com.universal.remote.multi)). If the official app also fails to connect or display a PIN, check that Smart Services are accepted on the TV. *Remember to force-close the mobile app before pairing in Home Assistant to avoid session conflicts!*
+
 ---
 
 ## 📺 Supported TV Brands & Models

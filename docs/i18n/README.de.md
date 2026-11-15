@@ -47,6 +47,15 @@ VIDAA-Fernseher erfordern gegenseitiges TLS auf Port 36669. Kopieren Sie die uni
 3. Geben Sie die lokale IP-Adresse Ihres Fernsehers ein und klicken Sie auf **Absenden**.
 4. Geben Sie den auf dem Fernsehbildschirm angezeigten **4-stelligen PIN-Code** ein. Fertig!
 
+> [!IMPORTANT]
+> **Voraussetzung am Fernseher — Smarte / Verbundene Dienste aktivieren**:  
+> Am Fernseher müssen **Smarte / Verbundene Dienste** aktiviert und die Nutzungsbedingungen akzeptiert sein (`Einstellungen → Support / System → Nutzungsbedingungen / Smarte Dienste`). Andernfalls blockiert das VIDAA OS das Erscheinen des 4-stelligen PIN-Fensters bei der Kopplung.  
+> *(Datenschutz-Hinweis: Nach erfolgter Kopplung kann der Fernseher am Router gefahrlos vom Internet/WAN getrennt werden; die lokale Steuerung über Home Assistant funktioniert zu 100 % offline).*
+
+> [!TIP]
+> **Diagnose-Tipp — Test mit der offiziellen mobilen App**:  
+> Falls der 4-stellige PIN nicht erscheint oder die Kopplung fehlschlägt, testen Sie die Verbindung mit der offiziellen **VIDAA**-App ([Apple App Store für iOS](https://apps.apple.com/us/app/vidaa/id1526408639) oder [Google Play Store für Android](https://play.google.com/store/apps/details?id=com.universal.remote.multi)). Wenn auch die offizielle App keine Verbindung herstellen kann, prüfen Sie die Smart-Dienste-Zustimmung am Fernseher. *Denken Sie daran, die mobile App vor der Kopplung in Home Assistant vollständig zu schließen, um Sitzungskonflikte zu vermeiden!*
+
 ---
 
 ## 📺 Unterstützte TV-Marken & Modelle

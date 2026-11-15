@@ -47,6 +47,15 @@ I televisori VIDAA richiedono la crittografia reciproca TLS sulla porta 36669. C
 3. Inserisci l'indirizzo IP locale del tuo televisore e fai clic su **Invia**.
 4. Digita il **codice PIN a 4 cifre** visualizzato sullo schermo della TV per completare la configurazione!
 
+> [!IMPORTANT]
+> **Requisito TV — Attiva Servizi Intelligenti / Connessi**:  
+> La TV deve avere i **Servizi Connessi** attivati e i termini d'uso accettati (`Impostazioni → Supporto / Sistema → Termini e Condizioni / Servizi Intelligenti`). Se disabilitati, VIDAA OS impedisce la comparsa del popup del PIN a 4 cifre.  
+> *(Suggerimento per la privacy: è completamente sicuro bloccare l'accesso a Internet/WAN della TV sul router una volta completata l'associazione; il controllo locale tramite Home Assistant funziona al 100% offline).*
+
+> [!TIP]
+> **Test Diagnostico — Prova con l'App Ufficiale**:  
+> Se il PIN a 4 cifre non compare o l'associazione fallisce, verifica la connessione con l'app ufficiale **VIDAA** ([Apple App Store per iOS](https://apps.apple.com/us/app/vidaa/id1526408639) o [Google Play Store per Android](https://play.google.com/store/apps/details?id=com.universal.remote.multi)). Se anche l'app ufficiale non riesce a connettersi, verifica l'accettazione dei servizi intelligenti sulla TV. *Ricorda di chiudere forzatamente l'app mobile prima di associare la TV in Home Assistant per evitare conflitti di sessione!*
+
 ---
 
 ## 📺 Marchi e Modelli Supportati

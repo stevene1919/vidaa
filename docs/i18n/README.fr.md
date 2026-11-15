@@ -47,6 +47,15 @@ Les téléviseurs VIDAA nécessitent une négociation TLS mutuelle sur le port 3
 3. Saisissez l'adresse IP locale de votre téléviseur et cliquez sur **Soumettre**.
 4. Saisissez le **code PIN à 4 chiffres** affiché sur l'écran du téléviseur pour finaliser la configuration !
 
+> [!IMPORTANT]
+> **Prérequis sur le téléviseur — Activer les services connectés / intelligents** :  
+> Le téléviseur doit avoir les **Services connectés** activés et les conditions d'utilisation acceptées (`Paramètres → Support / Système → Conditions générales / Services connectés`). Si cette option reste désactivée, VIDAA OS empêche l'affichage du code PIN à 4 chiffres lors de l'appairage.  
+> *(Conseil confidentialité : vous pouvez bloquer l'accès internet/WAN du téléviseur au niveau de votre routeur après l'appairage ; le contrôle local via Home Assistant fonctionne 100 % hors ligne).*
+
+> [!TIP]
+> **Conseil de diagnostic — Test avec l'application mobile officielle** :  
+> Si le code PIN n'apparaît pas ou si l'appairage échoue, testez la connexion avec l'application officielle **VIDAA** ([App Store Apple pour iOS](https://apps.apple.com/us/app/vidaa/id1526408639) ou [Google Play Store pour Android](https://play.google.com/store/apps/details?id=com.universal.remote.multi)). Si l'application officielle ne parvient pas non plus à se connecter, vérifiez l'acceptation des services connectés sur le téléviseur. *Pensez à fermer complètement l'application mobile avant de lancer l'appairage dans Home Assistant afin d'éviter tout conflit de session !*
+
 ---
 
 ## 📺 Marques et Modèles de Téléviseurs Compatibles

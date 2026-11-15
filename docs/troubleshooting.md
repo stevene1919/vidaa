@@ -88,7 +88,7 @@ When an automation or manual service call fails, Home Assistant displays an erro
 ### 4. Baseline Verification: Testing with the Official VIDAA App (iOS & Android)
 * If Home Assistant fails to discover your TV or the 4-digit pairing PIN never appears on your TV screen, testing with the official companion mobile app is the fastest way to confirm whether your TV hardware and network are ready:
   1. **Download the Official App:**
-     - **iOS:** Install **VIDAA** from the [Apple App Store](https://apps.apple.com/app/vidaa/id1507248316) (published by *V America Operations Inc.*).
+     - **iOS:** Install **VIDAA** from the [Apple App Store](https://apps.apple.com/us/app/vidaa/id1526408639) (published by *V America Operations Inc.*).
      - **Android:** Install **VIDAA** from the [Google Play Store](https://play.google.com/store/apps/details?id=com.universal.remote.multi).
   2. **Attempt Pairing:**
      - Connect your phone to the same local Wi-Fi / subnet as the TV.

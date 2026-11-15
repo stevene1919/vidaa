@@ -4,42 +4,44 @@ The integration includes two standalone Python CLI utilities that share 100% of 
 
 ---
 
-## 📥 How to Run the Tools
+## ⚡ 30-Second Quick Start
 
-### Option A: From any Computer or Server (Recommended)
+Choose the method that matches your environment:
 
-Clone the repository and run the scripts directly from the `scripts/` directory:
+### Method 1: Inside Home Assistant (Terminal / SSH Add-on — Easiest & Fastest)
+
+Home Assistant already has all required Python libraries pre-installed. Run this single copy-paste command in your HA Terminal:
 
 ```bash
+curl -sSL https://raw.githubusercontent.com/stevene1919/vidaa/main/scripts/test_client.py -o /config/test_client.py && python3 /config/test_client.py report --ip <TV_IP>
+```
+
+*(Replace `<TV_IP>` with your TV's local IP address, e.g. `192.168.1.50`).*
+
+---
+
+### Method 2: On Any PC, Mac, or Linux Computer (Standalone)
+
+Run these 3 commands in your terminal:
+
+```bash
+# 1. Clone the repository and enter the directory
 git clone https://github.com/stevene1919/vidaa.git
 cd vidaa
-pip install aiomqtt defusedxml cryptography pytest
 
-# Probe TV features & capabilities:
-python3 scripts/test_client.py probe --ip <TV_IP>
+# 2. Install the lightweight client dependencies
+pip3 install aiomqtt defusedxml cryptography pytest
+
+# 3. Run the diagnostic report (from the root of the vidaa folder)
+python3 scripts/test_client.py report --ip <TV_IP>
 ```
 
 > [!NOTE]
-> `pytest` is required alongside the runtime dependencies: when the `homeassistant`
-> package is not installed, the tools load the bundled Home Assistant stubs from
-> `tests/conftest.py`, which import `pytest`. The tools print an actionable error if it
-> is missing.
-
-### Option B: Inside Home Assistant (Terminal / SSH Addon)
-
-If you installed the integration via HACS, you can download `test_client.py` and/or `debug_tv.py` directly into your `/config` directory:
-
-```bash
-cd /config
-# Download test_client.py:
-curl -sSL https://raw.githubusercontent.com/stevene1919/vidaa/main/scripts/test_client.py -o test_client.py
-
-# Download debug_tv.py (optional live debugger):
-curl -sSL https://raw.githubusercontent.com/stevene1919/vidaa/main/scripts/debug_tv.py -o debug_tv.py
-
-# Run probe (automatically links to /config/custom_components/vidaa):
-python3 test_client.py probe --ip <TV_IP>
-```
+> **Important Path Note**: When running standalone from your computer, always run commands from the **`vidaa/` root directory** using the `scripts/` prefix:
+> ```bash
+> python3 scripts/test_client.py report --ip <TV_IP>
+> ```
+> `pytest` is required when running outside of Home Assistant so that the tool can load the bundled Home Assistant stubs (`tests/conftest.py`).
 
 ---
 
@@ -47,16 +49,22 @@ python3 test_client.py probe --ip <TV_IP>
 
 [`scripts/test_client.py`](../scripts/test_client.py) focuses on **initial discovery, SSL validation, authentication, and diagnostic reporting**.
 
+*(All commands below are shown from the `vidaa/` root directory. If running inside Home Assistant `/config`, drop the `scripts/` prefix).*
+
 ### 1. Generate GitHub Issue Diagnostic Report (`report`)
 
 Generates a sanitized Markdown diagnostics block detailing hardware info, firmware version, multi-tier authentication support, and optionally probed picture/sound menu capabilities ready to paste into GitHub issues:
 
 ```bash
 # Generate basic diagnostics report:
-python3 test_client.py report --ip <TV_IP>
+python3 scripts/test_client.py report --ip <TV_IP>
+
+# Generate report for a specific OEM partner brand (e.g. loewe, toshiba, toptro):
+python3 scripts/test_client.py report --ip <TV_IP> --brand loe
+python3 scripts/test_client.py report --ip <TV_IP> --brand tos
 
 # Generate full diagnostics report with dynamic picture/sound menu probing:
-python3 test_client.py report --ip <TV_IP> --probe
+python3 scripts/test_client.py report --ip <TV_IP> --probe
 ```
 
 ### 2. Feature & Menu Capability Probing (`probe` / `probe-features`)
@@ -64,7 +72,7 @@ python3 test_client.py report --ip <TV_IP> --probe
 Connects to the TV broker and probes dynamic picture settings, sound equalizer options, device descriptors, and app/source capabilities:
 
 ```bash
-python3 test_client.py probe --ip <TV_IP>
+python3 scripts/test_client.py probe --ip <TV_IP>
 ```
 
 ### 3. Diagnostic Probe & Firmware Detection (`ping`)
@@ -72,16 +80,16 @@ python3 test_client.py probe --ip <TV_IP>
 Tests TCP port reachability, TLS handshake, broker response, and multi-tier auth capabilities:
 
 ```bash
-python3 test_client.py ping --ip <TV_IP>
+python3 scripts/test_client.py ping --ip <TV_IP>
 
 # Test specific authentication profile (modern / middle / remotenow / legacy):
-python3 test_client.py ping --ip <TV_IP> --profile modern
-python3 test_client.py ping --ip <TV_IP> --profile middle
+python3 scripts/test_client.py ping --ip <TV_IP> --profile modern
+python3 scripts/test_client.py ping --ip <TV_IP> --profile middle
 
 # Test specific OEM partner brand (his / tos / loe / tpv / tpo / etc.):
-python3 test_client.py ping --ip <TV_IP> --brand toshiba
-python3 test_client.py ping --ip <TV_IP> --brand loewe
-python3 test_client.py ping --ip <TV_IP> --brand toptro
+python3 scripts/test_client.py ping --ip <TV_IP> --brand toshiba
+python3 scripts/test_client.py ping --ip <TV_IP> --brand loewe
+python3 scripts/test_client.py ping --ip <TV_IP> --brand toptro
 ```
 
 > [!NOTE]
@@ -92,10 +100,10 @@ python3 test_client.py ping --ip <TV_IP> --brand toptro
 Verifies TLS cipher negotiation and certificate validity without pairing:
 
 ```bash
-python3 test_client.py test-ssl --ip <TV_IP>
-python3 test_client.py test-ssl --ip <TV_IP> --profile modern
-python3 test_client.py test-ssl --ip <TV_IP> --profile middle
-python3 test_client.py test-ssl --ip <TV_IP> --cert /path/to/cert.pem --key /path/to/key.pem
+python3 scripts/test_client.py test-ssl --ip <TV_IP>
+python3 scripts/test_client.py test-ssl --ip <TV_IP> --profile modern
+python3 scripts/test_client.py test-ssl --ip <TV_IP> --profile middle
+python3 scripts/test_client.py test-ssl --ip <TV_IP> --cert /path/to/cert.pem --key /path/to/key.pem
 ```
 
 ### 5. Interactive PIN Pairing (`auth`)
@@ -103,10 +111,10 @@ python3 test_client.py test-ssl --ip <TV_IP> --cert /path/to/cert.pem --key /pat
 Initiates the challenge handshake, displays the on-screen 4-digit PIN on the TV, and saves the issued tokens to `credentials.json`:
 
 ```bash
-python3 test_client.py auth --ip <TV_IP>
-python3 test_client.py auth --ip <TV_IP> --profile modern
-python3 test_client.py auth --ip <TV_IP> --brand toshiba
-python3 test_client.py auth --ip <TV_IP> --brand toptro
+python3 scripts/test_client.py auth --ip <TV_IP>
+python3 scripts/test_client.py auth --ip <TV_IP> --profile modern
+python3 scripts/test_client.py auth --ip <TV_IP> --brand toshiba
+python3 scripts/test_client.py auth --ip <TV_IP> --brand toptro
 ```
 
 ### 6. Test Token Renewal (`refresh`)
@@ -114,7 +122,7 @@ python3 test_client.py auth --ip <TV_IP> --brand toptro
 Tests renewal of the 2-day access token using the 30-day refresh token:
 
 ```bash
-python3 test_client.py refresh
+python3 scripts/test_client.py refresh
 ```
 
 ### 7. Listen to Real-Time TV Events (`listen`)
@@ -122,7 +130,7 @@ python3 test_client.py refresh
 Subscribes to live state changes, volume updates, source list, and app list:
 
 ```bash
-python3 test_client.py listen
+python3 scripts/test_client.py listen
 ```
 
 ### 8. Send Remote Key Command (`send-key`)
@@ -130,8 +138,8 @@ python3 test_client.py listen
 Dispatches a single key command:
 
 ```bash
-python3 test_client.py send-key KEY_VOLUMEUP
-python3 test_client.py send-key KEY_POWER
+python3 scripts/test_client.py send-key KEY_VOLUMEUP
+python3 scripts/test_client.py send-key KEY_POWER
 ```
 
 ### 9. Launch App by Name (`launch-app`)
@@ -139,8 +147,8 @@ python3 test_client.py send-key KEY_POWER
 Launches an installed Smart TV application by name:
 
 ```bash
-python3 test_client.py launch-app "YouTube"
-python3 test_client.py launch-app "Netflix"
+python3 scripts/test_client.py launch-app "YouTube"
+python3 scripts/test_client.py launch-app "Netflix"
 ```
 
 ### 10. Virtual Keyboard & Text Input (`text`)
@@ -148,9 +156,9 @@ python3 test_client.py launch-app "Netflix"
 Sends virtual keyboard input to an active on-screen search bar or text input field:
 
 ```bash
-python3 test_client.py text "The Matrix"
-python3 test_client.py text --text-action replace "Bluey"
-python3 test_client.py text --text-action clear
+python3 scripts/test_client.py text "The Matrix"
+python3 scripts/test_client.py text --text-action replace "Bluey"
+python3 scripts/test_client.py text --text-action clear
 ```
 
 ### 11. Wake-on-LAN Broadcast (`wake`)
@@ -158,7 +166,7 @@ python3 test_client.py text --text-action clear
 Broadcasts a subnet-directed magic packet:
 
 ```bash
-python3 test_client.py wake --mac E8:51:77:EC:98:1C
+python3 scripts/test_client.py wake --mac E8:51:77:EC:98:1C
 ```
 
 ### 12. Probe UPnP MediaRenderer Services (`upnp`)
@@ -166,7 +174,7 @@ python3 test_client.py wake --mac E8:51:77:EC:98:1C
 Probes UPnP MediaRenderer SOAP services (`RenderingControl:1`, `AVTransport:1`, and `LanControlInfo:1`) on port `38400` / `18400`:
 
 ```bash
-python3 test_client.py upnp --ip <TV_IP>
+python3 scripts/test_client.py upnp --ip <TV_IP>
 ```
 
 ---
@@ -177,40 +185,40 @@ python3 test_client.py upnp --ip <TV_IP>
 
 ```bash
 # Dump current state, sources, apps, and volume:
-python3 debug_tv.py --dump-state
+python3 scripts/debug_tv.py --dump-state
 
 # Continuously stream live MQTT events from the TV:
-python3 debug_tv.py --monitor
+python3 scripts/debug_tv.py --monitor
 
 # Send a remote keypress:
-python3 debug_tv.py --send-key KEY_HOME
-python3 debug_tv.py --send-key KEY_VOLUMEUP
+python3 scripts/debug_tv.py --send-key KEY_HOME
+python3 scripts/debug_tv.py --send-key KEY_VOLUMEUP
 
 # Launch an app by name or App ID:
-python3 debug_tv.py --launch-app Netflix
-python3 debug_tv.py --launch-app "Disney+"
+python3 scripts/debug_tv.py --launch-app Netflix
+python3 scripts/debug_tv.py --launch-app "Disney+"
 
 # Switch input source:
-python3 debug_tv.py --change-source HDMI1
-python3 debug_tv.py --change-source TV
+python3 scripts/debug_tv.py --change-source HDMI1
+python3 scripts/debug_tv.py --change-source TV
 
 # Send virtual keyboard text input to an active on-screen field:
-python3 debug_tv.py --text "Inception"
-python3 debug_tv.py --text "Dune" --text-action replace
-python3 debug_tv.py --text-action clear
+python3 scripts/debug_tv.py --text "Inception"
+python3 scripts/debug_tv.py --text "Dune" --text-action replace
+python3 scripts/debug_tv.py --text-action clear
 
 # Probe UPnP MediaRenderer services and actions (volume, mute, transport info):
-python3 debug_tv.py --probe-upnp
+python3 scripts/debug_tv.py --probe-upnp
 
 # Inspect UPnP Date header and calculate TV clock drift:
-python3 debug_tv.py --sync-clock
+python3 scripts/debug_tv.py --sync-clock
 
 # Override TV IP and test OEM partner brand:
-python3 debug_tv.py --ip 192.168.50.12 --brand toshiba --monitor
+python3 scripts/debug_tv.py --ip 192.168.50.12 --brand toshiba --monitor
 
 # Verbose debug logging:
-python3 debug_tv.py --dump-state -v
+python3 scripts/debug_tv.py --dump-state -v
 ```
 
 > [!TIP]
-> Running `python3 debug_tv.py` with no arguments produces a complete state dump (`--dump-state`).
+> Running `python3 scripts/debug_tv.py` with no arguments produces a complete state dump (`--dump-state`).

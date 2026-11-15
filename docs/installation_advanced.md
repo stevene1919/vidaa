@@ -44,7 +44,7 @@ Clone the repository into a separate scratch or projects folder, and symlink the
 cd /config
 
 # 2. Clone the repository into a development directory
-git clone https://github.com/stevene1919/hisense_vidaa.git hisense_vidaa_repo
+git clone https://github.com/stevene1919/vidaa.git vidaa_repo
 
 # 3. Create the custom_components directory if it does not exist
 mkdir -p custom_components
@@ -96,10 +96,10 @@ If you track your entire Home Assistant `/config` folder in a private Git reposi
 cd /config
 
 # Add the integration as a Git submodule inside your components directory
-git submodule add https://github.com/stevene1919/hisense_vidaa.git custom_components/hisense_vidaa_submodule
+git submodule add https://github.com/stevene1919/vidaa.git custom_components/vidaa_submodule
 
 # Symlink the inner component
-ln -s hisense_vidaa_submodule/custom_components/vidaa custom_components/vidaa
+ln -s vidaa_submodule/custom_components/vidaa custom_components/vidaa
 
 # Commit the submodule reference in your config repository
 git add .gitmodules custom_components/
@@ -108,7 +108,7 @@ git commit -m "feat(submodule): add vidaa integration submodule"
 
 To update the submodule:
 ```bash
-git submodule update --remote custom_components/hisense_vidaa_submodule
+git submodule update --remote custom_components/vidaa_submodule
 ```
 
 ---
@@ -121,8 +121,8 @@ The repository includes standalone diagnostic utilities ([`scripts/test_client.p
 
 ```bash
 # 1. Clone the repository on your workstation or laptop
-git clone https://github.com/stevene1919/hisense_vidaa.git
-cd hisense_vidaa
+git clone https://github.com/stevene1919/vidaa.git
+cd vidaa
 
 # 2. Create and activate a Python virtual environment
 python3 -m venv .venv
@@ -160,7 +160,7 @@ python3 scripts/test_client.py auth --ip 192.168.50.12 --profile auto
 For privacy-centric smart homes where Home Assistant and the TV operate on an isolated IoT VLAN without internet access:
 
 1. **Download Release Archive on an Internet-Connected Machine**:
-   - Download `vidaa.zip` from the [Latest Releases](https://github.com/stevene1919/hisense_vidaa/releases).
+   - Download `vidaa.zip` from the [Latest Releases](https://github.com/stevene1919/vidaa/releases).
 2. **Transfer to Home Assistant Host**:
    - Via Secure Copy (`scp`):
      ```bash

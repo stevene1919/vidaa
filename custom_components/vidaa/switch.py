@@ -10,6 +10,7 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -90,20 +91,42 @@ class VidaaAudioOnlySwitch(VidaaEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn off the screen while keeping audio active."""
-        if not self._client or not self._client.connected:
-            return
+        if not self._client or getattr(self._client, "connected", True) is False:
+            raise HomeAssistantError(
+                "Cannot enable audio only mode: TV is currently disconnected.",
+                translation_domain=DOMAIN,
+                translation_key="not_connected",
+            )
         # Guarantee screen is awake first, then toggle off
         await self._client.async_send_key(WAKE_KEY)
         await asyncio.sleep(KEY_GAP_SECONDS)
-        await self._client.async_send_key(AUDIO_ONLY_KEY)
+        res = await self._client.async_send_key(AUDIO_ONLY_KEY)
+        if res is False:
+            raise HomeAssistantError(
+                "Failed to send audio only key: command delivery failed",
+                translation_domain=DOMAIN,
+                translation_key="send_key_failed",
+                translation_placeholders={"key": AUDIO_ONLY_KEY, "error": "command delivery failed"},
+            )
         self._is_on = True
         self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Wake the screen back up."""
-        if not self._client or not self._client.connected:
-            return
-        await self._client.async_send_key(WAKE_KEY)
+        if not self._client or getattr(self._client, "connected", True) is False:
+            raise HomeAssistantError(
+                "Cannot disable audio only mode: TV is currently disconnected.",
+                translation_domain=DOMAIN,
+                translation_key="not_connected",
+            )
+        res = await self._client.async_send_key(WAKE_KEY)
+        if res is False:
+            raise HomeAssistantError(
+                "Failed to wake screen: command delivery failed",
+                translation_domain=DOMAIN,
+                translation_key="send_key_failed",
+                translation_placeholders={"key": WAKE_KEY, "error": "command delivery failed"},
+            )
         self._is_on = False
         self.async_write_ha_state()
 

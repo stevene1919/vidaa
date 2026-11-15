@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.components.remote import RemoteEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -109,16 +110,41 @@ class VidaaRemote(VidaaEntity, RemoteEntity):
             if sec_mac and sec_mac not in mac_targets:
                 mac_targets.append(sec_mac)
 
-        await self._client.async_turn_on(mac_targets if mac_targets else None)
+        success = await self._client.async_turn_on(mac_targets if mac_targets else None)
+        if success is False:
+            raise HomeAssistantError(
+                "Failed to turn on TV: TV is disconnected and Wake-on-LAN is not configured or failed",
+                translation_domain=DOMAIN,
+                translation_key="not_connected",
+            )
         self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the TV off."""
-        await self._client.async_turn_off()
+        if getattr(self._client, "connected", True) is False and self._client.is_on:
+            raise HomeAssistantError(
+                "Cannot turn off TV: TV is currently disconnected.",
+                translation_domain=DOMAIN,
+                translation_key="not_connected",
+            )
+        success = await self._client.async_turn_off()
+        if success is False:
+            raise HomeAssistantError(
+                "Failed to send power off command to TV",
+                translation_domain=DOMAIN,
+                translation_key="send_key_failed",
+                translation_placeholders={"key": "KEY_POWER", "error": "command delivery failed"},
+            )
         self.async_write_ha_state()
 
     async def async_send_command(self, command: Iterable[str], **kwargs: Any) -> None:
         """Send a list of commands to the TV."""
+        if getattr(self._client, "connected", True) is False:
+            raise HomeAssistantError(
+                "Cannot send remote commands: TV is currently disconnected.",
+                translation_domain=DOMAIN,
+                translation_key="not_connected",
+            )
         default_delay = self._options.get(CONF_KEY_DELAY, DEFAULT_KEY_DELAY)
         default_repeats = self._options.get(CONF_KEY_REPEAT, DEFAULT_KEY_REPEAT)
         num_repeats = kwargs.get("num_repeats", default_repeats)
@@ -133,17 +159,29 @@ class VidaaRemote(VidaaEntity, RemoteEntity):
                 if hold_secs and hold_secs > 0:
                     cmd_lower = single_cmd.strip().lower()
                     if cmd_lower in ("ok", "enter", "select", "key_ok"):
-                        await self._client.async_send_key("KEY_OK_LONG_PRESS")
+                        res = await self._client.async_send_key("KEY_OK_LONG_PRESS")
                     elif cmd_lower in ("mute", "key_mute"):
-                        await self._client.async_send_key("KEY_MUTE_LONG_PRESS")
+                        res = await self._client.async_send_key("KEY_MUTE_LONG_PRESS")
                     else:
                         # Emulate key hold by rapid repetition over hold_secs
                         steps = max(1, round(hold_secs / 0.1))
+                        res = True
                         for _ in range(steps):
-                            await self._client.async_send_command(single_cmd)
+                            step_res = await self._client.async_send_command(single_cmd)
+                            if step_res is False:
+                                res = False
                             await asyncio.sleep(0.1)
                 else:
-                    await self._client.async_send_command(single_cmd)
+                    res = await self._client.async_send_command(single_cmd)
+
+                if res is False:
+                    raise HomeAssistantError(
+                        f"Failed to send remote command {single_cmd}: command delivery failed",
+                        translation_domain=DOMAIN,
+                        translation_key="send_key_failed",
+                        translation_placeholders={"key": str(single_cmd), "error": "command delivery failed"},
+                    )
+
                 if delay_secs > 0:
                     await asyncio.sleep(delay_secs)
 

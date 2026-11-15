@@ -9,6 +9,7 @@ from homeassistant.components.media_player import (
 )
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.vidaa.const import CONF_ENABLE_MEDIA_CONTROLS, DOMAIN, LEGACY_DOMAIN
 from custom_components.vidaa.media_player import VidaaMediaPlayer
@@ -853,3 +854,105 @@ async def test_play_media_channel_by_name(mock_client, mock_entry):
     calls = [call.args[0] for call in mock_client.async_send_key.call_args_list]
     assert "KEY_2" in calls
     assert "KEY_0" in calls
+
+
+@pytest.mark.anyio
+async def test_media_player_action_exceptions_when_disconnected(mock_client, mock_entry):
+    """Test media player entity actions raise HomeAssistantError when TV is disconnected."""
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    mock_client.connected = False
+    mock_client.is_on = True
+
+    # 1. async_turn_off raises not_connected
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await mp.async_turn_off()
+    assert exc_info.value.translation_key == "not_connected"
+
+    # 2. async_set_volume_level raises not_connected
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await mp.async_set_volume_level(0.5)
+    assert exc_info.value.translation_key == "not_connected"
+
+    # 3. async_volume_up raises not_connected
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await mp.async_volume_up()
+    assert exc_info.value.translation_key == "not_connected"
+
+    # 4. async_volume_down raises not_connected
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await mp.async_volume_down()
+    assert exc_info.value.translation_key == "not_connected"
+
+    # 5. async_mute_volume raises not_connected
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await mp.async_mute_volume(True)
+    assert exc_info.value.translation_key == "not_connected"
+
+    # 6. Playback controls raise not_connected
+    for action in (
+        mp.async_media_play,
+        mp.async_media_pause,
+        mp.async_media_stop,
+        mp.async_media_next_track,
+        mp.async_media_previous_track,
+    ):
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await action()
+        assert exc_info.value.translation_key == "not_connected"
+
+    # 7. async_select_sound_mode raises not_connected
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await mp.async_select_sound_mode("Theater")
+    assert exc_info.value.translation_key == "not_connected"
+
+
+@pytest.mark.anyio
+async def test_media_player_action_exceptions_on_delivery_failure(mock_client, mock_entry):
+    """Test media player actions raise HomeAssistantError when client command delivery fails."""
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    mock_client.connected = True
+    mock_client.is_on = True
+
+    # 1. async_set_volume returns False
+    mock_client.async_set_volume = AsyncMock(return_value=False)
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await mp.async_set_volume_level(0.4)
+    assert exc_info.value.translation_key == "send_key_failed"
+
+    # 2. async_send_key returns False for volume_up
+    mock_client.async_send_key = AsyncMock(return_value=False)
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await mp.async_volume_up()
+    assert exc_info.value.translation_key == "send_key_failed"
+
+    # 3. async_turn_off delivery returns False
+    mock_client.async_turn_off = AsyncMock(return_value=False)
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await mp.async_turn_off()
+    assert exc_info.value.translation_key == "send_key_failed"
+
+
+@pytest.mark.anyio
+async def test_remote_action_exceptions(mock_client, mock_entry):
+    """Test remote entity actions raise HomeAssistantError when disconnected or command fails."""
+    rem = HisenseVidaaRemote(client=mock_client, entry=mock_entry)
+
+    # 1. Disconnected: send_command raises not_connected
+    mock_client.connected = False
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await rem.async_send_command(["KEY_POWER"])
+    assert exc_info.value.translation_key == "not_connected"
+
+    # 2. Connected but command delivery fails: raises send_key_failed
+    mock_client.connected = True
+    mock_client.async_send_command = AsyncMock(return_value=False)
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await rem.async_send_command(["KEY_MENU"])
+    assert exc_info.value.translation_key == "send_key_failed"
+
+    # 3. Disconnected turn_off when TV on raises not_connected
+    mock_client.connected = False
+    mock_client.is_on = True
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await rem.async_turn_off()
+    assert exc_info.value.translation_key == "not_connected"

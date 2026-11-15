@@ -124,13 +124,15 @@ def turn_on_tv(
 async def async_turn_on_tv(
     client: VidaaClient,
     mac_targets: list[str] | None = None,
-) -> None:
+) -> bool:
     """Powers on or wakes the TV safely and idempotently asynchronously."""
+    wol_sent = False
     if mac_targets:
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
             None, functools.partial(client.send_wake_on_lan, mac_targets, ip=getattr(client, "ip", None))
         )
+        wol_sent = True
 
     if client.connected:
         if not client.is_on and getattr(client, "has_active_signal", False) is not True:
@@ -138,13 +140,21 @@ async def async_turn_on_tv(
                 "[%s] TV connected in standby/fake_sleep. Sending KEY_POWER to wake screen",
                 getattr(client, "ip", "unknown"),
             )
-            await client.async_send_key("KEY_POWER")
+            res = await client.async_send_key("KEY_POWER")
+            if res is not False:
+                client.is_on = True
+                return True
+            if wol_sent:
+                client.is_on = True
+                return True
+            return False
         else:
             client.is_on = True
             _LOGGER.debug(
                 "[%s] TV already connected and running. Skipping KEY_POWER to prevent powering down",
                 getattr(client, "ip", "unknown"),
             )
+            return True
     else:
         _LOGGER.debug(
             "[%s] TV MQTT not connected. Attempting reconnect to send KEY_POWER",
@@ -154,7 +164,10 @@ async def async_turn_on_tv(
             if await client.async_ensure_connected():
                 for _ in range(50):
                     if client.connected:
-                        await client.async_send_key("KEY_POWER")
+                        res = await client.async_send_key("KEY_POWER")
+                        if res is not False:
+                            client.is_on = True
+                            return True
                         break
                     await asyncio.sleep(0.1)
         except Exception as e:
@@ -164,7 +177,10 @@ async def async_turn_on_tv(
                 e,
             )
 
-    client.is_on = True
+    if wol_sent:
+        client.is_on = True
+        return True
+    return False
 
 
 def turn_off_tv(client: VidaaClient) -> None:
@@ -174,11 +190,15 @@ def turn_off_tv(client: VidaaClient) -> None:
     client.is_on = False
 
 
-async def async_turn_off_tv(client: VidaaClient) -> None:
+async def async_turn_off_tv(client: VidaaClient) -> bool:
     """Powers off the TV safely asynchronously."""
     if client.connected and client.is_on:
-        await client.async_send_key("KEY_POWER")
-    client.is_on = False
+        res = await client.async_send_key("KEY_POWER")
+        if res is not False:
+            client.is_on = False
+            return True
+        return False
+    return not client.is_on
 
 
 class TvPowerActionsMixin:
@@ -196,14 +216,14 @@ class TvPowerActionsMixin:
         """Powers on or wakes the TV safely and idempotently."""
         turn_on_tv(self, mac_targets=mac_targets)  # type: ignore[arg-type]
 
-    async def async_turn_on(self, mac_targets: list[str] | None = None) -> None:
+    async def async_turn_on(self, mac_targets: list[str] | None = None) -> bool:
         """Powers on or wakes the TV safely and idempotently asynchronously."""
-        await async_turn_on_tv(self, mac_targets=mac_targets)  # type: ignore[arg-type]
+        return await async_turn_on_tv(self, mac_targets=mac_targets)  # type: ignore[arg-type]
 
     def turn_off(self) -> None:
         """Powers off the TV safely."""
         turn_off_tv(self)  # type: ignore[arg-type]
 
-    async def async_turn_off(self) -> None:
+    async def async_turn_off(self) -> bool:
         """Powers off the TV safely asynchronously."""
-        await async_turn_off_tv(self)  # type: ignore[arg-type]
+        return await async_turn_off_tv(self)  # type: ignore[arg-type]

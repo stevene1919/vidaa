@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -93,8 +94,21 @@ class VidaaPictureModeSelect(VidaaEntity, SelectEntity):
 
     async def async_select_option(self, option: str) -> None:
         """Change picture mode option."""
+        if getattr(self._client, "connected", True) is False:
+            raise HomeAssistantError(
+                "Cannot change picture mode: TV is currently disconnected.",
+                translation_domain=DOMAIN,
+                translation_key="not_connected",
+            )
+        res = await self._client.async_set_picture_mode(option)
+        if res is False:
+            raise HomeAssistantError(
+                f"Failed to set picture mode to {option}: command delivery failed",
+                translation_domain=DOMAIN,
+                translation_key="set_picture_setting_failed",
+                translation_placeholders={"menu_id": "picture_mode", "error": "command delivery failed"},
+            )
         self._current_mode = option
-        await self._client.async_set_picture_mode(option)
         self.async_write_ha_state()
 
 
@@ -154,8 +168,21 @@ class VidaaSoundModeSelect(VidaaEntity, SelectEntity):
 
     async def async_select_option(self, option: str) -> None:
         """Change sound mode option."""
+        if getattr(self._client, "connected", True) is False:
+            raise HomeAssistantError(
+                "Cannot change sound mode: TV is currently disconnected.",
+                translation_domain=DOMAIN,
+                translation_key="not_connected",
+            )
+        res = await self._client.async_set_sound_mode(option)
+        if res is False:
+            raise HomeAssistantError(
+                f"Failed to set sound mode to {option}: command delivery failed",
+                translation_domain=DOMAIN,
+                translation_key="set_sound_setting_failed",
+                translation_placeholders={"menu_id": "sound_mode", "error": "command delivery failed"},
+            )
         self._current_mode = option
-        await self._client.async_set_sound_mode(option)
         self.async_write_ha_state()
 
 

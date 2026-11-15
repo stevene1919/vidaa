@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.vidaa.number import (
     HisenseVidaaBacklightNumber,
@@ -258,3 +259,68 @@ async def test_entities_register_connection_callbacks():
     await sw_ent.async_added_to_hass()
     client.register_connected_callback.assert_called()
     client.register_disconnected_callback.assert_called()
+
+
+@pytest.mark.anyio
+async def test_select_and_number_action_exceptions_and_no_optimistic_update(mock_client, mock_entry):
+    """Verify select and number entities raise HomeAssistantError and do not desync state on failure."""
+    import threading
+
+    hass = MagicMock(spec=HomeAssistant)
+    hass.loop_thread_id = threading.get_ident()
+    hass.loop = MagicMock()
+    hass.data = {}
+    hass.states = MagicMock()
+
+    pic_sel = HisenseVidaaPictureModeSelect(client=mock_client, entry=mock_entry)
+    pic_sel.hass = hass
+    pic_sel.entity_id = "select.picture_mode"
+
+    snd_sel = HisenseVidaaSoundModeSelect(client=mock_client, entry=mock_entry)
+    snd_sel.hass = hass
+    snd_sel.entity_id = "select.sound_mode"
+
+    bl = HisenseVidaaBacklightNumber(client=mock_client, entry=mock_entry)
+    bl.hass = hass
+    bl.entity_id = "number.backlight"
+
+    mock_client.picture_mode = None
+    mock_client.sound_mode = None
+    mock_client.backlight = None
+
+    # 1. When disconnected, selecting an option raises not_connected without updating mode
+    mock_client.connected = False
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await pic_sel.async_select_option("Dynamic")
+    assert exc_info.value.translation_key == "not_connected"
+    assert pic_sel.current_option == "Standard"
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await snd_sel.async_select_option("Music")
+    assert exc_info.value.translation_key == "not_connected"
+    assert snd_sel.current_option == "Standard"
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await bl.async_set_native_value(30)
+    assert exc_info.value.translation_key == "not_connected"
+    assert bl.native_value == 80.0
+
+    # 2. When connected but client publish returns False: raises error without updating cached state
+    mock_client.connected = True
+    mock_client.async_set_picture_mode = AsyncMock(return_value=False)
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await pic_sel.async_select_option("Dynamic")
+    assert exc_info.value.translation_key == "set_picture_setting_failed"
+    assert pic_sel.current_option == "Standard"
+
+    mock_client.async_set_sound_mode = AsyncMock(return_value=False)
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await snd_sel.async_select_option("Music")
+    assert exc_info.value.translation_key == "set_sound_setting_failed"
+    assert snd_sel.current_option == "Standard"
+
+    mock_client.async_set_backlight = AsyncMock(return_value=False)
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await bl.async_set_native_value(30)
+    assert exc_info.value.translation_key == "set_picture_setting_failed"
+    assert bl.native_value == 80.0

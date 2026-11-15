@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -99,8 +100,21 @@ class VidaaBacklightNumber(VidaaBaseNumber):
 
     async def async_set_native_value(self, value: float) -> None:
         """Set new backlight level."""
+        if getattr(self._client, "connected", True) is False:
+            raise HomeAssistantError(
+                "Cannot set backlight: TV is currently disconnected.",
+                translation_domain=DOMAIN,
+                translation_key="not_connected",
+            )
+        res = await self._client.async_set_backlight(int(value))
+        if res is False:
+            raise HomeAssistantError(
+                f"Failed to set backlight to {value}: command delivery failed",
+                translation_domain=DOMAIN,
+                translation_key="set_picture_setting_failed",
+                translation_placeholders={"menu_id": "backlight", "error": "command delivery failed"},
+            )
         self._value = value
-        await self._client.async_set_backlight(int(value))
         self.async_write_ha_state()
 
 
@@ -134,8 +148,21 @@ class VidaaBrightnessNumber(VidaaBaseNumber):
 
     async def async_set_native_value(self, value: float) -> None:
         """Set new brightness level."""
+        if getattr(self._client, "connected", True) is False:
+            raise HomeAssistantError(
+                "Cannot set brightness: TV is currently disconnected.",
+                translation_domain=DOMAIN,
+                translation_key="not_connected",
+            )
+        res = await self._client.async_set_brightness(int(value))
+        if res is False:
+            raise HomeAssistantError(
+                f"Failed to set brightness to {value}: command delivery failed",
+                translation_domain=DOMAIN,
+                translation_key="set_picture_setting_failed",
+                translation_placeholders={"menu_id": "brightness", "error": "command delivery failed"},
+            )
         self._value = value
-        await self._client.async_set_brightness(int(value))
         self.async_write_ha_state()
 
 
@@ -169,8 +196,21 @@ class VidaaContrastNumber(VidaaBaseNumber):
 
     async def async_set_native_value(self, value: float) -> None:
         """Set new contrast level."""
+        if getattr(self._client, "connected", True) is False:
+            raise HomeAssistantError(
+                "Cannot set contrast: TV is currently disconnected.",
+                translation_domain=DOMAIN,
+                translation_key="not_connected",
+            )
+        res = await self._client.async_set_contrast(int(value))
+        if res is False:
+            raise HomeAssistantError(
+                f"Failed to set contrast to {value}: command delivery failed",
+                translation_domain=DOMAIN,
+                translation_key="set_picture_setting_failed",
+                translation_placeholders={"menu_id": "contrast", "error": "command delivery failed"},
+            )
         self._value = value
-        await self._client.async_set_contrast(int(value))
         self.async_write_ha_state()
 
 

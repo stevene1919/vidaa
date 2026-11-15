@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.vidaa.binary_sensor import (
     HisenseVidaaInUseBinarySensor,
@@ -468,3 +469,59 @@ def test_disabled_by_default_entities(mock_client, mock_entry):
 
     sw_debug = HisenseVidaaDebugLoggingSwitch(mock_client, mock_entry)
     assert sw_debug.entity_registry_enabled_default is False
+
+
+@pytest.mark.anyio
+async def test_switch_and_button_action_exceptions(mock_client, mock_entry):
+    """Test switch and button entities raise HomeAssistantError on disconnected or failed actions."""
+    from custom_components.vidaa.button import (
+        HisenseVidaaProbeCapabilitiesButton,
+        HisenseVidaaSyncClockButton,
+    )
+
+    hass = MagicMock(spec=HomeAssistant)
+    hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
+
+    sw_audio = HisenseVidaaAudioOnlySwitch(mock_client, mock_entry)
+    sw_audio.hass = hass
+
+    b_sync = HisenseVidaaSyncClockButton(mock_client, mock_entry)
+    b_sync.hass = hass
+
+    b_probe = HisenseVidaaProbeCapabilitiesButton(mock_client, mock_entry)
+    b_probe.hass = hass
+
+    # 1. Audio only switch disconnected: raises not_connected without turning on
+    mock_client.connected = False
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await sw_audio.async_turn_on()
+    assert exc_info.value.translation_key == "not_connected"
+    assert sw_audio.is_on is False
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await sw_audio.async_turn_off()
+    assert exc_info.value.translation_key == "not_connected"
+
+    # 2. Audio only switch connected but send_key fails: raises error without updating is_on
+    mock_client.connected = True
+    mock_client.async_send_key = AsyncMock(return_value=False)
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await sw_audio.async_turn_on()
+    assert exc_info.value.translation_key == "send_key_failed"
+    assert sw_audio.is_on is False
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await sw_audio.async_turn_off()
+    assert exc_info.value.translation_key == "send_key_failed"
+
+    # 3. Clock sync button raises error when UPnP sync fails (returns None)
+    mock_client.async_sync_clock = AsyncMock(return_value=None)
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await b_sync.async_press()
+    assert exc_info.value.translation_key == "send_key_failed"
+
+    # 4. Probe capabilities button raises not_connected when TV disconnected
+    mock_client.connected = False
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await b_probe.async_press()
+    assert exc_info.value.translation_key == "not_connected"

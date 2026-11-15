@@ -271,32 +271,33 @@ async def async_execute_play_media(
     app_dict: dict[str, dict[str, Any]],
     media_type: str,
     media_id: str,
-) -> None:
+) -> bool:
     """Executes media playback command asynchronously: launches app, tunes channel number, or sends key."""
     type_lower = media_type.lower()
     if type_lower in ("app", "application", "url", "deep_link", "video", "music") or "://" in media_id:
         # Check app dictionary for direct match or scheme match
         app = app_dict.get(media_id)
         if app:
-            await client.async_launch_app(
-                str(app.get("appId") or app.get("app_id") or ""),
-                str(app.get("name") or ""),
-                str(app.get("url") or app.get("appUrl") or ""),
+            return bool(
+                await client.async_launch_app(
+                    str(app.get("appId") or app.get("app_id") or ""),
+                    str(app.get("name") or ""),
+                    str(app.get("url") or app.get("appUrl") or ""),
+                )
             )
-            return
         for app_name, app_info in app_dict.items():
             if app_name.lower() == media_id.lower() or (str(app_info.get("url") or "").lower() == media_id.lower()):
-                await client.async_launch_app(
-                    str(app_info.get("appId") or app_info.get("app_id") or ""),
-                    str(app_info.get("name") or app_name),
-                    str(app_info.get("url") or app_info.get("appUrl") or ""),
+                return bool(
+                    await client.async_launch_app(
+                        str(app_info.get("appId") or app_info.get("app_id") or ""),
+                        str(app_info.get("name") or app_name),
+                        str(app_info.get("url") or app_info.get("appUrl") or ""),
+                    )
                 )
-                return
 
         # Direct URL / deep-link launch
         if "://" in media_id or type_lower in ("url", "deep_link"):
-            await client.async_launch_app("", media_id, media_id)
-            return
+            return bool(await client.async_launch_app("", media_id, media_id))
 
     if type_lower in ("channel", "tvshow"):
         clean_id = str(media_id).strip()
@@ -308,16 +309,21 @@ async def async_execute_play_media(
                     clean_id = str(ch_num)
                     break
 
+        all_ok = True
         for char in clean_id:
             if char.isdigit():
-                await client.async_send_key(f"KEY_{char}")
+                res = await client.async_send_key(f"KEY_{char}")
+                if res is False:
+                    all_ok = False
                 await asyncio.sleep(0.1)
             elif char in (".", "-"):
-                await client.async_send_key("KEY_CHANNELDOT")
+                res = await client.async_send_key("KEY_CHANNELDOT")
+                if res is False:
+                    all_ok = False
                 await asyncio.sleep(0.1)
-        return
+        return all_ok
 
-    await client.async_send_command(media_id)
+    return bool(await client.async_send_command(media_id))
 
 
 def execute_select_source(
@@ -372,10 +378,10 @@ async def async_execute_select_source(
     source_dict: dict[str, dict[str, Any]],
     app_dict: dict[str, dict[str, Any]],
     source: str,
-) -> None:
+) -> bool:
     """Resolves and selects a source input or smart TV application asynchronously."""
     if not source:
-        return
+        return False
     cleaned_source = clean_source_label(source)
     source_lower = source.strip().lower()
     cleaned_lower = cleaned_source.strip().lower()
@@ -388,8 +394,9 @@ async def async_execute_select_source(
                 app = app_data
                 break
     if app:
-        await client.async_launch_app(str(app.get("appId", "")), str(app.get("name", "")), str(app.get("url", "")))
-        return
+        return bool(
+            await client.async_launch_app(str(app.get("appId", "")), str(app.get("name", "")), str(app.get("url", "")))
+        )
 
     # 2. Input source match (exact and case-insensitive)
     matched_source = source_dict.get(source) or source_dict.get(cleaned_source)
@@ -408,10 +415,9 @@ async def async_execute_select_source(
     if matched_source:
         resolved_source_id = str(matched_source.get("sourceid") or matched_source.get("sourcename") or "")
         resolved_source_name = str(matched_source.get("sourcename") or cleaned_source)
-        await client.async_change_source(resolved_source_id, resolved_source_name)
-        return
+        return bool(await client.async_change_source(resolved_source_id, resolved_source_name))
 
-    await client.async_change_source(cleaned_source)
+    return bool(await client.async_change_source(cleaned_source))
 
 
 def parse_media_state_broadcast(

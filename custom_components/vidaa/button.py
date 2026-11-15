@@ -10,12 +10,14 @@ from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .client import VidaaClient
 from .const import (
     CONF_ENABLE_PICTURE_CONTROLS,
     CONF_ENABLE_SOUND_CONTROLS,
+    DOMAIN,
 )
 from .entity import VidaaEntity
 
@@ -65,7 +67,14 @@ class VidaaForceReconnectButton(VidaaBaseButton):
         """Handle button press."""
         _LOGGER.info("Manually forcing MQTT reconnection to TV at %s", self._client.ip)
         await self._client.async_disconnect()
-        await self._client.async_connect_and_run()
+        try:
+            await self._client.async_connect_and_run()
+        except Exception as err:
+            raise HomeAssistantError(
+                f"Failed to reconnect to TV at {self._client.ip}: {err}",
+                translation_domain=DOMAIN,
+                translation_key="not_connected",
+            ) from err
 
 
 class VidaaSyncClockButton(VidaaBaseButton):
@@ -88,7 +97,12 @@ class VidaaSyncClockButton(VidaaBaseButton):
                 offset,
             )
         else:
-            _LOGGER.warning("Could not fetch UPnP timestamp from TV at %s", self._client.ip)
+            raise HomeAssistantError(
+                f"Could not fetch UPnP timestamp from TV at {self._client.ip}",
+                translation_domain=DOMAIN,
+                translation_key="send_key_failed",
+                translation_placeholders={"key": "sync_clock", "error": "UPnP clock sync failed"},
+            )
 
 
 class VidaaProbeCapabilitiesButton(VidaaBaseButton):
@@ -104,9 +118,12 @@ class VidaaProbeCapabilitiesButton(VidaaBaseButton):
 
     async def async_press(self) -> None:
         """Handle button press to probe capabilities."""
-        if not self._client.connected:
-            _LOGGER.warning("[%s] Cannot probe capabilities: TV is not connected via MQTT", self._client.ip)
-            return
+        if getattr(self._client, "connected", True) is False:
+            raise HomeAssistantError(
+                "Cannot probe capabilities: TV is not connected via MQTT",
+                translation_domain=DOMAIN,
+                translation_key="not_connected",
+            )
 
         _LOGGER.info("[%s] Probing TV picture and sound menu capabilities over MQTT...", self._client.ip)
         await self._client.async_get_picture_settings()

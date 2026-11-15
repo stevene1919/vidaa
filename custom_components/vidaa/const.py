@@ -99,60 +99,71 @@ AUTH_PROFILES = {
     "legacy": "Legacy Static (Pre-2022 / Static Credentials)",
 }
 
-from homeassistant.helpers import selector
+try:
+    from homeassistant.helpers import selector
+except ImportError:
+    selector = None
 
-AUTH_PROFILE_OPTIONS = [
-    selector.SelectOptionDict(value="auto", label="Auto Detect (Recommended)"),
-    selector.SelectOptionDict(value="modern", label="VIDAA 2.0 / 2024+ (vidaa_2024)"),
-    selector.SelectOptionDict(value="middle", label="VIDAA 1.5 / Middle (3000–3285)"),
-    selector.SelectOptionDict(value="remotenow", label="RemoteNOW / 2018–2023 (standard)"),
-    selector.SelectOptionDict(value="legacy", label="Legacy Static (Pre-2022 / Static Credentials)"),
+AUTH_PROFILE_OPTIONS: list[dict[str, str]] = [
+    {"value": "auto", "label": "Auto Detect (Recommended)"},
+    {"value": "modern", "label": "VIDAA 2.0 / 2024+ (vidaa_2024)"},
+    {"value": "middle", "label": "VIDAA 1.5 / Middle (3000–3285)"},
+    {"value": "remotenow", "label": "RemoteNOW / 2018–2023 (standard)"},
+    {"value": "legacy", "label": "Legacy Static (Pre-2022 / Static Credentials)"},
 ]
 
-AUTH_PROFILE_SELECTOR = selector.SelectSelector(
-    selector.SelectSelectorConfig(
-        options=AUTH_PROFILE_OPTIONS,
-        mode=selector.SelectSelectorMode.DROPDOWN,
-        translation_key="auth_profile",
+AUTH_PROFILE_SELECTOR = (
+    selector.SelectSelector(
+        selector.SelectSelectorConfig(
+            options=AUTH_PROFILE_OPTIONS,
+            mode=selector.SelectSelectorMode.DROPDOWN,
+            translation_key="auth_profile",
+        )
     )
+    if selector is not None
+    else None
 )
 
-BRAND_OPTIONS = [
-    selector.SelectOptionDict(value="auto", label="Auto Detect (Recommended)"),
-    selector.SelectOptionDict(value="his", label="Hisense"),
-    selector.SelectOptionDict(value="tos", label="Toshiba"),
-    selector.SelectOptionDict(value="loe", label="Loewe"),
-    selector.SelectOptionDict(value="tpv", label="TPV / Philips / AOC"),
-    selector.SelectOptionDict(value="shp", label="Sharp"),
-    selector.SelectOptionDict(value="jvc", label="JVC"),
-    selector.SelectOptionDict(value="sch", label="Schneider"),
-    selector.SelectOptionDict(value="aka", label="Akai"),
-    selector.SelectOptionDict(value="bek", label="Beko"),
-    selector.SelectOptionDict(value="tel", label="Telefunken"),
-    selector.SelectOptionDict(value="bus", label="Bush"),
-    selector.SelectOptionDict(value="vic", label="Vizio"),
-    selector.SelectOptionDict(value="phi", label="Philco"),
-    selector.SelectOptionDict(value="nob", label="Noblex"),
-    selector.SelectOptionDict(value="san", label="Sansei"),
-    selector.SelectOptionDict(value="rca", label="RCA"),
-    selector.SelectOptionDict(value="sin", label="Sinotec"),
-    selector.SelectOptionDict(value="ves", label="Vestel"),
-    selector.SelectOptionDict(value="bra", label="Brandt"),
-    selector.SelectOptionDict(value="met", label="Metz"),
-    selector.SelectOptionDict(value="lei", label="Leica"),
-    selector.SelectOptionDict(value="tpo", label="TOPTRO"),
+BRAND_OPTIONS: list[dict[str, str]] = [
+    {"value": "auto", "label": "Auto Detect (Recommended)"},
+    {"value": "his", "label": "Hisense"},
+    {"value": "tos", "label": "Toshiba"},
+    {"value": "loe", "label": "Loewe"},
+    {"value": "tpv", "label": "TPV / Philips / AOC"},
+    {"value": "shp", "label": "Sharp"},
+    {"value": "jvc", "label": "JVC"},
+    {"value": "sch", "label": "Schneider"},
+    {"value": "aka", "label": "Akai"},
+    {"value": "bek", "label": "Beko"},
+    {"value": "tel", "label": "Telefunken"},
+    {"value": "bus", "label": "Bush"},
+    {"value": "vic", "label": "Vizio"},
+    {"value": "phi", "label": "Philco"},
+    {"value": "nob", "label": "Noblex"},
+    {"value": "san", "label": "Sansei"},
+    {"value": "rca", "label": "RCA"},
+    {"value": "sin", "label": "Sinotec"},
+    {"value": "ves", "label": "Vestel"},
+    {"value": "bra", "label": "Brandt"},
+    {"value": "met", "label": "Metz"},
+    {"value": "lei", "label": "Leica"},
+    {"value": "tpo", "label": "TOPTRO"},
 ]
 
 BRAND_PROFILES: dict[str, str] = {
     opt["value"]: opt["label"] for opt in BRAND_OPTIONS
 }
 
-BRAND_SELECTOR = selector.SelectSelector(
-    selector.SelectSelectorConfig(
-        options=BRAND_OPTIONS,
-        mode=selector.SelectSelectorMode.DROPDOWN,
-        translation_key="brand",
+BRAND_SELECTOR = (
+    selector.SelectSelector(
+        selector.SelectSelectorConfig(
+            options=BRAND_OPTIONS,
+            mode=selector.SelectSelectorMode.DROPDOWN,
+            translation_key="brand",
+        )
     )
+    if selector is not None
+    else None
 )
 
 GENERIC_MANUFACTURERS: set[str] = {

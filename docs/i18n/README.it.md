@@ -91,5 +91,5 @@ Supporta ufficialmente **qualsiasi Smart TV con sistema VIDAA OS** (associazione
 | 📱 **[Schede Lovelace e Dashboard](../lovelace_cards.md)** | Telecomandi grafici, Button Card e template per la dashboard. |
 | 🛠️ **[Automazioni ed Esempi di Servizi](../services_and_automations.md)** | Script e ricette YAML pronte all'uso per serate cinema e routine. |
 | 🔒 **[Configurazione Avanzata SSL](../certificates.md)** | Gestione certificati PEM, directory di archiviazione e comandi OpenSSL. |
-| 🧪 **[Strumenti di Test e Diagnostica CLI](../cli_tools.md)** | Script standalone di diagnostica (`scripts/test_client.py`, `scripts/debug_tv.py`). |
+| 🧪 **[Strumenti di Test e Diagnostica CLI](../cli_tools.md)** | Script standalone di diagnostica (`scripts/test_client.py`, `scripts/diag.sh`). |
 | 🩺 **[Risoluzione dei Problemi](../troubleshooting.md)** | Diagnosi rapida degli errori di associazione e problemi di rete. |

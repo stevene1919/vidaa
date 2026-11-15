@@ -91,5 +91,5 @@ Prend officiellement en charge **tous les téléviseurs sous VIDAA OS** (appaira
 | 📱 **[Tableaux de Bord et Cartes Lovelace](../lovelace_cards.md)** | Cartes de télécommande, cartes à boutons et modèles d'interface. |
 | 🛠️ **[Services et Automatisations](../services_and_automations.md)** | Exemples YAML pour soirées cinéma, sélection d'entrées et séquences de touches. |
 | 🔒 **[Certificats SSL Avancés](../certificates.md)** | Emplacements des fichiers, certificats PEM personnalisés et commandes OpenSSL. |
-| 🧪 **[Outils de Test et Diagnostic CLI](../cli_tools.md)** | Utilitaires autonomes (`scripts/test_client.py`, `scripts/debug_tv.py`). |
+| 🧪 **[Outils de Test et Diagnostic CLI](../cli_tools.md)** | Utilitaires autonomes (`scripts/test_client.py`, `scripts/diag.sh`). |
 | 🩺 **[Dépannage et Résolution de Problèmes](../troubleshooting.md)** | Diagnostic et solutions pour les erreurs de connexion et d'appairage. |

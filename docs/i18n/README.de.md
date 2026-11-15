@@ -91,5 +91,5 @@ Unterstützt offiziell **alle Smart-TVs mit VIDAA OS** (Kopplung per **4-stellig
 | 📱 **[Lovelace Dashboards & Karten](../lovelace_cards.md)** | Fernbedienungs-Karten, Button-Cards und Dashboard-Vorlagen. |
 | 🛠️ **[Dienste & Automationen](../services_and_automations.md)** | Fertige YAML-Vorlagen für Kinoabende, Eingangswahl und Tastenfolgen. |
 | 🔒 **[Erweiterte SSL-Zertifikate](../certificates.md)** | Dateipfade, eigene PEM-Zertifikate und OpenSSL-Befehle. |
-| 🧪 **[CLI-Test & Diagnose-Tools](../cli_tools.md)** | Eigenständige Werkzeuge (`scripts/test_client.py`, `scripts/debug_tv.py`). |
+| 🧪 **[CLI-Test & Diagnose-Tools](../cli_tools.md)** | Eigenständige Werkzeuge (`scripts/test_client.py`, `scripts/diag.sh`). |
 | 🩺 **[Fehlerbehebung & Problembehebung](../troubleshooting.md)** | Diagnose und Lösungen für Verbindungs- und Kopplungsfehler. |

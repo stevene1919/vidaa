@@ -26,23 +26,22 @@ for p in (REPO_ROOT, SCRIPT_DIR, HA_CONFIG_DIR):
     if os.path.isdir(p) and p not in sys.path:
         sys.path.insert(0, p)
 
-if "homeassistant" not in sys.modules:
+# Check required core client dependencies
+missing = []
+for pkg in ("aiomqtt", "cryptography"):
     try:
-        import homeassistant  # noqa: F401
+        __import__(pkg)
     except ImportError:
-        try:
-            import tests.conftest  # noqa: F401
-        except ImportError as exc:
-            print(
-                "\nERROR: Home Assistant is not installed and the bundled test stubs "
-                f"could not be loaded ({exc}).\n"
-                "Install the CLI dependencies (pytest is required by the stubs when Home Assistant is absent):\n"
-                "    pip install aiomqtt defusedxml cryptography pytest\n"
-                "Or run this tool from your Home Assistant /config directory so the real "
-                "'homeassistant' package is importable.",
-                file=sys.stderr,
-            )
-            raise SystemExit(2) from exc
+        missing.append(pkg)
+
+if missing:
+    print(
+        f"\nERROR: Missing required dependencies: {' '.join(missing)}\n"
+        f"Install them via pip:\n"
+        f"    pip install {' '.join(missing)}\n",
+        file=sys.stderr,
+    )
+    sys.exit(2)
 
 from custom_components.vidaa.client import HisenseTvClient
 from custom_components.vidaa.protocol.discovery import (
@@ -662,6 +661,93 @@ def do_launch_app(
     client.disconnect()
 
 
+def do_change_source(
+    creds: dict[str, Any],
+    source_target: str,
+    certfile: str | None = None,
+    keyfile: str | None = None,
+    ca_cert: str | None = None,
+    verify_ssl: bool = False,
+    brand: str | None = None,
+) -> None:
+    ip = creds.get("ip_address")
+    print(f"\n[SOURCE] Switching to input '{source_target}' on TV at {ip}...")
+
+    client = create_client_from_creds(creds, certfile, keyfile, ca_cert=ca_cert, verify_ssl=verify_ssl, brand=brand)
+    client.connect_and_run()
+    for _ in range(30):
+        if client.connected:
+            break
+        time.sleep(0.1)
+
+    if client.connected:
+        client.change_source(source_target)
+        print(f"✅ Source change to '{source_target}' dispatched successfully.")
+        time.sleep(0.5)
+    else:
+        print("❌ Could not connect to TV to switch input source.")
+
+    client.disconnect()
+
+
+def do_state(
+    creds: dict[str, Any],
+    certfile: str | None = None,
+    keyfile: str | None = None,
+    ca_cert: str | None = None,
+    verify_ssl: bool = False,
+    brand: str | None = None,
+) -> None:
+    ip = creds.get("ip_address")
+    print(f"\n[STATE] Querying live TV snapshot at {ip}...")
+
+    client = create_client_from_creds(creds, certfile, keyfile, ca_cert=ca_cert, verify_ssl=verify_ssl, brand=brand)
+    state_cache: dict[str, Any] = {"sources": [], "apps": []}
+    client.register_sourcelist_callback(lambda data: state_cache.__setitem__("sources", data))
+    client.register_applist_callback(lambda data: state_cache.__setitem__("apps", data))
+
+    client.connect_and_run()
+    for _ in range(30):
+        if client.connected:
+            break
+        time.sleep(0.1)
+
+    if not client.connected:
+        print("❌ Could not connect to TV to query state.")
+        client.disconnect()
+        return
+
+    time.sleep(1.5)
+
+    print("\n📊 TV State Snapshot:")
+    print(f"  • MQTT Connected:      {client.connected}")
+    print(f"  • Auth Profile:        {client.auth_profile}")
+    print(f"  • OEM Brand:           {client.brand.upper()} ({BRAND_MAP.get(client.brand, client.brand)})")
+    if client.access_token_time and client.access_token_duration:
+        exp_dt = datetime.fromtimestamp(client.access_token_time + client.access_token_duration * 86400, tz=UTC)
+        print(f"  • Access Token Expiry: {exp_dt}")
+    print(f"  • Power State:         {'ON' if client.is_on else 'OFF/STANDBY'}")
+    if client.volume is not None:
+        print(f"  • Volume:              {client.volume}% ({'MUTED' if client.muted else 'UNMUTED'})")
+    if client.active_source:
+        print(f"  • Active Source:       {client.active_source}")
+    if client.active_app:
+        print(f"  • Active App:          {client.active_app}")
+
+    if state_cache["sources"]:
+        print(f"\n🔌 Available Sources ({len(state_cache['sources'])}):")
+        for s in state_cache["sources"]:
+            active = " [ACTIVE]" if s.get("is_signal") in ("1", 1, True) or s.get("is_active") else ""
+            print(f"    - {s.get('sourcename', 'Unknown')} (ID: {s.get('sourceid')}){active}")
+
+    if state_cache["apps"]:
+        print(f"\n📱 Installed Apps ({len(state_cache['apps'])}):")
+        app_names = [a.get("name") for a in state_cache["apps"] if a.get("name")]
+        print("    " + ", ".join(sorted(app_names)[:15]) + ("..." if len(app_names) > 15 else ""))
+
+    client.disconnect()
+
+
 def do_wake(ip: str, mac: str) -> None:
     print(f"\n[WOL] Sending Wake-on-LAN magic packet to {mac} (Target IP: {ip})...")
     success = HisenseTvClient.send_wake_on_lan(mac=mac, ip=ip)
@@ -720,10 +806,31 @@ def main() -> None:
 
     parser.add_argument(
         "action",
-        choices=["ping", "report", "probe", "probe-features", "test-ssl", "auth", "listen", "refresh", "send-key", "launch-app", "text", "send-text", "wake", "upnp"],
+        choices=[
+            "ping",
+            "report",
+            "probe",
+            "probe-features",
+            "test-ssl",
+            "auth",
+            "pair",
+            "listen",
+            "monitor",
+            "state",
+            "dump-state",
+            "refresh",
+            "send-key",
+            "launch-app",
+            "source",
+            "change-source",
+            "text",
+            "send-text",
+            "wake",
+            "upnp",
+        ],
         help="Action to perform",
     )
-    parser.add_argument("key", nargs="?", help="Key name (for send-key), App name (for launch-app), or text string (for text)")
+    parser.add_argument("key", nargs="?", help="Key name (for send-key), App name (for launch-app), Source name/ID (for source), or text string (for text)")
     parser.add_argument("--ip", help="IP address of the TV (required for ping/report/probe/test-ssl/auth/wake if not in config)")
     parser.add_argument("--mac", help="MAC address of the TV")
     parser.add_argument("--profile", choices=["auto", "modern", "middle", "remotenow", "legacy", "vidaa_2024", "remotenow_2018"], default="auto", help="Authentication profile and cert selector (default: auto)")
@@ -800,16 +907,33 @@ def main() -> None:
             sys.exit(1)
         do_test_ssl(args.ip, cert_path, key_path, profile=args.profile, ca_cert=args.ca_cert, verify_ssl=args.verify_ssl, brand=brand)
 
-    elif args.action == "auth":
+    elif args.action in ("auth", "pair"):
         if not args.ip:
-            print("Error: --ip <IP> is required for 'auth' action.")
+            print("Error: --ip <IP> is required for 'auth' / 'pair' action.")
             sys.exit(1)
         asyncio.run(do_auth(args.ip, args.mac, cert_path, key_path, args.config, profile=args.profile, ca_cert=args.ca_cert, verify_ssl=args.verify_ssl, brand=brand))
 
-    elif args.action == "listen":
+    elif args.action in ("listen", "monitor"):
         ip = args.ip or creds.get("ip_address")
         creds["ip_address"] = ip
         asyncio.run(do_listen(creds, cert_path, key_path, args.config, ca_cert=args.ca_cert, verify_ssl=args.verify_ssl, brand=brand))
+
+    elif args.action in ("state", "dump-state"):
+        ip = args.ip or creds.get("ip_address")
+        if not ip:
+            print("Error: --ip <IP> is required for 'state' action (or valid credentials.json).")
+            sys.exit(1)
+        creds["ip_address"] = ip
+        do_state(creds, cert_path, args.key_file, ca_cert=args.ca_cert, verify_ssl=args.verify_ssl, brand=brand)
+
+    elif args.action in ("source", "change-source"):
+        source_target = args.key
+        if not source_target:
+            print("Error: Specify source name or ID to change to, e.g. python3 test_client.py source HDMI1")
+            sys.exit(1)
+        ip = args.ip or creds.get("ip_address")
+        creds["ip_address"] = ip
+        do_change_source(creds, source_target, certfile=cert_path, keyfile=args.key_file, ca_cert=args.ca_cert, verify_ssl=args.verify_ssl, brand=brand)
 
     elif args.action == "refresh":
         ip = args.ip or creds.get("ip_address")

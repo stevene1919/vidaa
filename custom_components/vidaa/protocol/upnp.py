@@ -6,6 +6,7 @@ and fast device reachability probing via UPnP RenderingControl and AVTransport.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -71,6 +72,7 @@ class VidaaUpnpClient:
         """Closes the underlying session if owned."""
         if self._owns_session and self._session and not self._session.closed:
             await self._session.close()
+            await asyncio.sleep(0.05)
 
     async def async_probe(self) -> dict[str, Any] | None:
         """Probes candidate UPnP ports and returns basic device info if alive."""

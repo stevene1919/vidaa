@@ -25,7 +25,7 @@ from .protocol.pairing import (
 )
 from .protocol.ping import async_ping_tv
 from .protocol.topics import build_topic_paths
-from .protocol.upnp import HisenseUpnpClient
+from .protocol.upnp import VidaaUpnpClient
 from .protocol.wol import send_wake_on_lan
 from .tv.actions import TvActionsMixin
 from .tv.callbacks import CallbackRegistryMixin
@@ -179,7 +179,7 @@ class VidaaClient(
 
         # UPnP Client for zero-cert fast reachability, volume, and playback state
         # (shares Home Assistant's aiohttp session when injected)
-        self.upnp = HisenseUpnpClient(self.ip, session=session)
+        self.upnp = VidaaUpnpClient(self.ip, session=session)
 
     @property
     def _query_timer(self) -> Any:

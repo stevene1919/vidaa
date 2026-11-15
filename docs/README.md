@@ -19,7 +19,7 @@ This directory contains in-depth documentation covering installation, networking
 | [**`services_and_automations.md`**](services_and_automations.md) | **Services & Automations** | Comprehensive reference for integration actions (`send_key`, `launch_app`, `set_picture_setting`, `set_sound_setting`, `send_text_input`) with copy-paste YAML automation recipes. |
 | [**`installation_advanced.md`**](installation_advanced.md) | **Advanced Installation & Lifecycle** | Direct Git cloning, submodules, tracking beta branches, venv setup, air-gapped VLAN installs, and clean uninstallation. |
 | [**`lovelace_cards.md`**](lovelace_cards.md) | **Dashboard UI Cards** | Lovelace UI dashboard designs, custom TV remote controller cards, and media playback widgets. |
-| [**`cli_tools.md`**](cli_tools.md) | **CLI Diagnostics Tool** | Guide for using the standalone `test_client.py` and `debug_tv.py` CLI utilities to test reachability, TLS handshakes, UPnP, and pairing without running Home Assistant. |
+| [**`cli_tools.md`**](cli_tools.md) | **CLI Diagnostics Tool** | Guide for using the standalone `test_client.py` utility and zero-setup `diag.sh` runner to test reachability, TLS handshakes, UPnP, and pairing without running Home Assistant. |
 | [**`screenshots.md`**](screenshots.md) | **Visual Showcase** | Gallery of integration screenshots, entity platform views, and categorized options menus. |
 | [**`troubleshooting.md`**](troubleshooting.md) | **Troubleshooting & Error Reference** | Action error resolution table, standby wake issues, pairing/token recovery, and network connectivity diagnostics. |
 

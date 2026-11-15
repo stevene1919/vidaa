@@ -91,5 +91,5 @@ VIDAA 电视要求在 36669 端口进行双向 TLS 认证。将通用秘钥文�
 | 📱 **[Lovelace 仪表盘与卡片](../lovelace_cards.md)** | 遥控器卡片、快捷按钮与界面范例。 |
 | 🛠️ **[服务与自动化示例](../services_and_automations.md)** | 观影模式、输入源自动切换及按键宏 YAML 示例。 |
 | 🔒 **[高级 SSL 证书](../certificates.md)** | 证书路径、自建 PEM 证书与 OpenSSL 命令行操作。 |
-| 🧪 **[CLI 测试与诊断工具](../cli_tools.md)** | 独立排错工具（`scripts/test_client.py`、`scripts/debug_tv.py`）。 |
+| 🧪 **[CLI 测试与诊断工具](../cli_tools.md)** | 独立排错工具（`scripts/test_client.py`、`scripts/diag.sh`）。 |
 | 🩺 **[故障排除与排错指南](../troubleshooting.md)** | 网络连接、证书认证及配对失败排查方案。 |

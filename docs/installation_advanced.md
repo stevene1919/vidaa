@@ -115,7 +115,7 @@ git submodule update --remote custom_components/vidaa_submodule
 
 ## 4. Standalone CLI Diagnostics (Without Home Assistant)
 
-The repository includes standalone diagnostic utilities ([`scripts/test_client.py`](../scripts/test_client.py) and [`scripts/debug_tv.py`](../scripts/debug_tv.py)) that can run from **any machine** on your local network (Linux, macOS, or Windows WSL). You do not need Home Assistant running to inspect TV telemetry, verify SSL certificates, or test PIN pairing.
+The repository includes standalone diagnostic utilities ([`scripts/test_client.py`](../scripts/test_client.py) and zero-setup [`scripts/diag.sh`](../scripts/diag.sh)) that can run from **any machine** on your local network (Linux, macOS, or Windows WSL). You do not need Home Assistant running to inspect TV telemetry, verify SSL certificates, or test PIN pairing.
 
 ### Setting Up a Virtual Environment
 

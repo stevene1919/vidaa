@@ -8,18 +8,27 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
 
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers import (
-    config_validation as cv,
-    device_registry as dr,
-    entity_registry as er,
-    issue_registry as ir,
-)
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.event import async_track_time_interval
-from homeassistant.helpers.trigger import PluggableAction
+try:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
+    from homeassistant.exceptions import ConfigEntryNotReady
+    from homeassistant.helpers import (
+        config_validation as cv,
+        device_registry as dr,
+        entity_registry as er,
+        issue_registry as ir,
+    )
+    from homeassistant.helpers.aiohttp_client import async_get_clientsession
+    from homeassistant.helpers.event import async_track_time_interval
+    from homeassistant.helpers.trigger import PluggableAction
+
+    _HAS_HA = True
+except ImportError:
+    _HAS_HA = False
+    ConfigEntry = Any  # type: ignore[misc,assignment]
+    HomeAssistant = Any  # type: ignore[misc,assignment]
+    ConfigEntryNotReady = Exception  # type: ignore[misc,assignment]
+    PluggableAction = Any  # type: ignore[misc,assignment]
 
 from .client import HisenseTvClient, VidaaClient
 from .const import (
@@ -70,7 +79,7 @@ PLATFORMS: list[str] = [
     "number",
 ]
 
-CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN) if _HAS_HA else None
 DEFAULT_CLOCK_SYNC_INTERVAL = timedelta(hours=2)
 
 

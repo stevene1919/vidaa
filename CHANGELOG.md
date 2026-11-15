@@ -12,6 +12,11 @@ If this integration makes controlling your smart home entertainment a breeze, co
 
 ### 🐛 Bug Fixes & Improvements
 
+- **UNIFIED CLI DIAGNOSTICS & ZERO-SETUP RUNNER (`diag.sh`)**:
+  - Decoupled `client.py`, `protocol/`, and `const.py` from Home Assistant core dependencies so CLI tools run in standalone environments without requiring `pytest` or Home Assistant stubs.
+  - Added `scripts/diag.sh`: a zero-setup one-liner runner that automatically fetches prerequisites and runs full diagnostics for quick GitHub issue reporting with zero manual cloning or environment setup.
+  - Consolidated `scripts/debug_tv.py` actions into the unified `scripts/test_client.py` utility (adding `state`, `source`, `monitor`, and `pair` subcommands).
+  - Standardized internal classes and imports to `VidaaUpnpClient` and `VidaaClient` across the codebase.
 - **CLEAN HOME ASSISTANT STARTUP (No More `IntegrationNotFound` Warning)**:
   - Fixed a startup error (`Failed to load services.yaml for integration: hisense_vidaa`) that appeared after migrating to `v3.5.0` and removing the old folder.
   - Legacy action aliases (e.g. `hisense_vidaa.send_key`) now register full schema descriptions directly with Home Assistant, keeping your startup logs clean and your existing automations running smoothly (#66).

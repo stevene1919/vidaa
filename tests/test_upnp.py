@@ -6,10 +6,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from custom_components.vidaa.client import HisenseTvClient
+from custom_components.vidaa.client import HisenseTvClient, VidaaClient
 from custom_components.vidaa.protocol.upnp import (
     PATH_LAN_CONTROL,
     HisenseUpnpClient,
+    VidaaUpnpClient,
 )
 
 SAMPLE_DEVICE_DESC = """<?xml version="1.0"?>
@@ -375,6 +376,12 @@ macEthernet=001122334455</modelDescription>
     assert info["transport_protocol"] == "3290"
     assert info["mac_wifi"] == "e85177ec981c"
     assert info["mac_ethernet"] == "001122334455"
+
+
+def test_upnp_client_alias() -> None:
+    """Verify VidaaUpnpClient and HisenseUpnpClient aliases match."""
+    assert HisenseUpnpClient is VidaaUpnpClient
+    assert HisenseTvClient is VidaaClient
 
 
 

@@ -1,6 +1,6 @@
 # 🧪 Standalone CLI Testing & Diagnostic Tools
 
-The integration includes two standalone Python CLI utilities that share 100% of the backend logic with the Home Assistant integration (`client.py`, `crypto.py`, `discovery.py`). These tools communicate directly with real TVs for diagnostic reporting, capability probing, and live monitoring.
+The integration includes a unified standalone Python CLI utility (`scripts/test_client.py`) and a zero-setup one-liner runner (`scripts/diag.sh`) that share 100% of the backend protocol logic with the Home Assistant integration (`client.py`, `crypto.py`, `discovery.py`). These tools communicate directly with real TVs for diagnostic reporting, capability probing, pairing, and live monitoring.
 
 ---
 
@@ -8,49 +8,40 @@ The integration includes two standalone Python CLI utilities that share 100% of 
 
 Choose the method that matches your environment:
 
-### Method 1: Inside Home Assistant (Terminal / SSH Add-on — Easiest & Fastest)
+### Method 1: Zero-Setup One-Liner (Easiest — Works Everywhere)
 
-Home Assistant already has all required Python libraries pre-installed. Run this single copy-paste command in your HA Terminal:
+Works directly in Home Assistant Terminal, or on any Linux / macOS computer without needing git or manual cloning:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/stevene1919/vidaa/main/scripts/test_client.py -o /config/test_client.py && python3 /config/test_client.py report --ip <TV_IP>
+curl -sSL https://raw.githubusercontent.com/stevene1919/vidaa/main/scripts/diag.sh | bash -s -- --ip <TV_IP>
 ```
 
 *(Replace `<TV_IP>` with your TV's local IP address, e.g. `192.168.1.50`).*
 
-> [!NOTE]
-> **Prerequisite**: Requires the VIDAA integration to already be installed in Home Assistant (e.g. via HACS in `/config/custom_components/vidaa`). If you haven't installed the integration yet, use **Method 2** on your computer.
+To include dynamic picture and sound menu tree probing in the diagnostic report:
+```bash
+curl -sSL https://raw.githubusercontent.com/stevene1919/vidaa/main/scripts/diag.sh | bash -s -- --ip <TV_IP> --probe
+```
 
 ---
 
-### Method 2: On Any PC, Mac, or Linux Computer (Standalone)
+### Method 2: On Any PC, Mac, or Linux Computer (Standalone Clone)
 
-Run these 3 commands in your terminal:
+If you have cloned the repository locally:
 
 ```bash
-# 1. Clone the repository and enter the directory
-git clone https://github.com/stevene1919/vidaa.git
-cd vidaa
+# 1. Install the lightweight client dependencies
+pip3 install aiomqtt cryptography defusedxml aiohttp
 
-# 2. Install the lightweight client dependencies
-pip3 install aiomqtt defusedxml cryptography pytest
-
-# 3. Run the diagnostic report (from the root of the vidaa folder)
+# 2. Run the diagnostic report (from the root of the vidaa folder)
 python3 scripts/test_client.py report --ip <TV_IP>
 ```
 
-> [!NOTE]
-> **Important Path Note**: When running standalone from your computer, always run commands from the **`vidaa/` root directory** using the `scripts/` prefix:
-> ```bash
-> python3 scripts/test_client.py report --ip <TV_IP>
-> ```
-> `pytest` is required when running outside of Home Assistant so that the tool can load the bundled Home Assistant stubs (`tests/conftest.py`).
-
 ---
 
-## 🔬 `test_client.py` — Auth Probe & Pairing Tool
+## 🔬 `test_client.py` — Unified CLI & Diagnostic Tool
 
-[`scripts/test_client.py`](../scripts/test_client.py) focuses on **initial discovery, SSL validation, authentication, and diagnostic reporting**.
+[`scripts/test_client.py`](../scripts/test_client.py) is the central command-line interface for **discovery, SSL validation, authentication, diagnostic reporting, and live TV control**.
 
 *(All commands below are shown from the `vidaa/` root directory. If running inside Home Assistant `/config`, drop the `scripts/` prefix).*
 
@@ -182,46 +173,29 @@ python3 scripts/test_client.py upnp --ip <TV_IP>
 
 ---
 
-## 🛠️ `debug_tv.py` — Live Runtime Debugger
+### 13. Query Live TV State Snapshot (`state`)
 
-[`scripts/debug_tv.py`](../scripts/debug_tv.py) focuses on **live state inspection, real-time event monitoring, and manual command dispatching**. It automatically loads existing credentials from `credentials.json`.
+Connects to the TV, dumps power state, volume/mute levels, active source, active app, and queries installed input sources and applications:
 
 ```bash
-# Dump current state, sources, apps, and volume:
-python3 scripts/debug_tv.py --dump-state
-
-# Continuously stream live MQTT events from the TV:
-python3 scripts/debug_tv.py --monitor
-
-# Send a remote keypress:
-python3 scripts/debug_tv.py --send-key KEY_HOME
-python3 scripts/debug_tv.py --send-key KEY_VOLUMEUP
-
-# Launch an app by name or App ID:
-python3 scripts/debug_tv.py --launch-app Netflix
-python3 scripts/debug_tv.py --launch-app "Disney+"
-
-# Switch input source:
-python3 scripts/debug_tv.py --change-source HDMI1
-python3 scripts/debug_tv.py --change-source TV
-
-# Send virtual keyboard text input to an active on-screen field:
-python3 scripts/debug_tv.py --text "Inception"
-python3 scripts/debug_tv.py --text "Dune" --text-action replace
-python3 scripts/debug_tv.py --text-action clear
-
-# Probe UPnP MediaRenderer services and actions (volume, mute, transport info):
-python3 scripts/debug_tv.py --probe-upnp
-
-# Inspect UPnP Date header and calculate TV clock drift:
-python3 scripts/debug_tv.py --sync-clock
-
-# Override TV IP and test OEM partner brand:
-python3 scripts/debug_tv.py --ip 192.168.50.12 --brand toshiba --monitor
-
-# Verbose debug logging:
-python3 scripts/debug_tv.py --dump-state -v
+python3 scripts/test_client.py state
+python3 scripts/test_client.py state --ip <TV_IP>
 ```
 
-> [!TIP]
-> Running `python3 scripts/debug_tv.py` with no arguments produces a complete state dump (`--dump-state`).
+### 14. Switch Input Source (`source`)
+
+Switches the TV to a specific input source by name or source ID:
+
+```bash
+python3 scripts/test_client.py source HDMI1
+python3 scripts/test_client.py source TV
+```
+
+### 15. Stream Live MQTT Events (`monitor` / `listen`)
+
+Continuously streams and pretty-prints live status, volume, and state updates from the TV broker (press `Ctrl+C` to stop):
+
+```bash
+python3 scripts/test_client.py monitor
+python3 scripts/test_client.py monitor --ip <TV_IP>
+```

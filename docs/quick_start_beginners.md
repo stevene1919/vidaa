@@ -104,7 +104,8 @@ Copy your **`client_mobile_android.p12`** (or **`El.p12`**) file into your Home 
    - Turn **Wake on LAN (WoL)** and **Wake on Wi-Fi** to **ON**.
    - This ensures Home Assistant can still turn the TV back on when it is in standby.
 2. **Close the Phone App When Pairing**:
-   - The TV's internal broker only allows one pairing handshake at a time. If you have the VIDAA mobile app open on your phone, close it before pairing in Home Assistant.
+   - The TV's internal broker only allows one active remote control session at a time. If you have the official **VIDAA** mobile app open on your phone ([Apple App Store for iOS](https://apps.apple.com/app/vidaa/id1507248316) or [Google Play Store for Android](https://play.google.com/store/apps/details?id=com.universal.remote.multi)), force-close it before pairing in Home Assistant.
+   - *Diagnostic Tip:* If you ever want to verify whether your TV's remote broker is responding, test pairing with the official VIDAA app on your phone. If the official app also fails to connect or display a PIN, your TV's "Connected Services" need to be accepted in TV settings. Remember to force-close the mobile app once tested!
 3. **Brand-Specific Names & Auto-Detection**:
    - Home Assistant automatically auto-detects whether your TV or projector is Hisense, Toshiba, Loewe, Philips, Sharp, JVC, TOPTRO, etc., directly from UPnP network descriptors (`<modelDescription>`). If you prefer using certificate filenames, you can rename `El.p12` to `toshiba.p12`, `loewe.p12`, `toptro.p12`, etc., and Home Assistant will pick up the hint automatically!
 

@@ -85,7 +85,20 @@ When an automation or manual service call fails, Home Assistant displays an erro
   * If adding a device across an isolated VLAN where UPnP is blocked and cascade is exhausted, open **Settings → Devices & Services → VIDAA Smart TV → Configure → Security** and manually select your device's brand from the dropdown.
   * Inspect `sensor.<tv_name>_session_status` attributes (`brand_profile`, `active_brand`, `auth_profile`) to view the currently configured brand profile and active OEM brand in real time.
 
-### 4. Do I Need an Android Phone or Android TV to Use This?
+### 4. Baseline Verification: Testing with the Official VIDAA App (iOS & Android)
+* If Home Assistant fails to discover your TV or the 4-digit pairing PIN never appears on your TV screen, testing with the official companion mobile app is the fastest way to confirm whether your TV hardware and network are ready:
+  1. **Download the Official App:**
+     - **iOS:** Install **VIDAA** from the [Apple App Store](https://apps.apple.com/app/vidaa/id1507248316) (published by *V America Operations Inc.*).
+     - **Android:** Install **VIDAA** from the [Google Play Store](https://play.google.com/store/apps/details?id=com.universal.remote.multi).
+  2. **Attempt Pairing:**
+     - Connect your phone to the same local Wi-Fi / subnet as the TV.
+     - Open the app and attempt to pair with the TV.
+     - **If the official mobile app ALSO cannot connect or no PIN appears:** The TV's remote service is disabled on the device. Ensure the TV is awake, connected to Wi-Fi, and that all **Smart / Connected Services** terms are accepted under `Settings → Support / System → Terms & Conditions / Smart Services`.
+     - **If the mobile app pairs successfully:** This confirms the TV's internal broker is healthy. Check the app's *Device Info* screen to confirm your TV's advertised brand, model code, and firmware build.
+  3. ⚠️ **Important — Force Close the Mobile App:**
+     Once verified, **force-close / swipe away the mobile app completely** on your phone. VIDAA TVs typically allow only one active remote control session at a time; leaving the mobile app open in the background will cause Home Assistant's pairing attempts to be rejected or time out.
+
+### 5. Do I Need an Android Phone or Android TV to Use This?
 * **No.** VIDAA OS is a Linux-based operating system, not Android TV.
 * **No Android Hardware/OS Required:** You do not need an Android phone, tablet, or emulator to set up or run this integration. Home Assistant connects directly to the TV over your local network.
 * **What if my TV runs Android TV or Google TV?**
@@ -103,4 +116,4 @@ If you continue to experience problems:
 1. Enable the integration's diagnostic switch: `switch.<tv_name>_debug_logging`.
 2. Reproduce the problem (e.g. attempt to turn on, send a key, or change inputs).
 3. Download the sanitized diagnostic file from **Settings** → **Devices & Services** → **VIDAA Smart TV** → **⋮** → **Download diagnostics**.
-4. Open an issue on GitHub: [`https://github.com/stevene1919/hisense_vidaa/issues`](https://github.com/stevene1919/hisense_vidaa/issues) and attach the sanitized diagnostics JSON file along with relevant log excerpts.
+4. Open an issue on GitHub: [`https://github.com/stevene1919/vidaa/issues`](https://github.com/stevene1919/vidaa/issues) and attach the sanitized diagnostics JSON file along with relevant log excerpts.

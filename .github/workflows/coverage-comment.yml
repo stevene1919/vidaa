@@ -30,7 +30,7 @@ jobs:
         run: echo "number=$(cat pr_number.txt)" >> "$GITHUB_OUTPUT"
 
       - name: Publish coverage summary
-        uses: MishaKav/pytest-coverage-comment@v1.1.53
+        uses: MishaKav/pytest-coverage-comment@v1.13.1
         with:
           pytest-xml-coverage-path: coverage.xml
           title: Coverage Report

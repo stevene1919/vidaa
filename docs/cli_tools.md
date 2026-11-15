@@ -18,6 +18,9 @@ curl -sSL https://raw.githubusercontent.com/stevene1919/vidaa/main/scripts/test_
 
 *(Replace `<TV_IP>` with your TV's local IP address, e.g. `192.168.1.50`).*
 
+> [!NOTE]
+> **Prerequisite**: Requires the VIDAA integration to already be installed in Home Assistant (e.g. via HACS in `/config/custom_components/vidaa`). If you haven't installed the integration yet, use **Method 2** on your computer.
+
 ---
 
 ### Method 2: On Any PC, Mac, or Linux Computer (Standalone)

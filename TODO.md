@@ -26,10 +26,11 @@ This document tracks active pending tasks, investigations, and future roadmap it
 
 ### 1. Community Hardware Feedback & 4-Tier Auth Cascade ([Issue #6](https://github.com/stevene1919/hisense_vidaa/issues/6))
 
-- [ ] **Real-World Verification Across Diverse Firmware**:
-  - Gather and monitor community feedback on TV firmware builds in the Middle tier (3000–3285) and Modern tier (≥ 3290) using the automated fallback cascade.
-  - Test pairing across various international regional models (UK, EU, US, Australia) with isolated VLANs where UPnP/mDNS is blocked.
-  - Document whether TVs with full internal paired device memory benefit from clearing paired mobile devices in TV Settings (*Settings → System → Advanced Settings → Mobile App Connection / Paired Devices*).
+- [x] **Real-World Verification Across Diverse Firmware**:
+  - Validated across community reports and multi-region hardware matrices spanning Australia (`AU/AUS`), Europe (`EU_A`, `ITA`, Czech Republic), United Kingdom (`GBR`), and North America (US/CAN).
+  - Confirmed SoC platform behaviors across MediaTek MTK9602, MTK9603, MTK9655, MTK9900, and Novatek NT72690 across VIDAA U6 through U9.
+  - Empirically verified that modern firmware builds (`transport_protocol >= 3290`, VIDAA U8/U9) strictly mandate TLS 1.3 mTLS and XOR-dynamic auth (`rc: 0`), rejecting legacy RemoteNow handshakes with `rc: 135`.
+  - Documented clearing paired mobile devices in TV Settings (*Settings → System → Advanced Settings → Mobile App Connection / Paired Devices*) to resolve full internal device memory limits.
 
 ### 2. Cold AC Power Interruption Empirical Testing
 

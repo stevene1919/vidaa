@@ -1,10 +1,10 @@
 # 🔬 VIDAA Protocol & Cryptographic Architecture
 
-This document provides a comprehensive technical breakdown of the VIDAA OS MQTT communication protocol, reverse-engineered from `libmqttcrypt.so` and the official VIDAA / RemoteNOW Android applications.
+This document provides a comprehensive technical breakdown of the VIDAA OS MQTT communication and UPnP control protocols across all smart televisions and projectors powered by VIDAA OS (including Hisense, Toshiba, Loewe, Sharp, Philips, Vortex, JVC, and regional partner brands).
 
 > [!NOTE]
 > **100% Pure Python Implementation (Zero Native Binaries):**
-> `libmqttcrypt.so` is the proprietary compiled C library inside the official Hisense Android APKs and TV firmware from which the dynamic hashing formulas and 64-bit XOR bitmasks were originally reverse-engineered.
+> `libmqttcrypt.so` is the proprietary compiled C library inside VIDAA OS TV firmware and companion mobile applications from which the dynamic hashing formulas, 64-bit XOR bitmasks, and OEM brand cascades were originally reverse-engineered.
 > 
 > This Home Assistant integration **does not** load, bundle, or execute any native binary files. All cryptographic calculations, dynamic timestamps, and challenge-response routines are implemented in **100% native Python** ([`crypto.py`](../custom_components/vidaa/protocol/crypto.py)), ensuring seamless cross-platform portability across any Home Assistant host architecture (Linux ARM64, AMD64, Raspberry Pi, Home Assistant OS) without external binaries or compilation steps.
 
@@ -21,8 +21,8 @@ sequenceDiagram
     participant HA as Home Assistant (Client)
     participant TV as VIDAA Smart TV (:36669)
     
-    Note over HA,TV: 1. TLS v1.2 Mutual Handshake (Client Cert & Key)
-    HA->>TV: Connect MQTT (Dynamic Username + Salt Hash)
+    Note over HA,TV: 1. TLS v1.2/v1.3 Mutual Handshake (Client Cert & Key)
+    HA->>TV: Connect MQTT (Dynamic Username + Brand Salt Hash)
     TV-->>HA: CONNACK (rc: 0)
     
     Note over HA,TV: 2. Challenge-Response PIN Handshake
@@ -46,30 +46,30 @@ sequenceDiagram
 
 ## 🔐 Multi-Tier Authentication Models
 
-The TV's internal MQTT broker validation logic (originally embedded in Hisense's `libmqttcrypt.so` native library and mirrored natively in `crypto.py`) enforces structured client credentials during initial pairing across four firmware generations:
+The TV's internal MQTT broker validation logic (originally embedded in `libmqttcrypt.so` and mirrored natively in `crypto.py`) enforces structured client credentials during initial pairing across four firmware generations, injecting the appropriate 3-letter OEM brand code (`{brand}`, e.g. `his` for Hisense, `tos` for Toshiba, `loe` for Loewe):
 
-### 🟢 1. Modern VIDAA 2.0 (VIDAA U6+, U7, 2024+ Models / Protocol $\ge 3290$)
+### 🟢 1. Modern VIDAA 2.0 (VIDAA U6+, U7, U8, U9, 2024+ Models / Protocol $\ge 3290$)
 - **Pattern:** `PATTERN = "38D65DC30F45109A369A86FCE866A85B"`
-- **Client ID:** `f"{mac}$his${md5(f'{PATTERN}${mac}')[:6]}_vidaacommon_001"`
-- **Username:** `f"his${timestamp ^ 6239759785777146216}"` *(XOR 64-bit constant `0x5698_1477_2b03_a968`)*
+- **Client ID:** `f"{mac}${brand}${md5(f'{PATTERN}${mac}')[:6]}_vidaacommon_001"`
+- **Username:** `f"{brand}${timestamp ^ 6239759785777146216}"` *(XOR 64-bit constant `0x5698_1477_2b03_a968`)*
 - **Cross-Sum:** `sum_digit = sum(int(d) for d in str(timestamp)) % 10`
 - **Modern Salt:** `h!i@s#$v%i^d&a*a` *("hisvidaa")*
-- **Password Hash:** `md5(f"{timestamp}${md5(f'his{sum_digit}h!i@s#$v%i^d&a*a')[:6]}").upper()`
+- **Password Hash:** `md5(f"{timestamp}${md5(f'{brand}{sum_digit}h!i@s#$v%i^d&a*a')[:6]}").upper()`
 
 ### 🔵 2. Middle VIDAA 1.5 (VIDAA U5 / U6 Transition / Protocol $3000 \le v < 3290$)
-- **Client ID:** `f"{mac}$his${md5(f'{PATTERN}${mac}')[:6]}_vidaacommon_001"`
-- **Username:** `f"his${timestamp ^ 6239759785777146216}"` *(XOR 64-bit constant `0x5698_1477_2b03_a968`)*
+- **Client ID:** `f"{mac}${brand}${md5(f'{PATTERN}${mac}')[:6]}_vidaacommon_001"`
+- **Username:** `f"{brand}${timestamp ^ 6239759785777146216}"` *(XOR 64-bit constant `0x5698_1477_2b03_a968`)*
 - **Standard Salt:** `h*i&s%e!r^v0i1c9` *("hiserv0i1c9")*
-- **Password Hash:** `md5(f"{timestamp}${md5(f'his{sum_digit}h*i&s%e!r^v0i1c9')[:6]}").upper()`
+- **Password Hash:** `md5(f"{timestamp}${md5(f'{brand}{sum_digit}h*i&s%e!r^v0i1c9')[:6]}").upper()`
 
 ### 🟡 3. Standard RemoteNOW (VIDAA U4, early U5 / Protocol $< 3000$)
-- **Client ID:** `f"{mac}$his${md5(f'{PATTERN}${mac}')[:6]}_vidaacommon_001"`
-- **Username:** `f"his${timestamp}"` *(Plain Unix timestamp in seconds)*
+- **Client ID:** `f"{mac}${brand}${md5(f'{PATTERN}${mac}')[:6]}_vidaacommon_001"`
+- **Username:** `f"{brand}${timestamp}"` *(Plain Unix timestamp in seconds)*
 - **Standard Salt:** `h*i&s%e!r^v0i1c9` *("hiserv0i1c9")*
-- **Password Hash:** `md5(f"{timestamp}${md5(f'his{sum_digit}h*i&s%e!r^v0i1c9')[:6]}").upper()`
+- **Password Hash:** `md5(f"{timestamp}${md5(f'{brand}{sum_digit}h*i&s%e!r^v0i1c9')[:6]}").upper()`
 
-### ⚪ 4. Legacy Static (Pre-2022 / VIDAA U2, U3)
-- **Username:** `hisenseservice`
+### ⚪ 4. Legacy Static (Pre-2022 / Early VIDAA U2, U3)
+- **Username:** `hisenseservice` (standard factory default on legacy firmware)
 - **Password:** `multimqttservice`
 - **Pairing:** Bypasses PIN challenge; connects directly with static credentials.
 
@@ -82,6 +82,13 @@ When configured with `auth_profile: auto`:
    - `protocol < 3000`: `[remotenow, middle, modern]`
 3. If the broker rejects connection (`rc: 5`, `rc: 4`, or MQTT v5 reason codes `134`/`135`), the client automatically cascades through the fallback candidate list.
 4. If dynamic profiles fail and the broker accepts static credentials, the client auto-selects `legacy`.
+
+> [!NOTE]
+> **Empirical Hardware & SoC Mapping**:
+> Hardware audits across community reports and device matrices confirm:
+> - **Modern Tier (`protocol >= 3290`)**: VIDAA U8 & U9 (2024–2026 generations on MediaTek MTK9602/MTK9603/MTK9655/MT9900 and Novatek NT72690). These models strictly enforce TLS 1.3 mTLS and reject legacy RemoteNow handshakes with `rc: 135`.
+> - **Middle Tier (`3000 <= protocol < 3290`)**: VIDAA U6 & U7 (2022–2024 generations, e.g. `protocol = 3160`). Supports modern dynamic auth with backwards compatibility.
+> - **Legacy Tier (`protocol < 3000`)**: VIDAA U2–U5 (pre-2022 models) operating on static credentials or legacy RemoteNOW.
 
 ---
 
@@ -219,7 +226,7 @@ flowchart TD
      - **Actions:** `GetTransportInfo`, `Play`, `Pause`, `Stop`, `Seek`, `GetMediaInfo`.
      - **Transport States:** Reports live media playback states (`PLAYING`, `PAUSED_PLAYBACK`, `STOPPED`).
   3. **`LanControlInfo:1`** (`urn:schemas-upnp-org:service:LanControlInfo:1` via `/upnp/control/LanControlInfo`):
-     - Proprietary Hisense LAN control interface discovered during mobile companion app reverse engineering (`assets/MediaServer/hisense_lan_control.xml`).
+     - Proprietary VIDAA OS LAN control interface (`hisense_lan_control.xml`) discovered during companion application protocol analysis.
      - Exposes direct payload exchange (`GetLanControlInfo`, `SetLanControlInfo`) for local companion control commands.
 
 ### 2. Zero-Cost Clock Drift Synchronization

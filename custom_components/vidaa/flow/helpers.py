@@ -121,7 +121,7 @@ async def async_discover_device_details(
     if not client:
         return details
 
-    try:
+    with contextlib.suppress(Exception):
         fp = await client.async_get_device_fingerprint(1.5)
         discovered_name = fp.get("friendly_name") or fp.get("model_code")
         if discovered_name and discovered_name.strip() and discovered_name.strip() != "Renderer":
@@ -153,8 +153,6 @@ async def async_discover_device_details(
             brand_code = details["brand"] or getattr(client, "brand", None) or DEFAULT_BRAND
             brand_display = BRAND_MAP.get(brand_code, "Hisense")
             details["title"] = f"{brand_display} TV ({default_ip})" if default_ip else f"{brand_display} TV"
-    except Exception:
-        pass
 
     return details
 
@@ -219,12 +217,10 @@ async def async_resolve_mac(hass: HomeAssistant, ip_address: str | None) -> str 
     """Resolves and formats the MAC address for a given IP using ARP."""
     if not ip_address:
         return None
-    try:
+    with contextlib.suppress(Exception):
         raw_mac = await hass.async_add_executor_job(get_arp_mac, ip_address)
         if raw_mac:
             return format_mac(raw_mac)
-    except Exception:
-        pass
     return None
 
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import logging
 from typing import Any
@@ -198,12 +199,10 @@ async def async_unload_services(hass: HomeAssistant) -> None:
     """Unregister all custom services if no active entries remain."""
     loaded_entries: list[Any] = []
     if hasattr(hass, "config_entries") and hasattr(hass.config_entries, "async_loaded_entries"):
-        try:
+        with contextlib.suppress(Exception):
             res = hass.config_entries.async_loaded_entries(DOMAIN)
             if isinstance(res, list):
                 loaded_entries = res
-        except Exception:
-            pass
 
     if len(loaded_entries) > 1:
         return

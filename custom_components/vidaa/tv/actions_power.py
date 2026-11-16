@@ -148,34 +148,34 @@ async def async_turn_on_tv(
                 client.is_on = True
                 return True
             return False
-        else:
-            client.is_on = True
-            _LOGGER.debug(
-                "[%s] TV already connected and running. Skipping KEY_POWER to prevent powering down",
-                getattr(client, "ip", "unknown"),
-            )
-            return True
-    else:
+
+        client.is_on = True
         _LOGGER.debug(
-            "[%s] TV MQTT not connected. Attempting reconnect to send KEY_POWER",
+            "[%s] TV already connected and running. Skipping KEY_POWER to prevent powering down",
             getattr(client, "ip", "unknown"),
         )
-        try:
-            if await client.async_ensure_connected():
-                for _ in range(50):
-                    if client.connected:
-                        res = await client.async_send_key("KEY_POWER")
-                        if res is not False:
-                            client.is_on = True
-                            return True
-                        break
-                    await asyncio.sleep(0.1)
-        except Exception as e:
-            _LOGGER.error(
-                "[%s] Failed to reconnect and send KEY_POWER: %s",
-                getattr(client, "ip", "unknown"),
-                e,
-            )
+        return True
+
+    _LOGGER.debug(
+        "[%s] TV MQTT not connected. Attempting reconnect to send KEY_POWER",
+        getattr(client, "ip", "unknown"),
+    )
+    try:
+        if await client.async_ensure_connected():
+            for _ in range(50):
+                if client.connected:
+                    res = await client.async_send_key("KEY_POWER")
+                    if res is not False:
+                        client.is_on = True
+                        return True
+                    break
+                await asyncio.sleep(0.1)
+    except Exception as e:
+        _LOGGER.error(
+            "[%s] Failed to reconnect and send KEY_POWER: %s",
+            getattr(client, "ip", "unknown"),
+            e,
+        )
 
     if wol_sent:
         client.is_on = True

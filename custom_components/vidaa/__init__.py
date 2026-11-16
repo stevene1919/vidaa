@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 from dataclasses import dataclass
@@ -235,7 +236,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
     data = entry.data
     mac = data.get(CONF_MAC_ADDRESS)
     if not mac:
-        try:
+        with contextlib.suppress(Exception):
             from homeassistant.helpers.device_registry import format_mac
 
             from .tv.fingerprint import get_arp_mac
@@ -248,8 +249,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
                     data={**entry.data, CONF_MAC_ADDRESS: mac},
                     unique_id=entry.unique_id or mac,
                 )
-        except Exception:
-            pass
 
     use_ssl = entry.options.get(CONF_USE_SSL, data.get(CONF_USE_SSL, DEFAULT_USE_SSL))
     certfile = entry.options.get(CONF_CERTFILE, data.get(CONF_CERTFILE))

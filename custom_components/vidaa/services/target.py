@@ -127,7 +127,7 @@ def _get_target_clients(hass: HomeAssistant, call: ServiceCall) -> list[Any]:
     if entity_ids:
         if isinstance(entity_ids, str):
             entity_ids = [entity_ids]
-        try:
+        with contextlib.suppress(Exception):
             from homeassistant.helpers import entity_registry as er
 
             ent_reg = er.async_get(hass)
@@ -135,14 +135,12 @@ def _get_target_clients(hass: HomeAssistant, call: ServiceCall) -> list[Any]:
                 entry = ent_reg.async_get(eid)
                 if entry and entry.config_entry_id:
                     target_entry_ids.add(entry.config_entry_id)
-        except Exception:
-            pass
 
     device_ids = call.data.get("device_id")
     if device_ids:
         if isinstance(device_ids, str):
             device_ids = [device_ids]
-        try:
+        with contextlib.suppress(Exception):
             from homeassistant.helpers import device_registry as dr
 
             dev_reg = dr.async_get(hass)
@@ -151,8 +149,6 @@ def _get_target_clients(hass: HomeAssistant, call: ServiceCall) -> list[Any]:
                 if device:
                     for ce_id in device.config_entries:
                         target_entry_ids.add(ce_id)
-        except Exception:
-            pass
 
     raw_entity_id = call.data.get("entity_id")
     is_broadcast_all = False

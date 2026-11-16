@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import voluptuous as vol
@@ -11,6 +12,8 @@ from homeassistant.core import HomeAssistant
 
 from .const import CONF_AUTH_PROFILE, CONF_CERTFILE, CONF_KEYFILE
 from .protocol import check_certs_exist, resolve_certificates
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class CertificateMissingRepairFlow(RepairsFlow):
@@ -57,8 +60,8 @@ class CertificateMissingRepairFlow(RepairsFlow):
                     if entry is not None:
                         await self.hass.config_entries.async_reload(entry.entry_id)
                     return self.async_create_entry(data={})
-            except Exception:
-                pass
+            except Exception as err:
+                _LOGGER.debug("Certificate verification failed during repair: %s", err)
             errors["base"] = "certificates_still_missing"
 
         return self.async_show_form(

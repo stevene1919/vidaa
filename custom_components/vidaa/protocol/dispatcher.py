@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import re
@@ -56,13 +57,11 @@ def mask_sensitive_payload(payload: str, topic: str | None = None) -> str:
         topic and any(topic.endswith(suffix) for suffix in ("/tokenissuance", "/gettoken", "tokenissuance", "gettoken"))
     )
 
-    try:
+    with contextlib.suppress(Exception):
         data = json.loads(payload)
         if isinstance(data, (dict, list)):
             masked_data = mask_sensitive_data(data)
             return json.dumps(masked_data)
-    except Exception:
-        pass
 
     if is_token_topic:
         return "[payload masked]"

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import email.utils
 import logging
 import os
@@ -108,7 +109,8 @@ def probe_upnp_services(ip: str, verbose: bool = True) -> dict[str, Any]:
                     results["active_port"] = port
                     results["friendly_name"] = friendly
                     break
-        except Exception:
+        except Exception as e:
+            _LOGGER.debug("UPnP probe attempt failed on port %s: %s", port, e)
             continue
 
     if not active_port:
@@ -234,16 +236,14 @@ def get_tv_timestamp(ip: str, timeout: float = 2.0) -> int | None:
 
 def get_arp_mac(ip: str) -> str | None:
     """Discovers hardware MAC address via getmac or Linux ARP table."""
-    try:
+    with contextlib.suppress(Exception):
         from getmac import get_mac_address
 
         mac = get_mac_address(ip=ip)
         if mac:
             return mac.lower()
-    except Exception:
-        pass
 
-    try:
+    with contextlib.suppress(Exception):
         if os.path.exists("/proc/net/arp"):
             with open("/proc/net/arp") as f:
                 for line in f:
@@ -252,8 +252,6 @@ def get_arp_mac(ip: str) -> str | None:
                         mac = parts[3]
                         if mac != "00:00:00:00:00:00":
                             return mac.lower()
-    except Exception:
-        pass
 
     return None
 
@@ -285,9 +283,7 @@ def query_upnp_descriptor(ip: str, timeout: float = 2.0) -> dict[str, Any]:
             with urllib.request.urlopen(req, timeout=timeout) as response:
                 content = response.read().decode("utf-8", errors="ignore")
                 parsed_desc = parse_upnp_renderer_descriptor(content)
-                for key, val in parsed_desc.items():
-                    if val is not None:
-                        info[key] = val
+                info.update({key: val for key, val in parsed_desc.items() if val is not None})
             if info["model_name"] or info["friendly_name"]:
                 break
         except Exception as e:
@@ -313,14 +309,12 @@ def query_mdns_fingerprint(ip: str, timeout: float = 2.0, zc: Zeroconf | None = 
 
         class MDNSListener:
             def add_service(self, zc_inst: Zeroconf, type_: str, name: str) -> None:
-                try:
+                with contextlib.suppress(Exception):
                     s_info = zc_inst.get_service_info(type_, name)
                     if s_info:
                         addrs = [socket.inet_ntoa(a) for a in s_info.addresses]
                         if target_ip in addrs or "Smart TV" in name:
                             discovered[type_] = s_info.properties
-                except Exception:
-                    pass
 
             def update_service(self, zc_inst: Zeroconf, type_: str, name: str) -> None:
                 pass
@@ -385,9 +379,7 @@ def get_device_fingerprint(ip: str, timeout: float = 2.0, zc: Zeroconf | None = 
     }
 
     upnp_info = query_upnp_descriptor(ip=ip, timeout=timeout)
-    for k, v in upnp_info.items():
-        if v is not None:
-            info[k] = v
+    info.update({k: v for k, v in upnp_info.items() if v is not None})
 
     mdns_info = query_mdns_fingerprint(ip=ip, timeout=timeout, zc=zc)
     if mdns_info.get("model_code"):

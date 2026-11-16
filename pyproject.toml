@@ -27,22 +27,73 @@ line-length = 120
 
 [tool.ruff.lint]
 select = [
-    "E",    # pycodestyle errors
-    "W",    # pycodestyle warnings
-    "F",    # Pyflakes
-    "I",    # isort
-    "UP",   # pyupgrade
-    "SIM",  # flake8-simplify
-    "RUF",  # Ruff-specific rules
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "UP",     # pyupgrade
+    "SIM",    # flake8-simplify
+    "RUF",    # Ruff-specific rules
+    "ASYNC",  # flake8-async
+    "LOG",    # flake8-logging
+    "PERF",   # Perflint
+    "T20",    # flake8-print
+    "ISC",    # flake8-implicit-str-concat
+    "PIE",    # flake8-pie
+    "S",      # flake8-bandit
+    "RET",    # flake8-return
 ]
 ignore = [
-    "E501",   # line too long
-    "E402",   # module import not at top of file (scripts/test_client.py)
-    "SIM108", # use ternary operator
-    "SIM118", # use key in dict
-    "RUF001", # ambiguous unicode characters in string
-    "RUF002", # ambiguous unicode characters in docstring
-    "RUF003", # ambiguous unicode characters in comment
+    "E501",     # line too long
+    "E402",     # module import not at top of file (scripts/test_client.py)
+    "SIM108",   # use ternary operator
+    "SIM118",   # use key in dict
+    "RUF001",   # ambiguous unicode characters in string
+    "RUF002",   # ambiguous unicode characters in docstring
+    "RUF003",   # ambiguous unicode characters in comment
+    "ASYNC109", # async function definition with timeout parameter
+    "ASYNC240", # blocking os.path operations in async functions
+    "S105",     # possible hardcoded password assigned to (CONF_PASSWORD = "password", etc.)
+    "S106",     # possible hardcoded password assigned to argument
+]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/*" = [
+    "T201",     # `print` found in standalone CLI tools
+    "S101",     # `assert` detected
+    "S108",     # Probable insecure usage of temp file/dir
+    "S110",     # try-except-pass in utility scripts
+    "S603",     # check_call / Popen without shell=True
+    "S607",     # Start process with partial executable path
+    "ASYNC110", # while True: sleep(1) in CLI monitor
+    "ASYNC230", # blocking open in async def in scripts
+]
+"tests/*" = [
+    "S101",     # `assert` detected in pytest
+    "S105",     # Possible hardcoded password in test fixtures
+    "S106",     # Possible hardcoded password in test fixtures
+    "S108",     # Insecure usage of temp file/dir in tests
+    "S311",     # Pseudo-random generators in test fixtures
+    "S324",     # MD5 hash required by TV protocol in tests
+    "S505",     # Fast synthetic test RSA keys (<2048)
+    "S603",     # subprocess.run in test CLI invocations
+    "RET501",   # Explicit return None in test mocks
+    "RET504",   # Unnecessary assignment before return in tests
+    "ASYNC230", # blocking open in tests
+]
+"custom_components/vidaa/protocol/crypto.py" = [
+    "S324",     # MD5 required by VIDAA TV MQTT authentication protocol
+    "S311",     # Pseudo-random MAC generation
+]
+"custom_components/vidaa/protocol/upnp.py" = [
+    "S314",     # Uses defusedxml with xml.etree fallback
+]
+"custom_components/vidaa/tv/upnp_desc.py" = [
+    "S314",     # Uses defusedxml with xml.etree fallback
+]
+"custom_components/vidaa/tv/fingerprint.py" = [
+    "T201",     # print in diagnostic probe CLI functions
+    "S310",     # Audit URL open for permitted schemes (local IP UPnP probes)
 ]
 
 [tool.ruff.lint.isort]

@@ -352,8 +352,10 @@ def generate_markdown_report(
             lines.append(
                 f"<details><summary><b>📱 Launchable Smart TV Apps ({len(probe_result.apps)})</b> (Click to expand)</summary>\n"
             )
-            for a in probe_result.apps:
-                lines.append(f"- **{a.get('name') or a.get('appName', 'Unknown')}** (`appId`: `{a.get('appId')}`)")
+            lines.extend(
+                f"- **{a.get('name') or a.get('appName', 'Unknown')}** (`appId`: `{a.get('appId')}`)"
+                for a in probe_result.apps
+            )
             lines.append("\n</details>")
         else:
             lines.append("- **Installed Apps:** 0 discovered")

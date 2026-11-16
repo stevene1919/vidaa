@@ -299,13 +299,17 @@ class VidaaActiveSourceSensor(VidaaMqttTrackingSensor):
             attrs["display_name"] = f"{self._attr_native_value} ({self._connected_device})"
         if self._last_known_source:
             attrs["last_known_source"] = self._last_known_source
-        for key, val in (
-            ("available_sources", self._available_sources),
-            ("connected_inputs", self._connected_inputs),
-            ("connected_device", self._connected_device),
-        ):
-            if val:
-                attrs[key] = val
+        attrs.update(
+            {
+                key: val
+                for key, val in (
+                    ("available_sources", self._available_sources),
+                    ("connected_inputs", self._connected_inputs),
+                    ("connected_device", self._connected_device),
+                )
+                if val
+            }
+        )
         return attrs
 
     @property

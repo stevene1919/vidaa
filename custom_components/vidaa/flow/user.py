@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import sys
 from typing import TYPE_CHECKING, Any
@@ -137,7 +138,7 @@ class UserFlowMixin:
             and self.ip_address
             and self.hass
         ):
-            try:
+            with contextlib.suppress(Exception):
                 from ..tv.fingerprint import query_upnp_descriptor
 
                 upnp_desc = await self.hass.async_add_executor_job(query_upnp_descriptor, self.ip_address, 1.5)
@@ -149,8 +150,6 @@ class UserFlowMixin:
                         self.manufacturer = BRAND_MAP.get(raw_mfg.strip().lower(), raw_mfg.strip())
                     elif detected_brand in BRAND_MAP:
                         self.manufacturer = BRAND_MAP[detected_brand]
-            except Exception:
-                pass
 
         effective_brand = (
             detected_brand if self.brand == DEFAULT_BRAND_OPTION else (detected_brand or self.brand)

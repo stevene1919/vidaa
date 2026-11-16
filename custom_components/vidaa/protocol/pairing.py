@@ -145,7 +145,13 @@ async def async_start_pairing_handshake(client: VidaaClient) -> None:
                             target_profile,
                         )
                         return
-                    except Exception:
+                    except Exception as err:
+                        _LOGGER.debug(
+                            "[%s] Candidate brand '%s' connection failed: %s",
+                            client.ip,
+                            candidate_brand,
+                            err,
+                        )
                         continue
                 client.brand = "his"
             raise

@@ -232,6 +232,17 @@ async def test_in_use_binary_sensor_and_active_app_cold_boot(mock_client, mock_e
     assert bin_in_use.is_on is True
     assert not getattr(bin_in_use, "extra_state_attributes", None)
 
+    # Hotel Mode binary sensor
+    from custom_components.vidaa.binary_sensor import VidaaHotelModeBinarySensor
+
+    mock_client.hotel_mode = False
+    sensor_hotel = VidaaHotelModeBinarySensor(mock_client, mock_entry)
+    assert sensor_hotel.is_on is False
+    assert sensor_hotel.unique_id == f"{mock_entry.entry_id}_hotel_mode"
+
+    mock_client.hotel_mode = True
+    assert sensor_hotel.is_on is True
+
     # Cold-boot recovery: ActiveAppSensor starts in Standby, then sourcelist reports HDMI2 active
     s_app = HisenseVidaaActiveAppSensor(mock_client, mock_entry)
     assert s_app.native_value == "Standby"

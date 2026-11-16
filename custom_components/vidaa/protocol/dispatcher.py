@@ -154,6 +154,23 @@ def dispatch_incoming_mqtt_message(client: VidaaClient, topic: str, payload: str
         client._dispatch_state_update({"statetype": "fake_sleep_0"})
         return
 
+    if topic in (
+        f"{client.topics.broadcast}ui_service/data/hotelmodechange",
+        f"{client.topics.mobile}ui_service/data/hotelmodechange",
+    ):
+        try:
+            data = json.loads(payload) if payload else {}
+            if isinstance(data, dict):
+                hm_val = str(data.get("hotel_mode", "")).lower()
+                is_hotel = hm_val in ("on", "1", "true")
+            else:
+                is_hotel = str(payload).strip().lower() in ("on", "1", "true")
+            if hasattr(client, "_dispatch_hotel_mode_update"):
+                client._dispatch_hotel_mode_update(is_hotel)
+        except Exception as e:
+            _LOGGER.debug("[%s] Error parsing hotelmodechange payload: %s", ip, e)
+        return
+
     if topic == f"{client.topics.mobile}ui_service/data/sourcelist":
         try:
             data = json.loads(payload)

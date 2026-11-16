@@ -131,6 +131,8 @@ class ConnectionManagerMixin:
             self._dispatch_disconnected()
 
     def _handle_message(self: VidaaClient, topic: str, payload: str) -> None:
+        if hasattr(self, "_dispatch"):
+            self._dispatch("raw_message", topic, payload)
         waiters = self._pending_queries.pop(topic, None)
         if waiters:
             for fut in waiters:

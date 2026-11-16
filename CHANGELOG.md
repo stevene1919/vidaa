@@ -12,6 +12,18 @@ If this integration makes controlling your smart home entertainment a breeze, co
 
 ### 🌟 What's New & Highlights in v3.6.0
 
+- **DUAL MAC AUTO-EXTRACTION & MULTI-INTERFACE WAKE-ON-LAN**:
+  - Automatically parses both Wi-Fi (`macWifi`) and Ethernet (`macEthernet`) MAC addresses from UPnP descriptors and matches the active ARP interface.
+  - Automatically populates `secondary_mac_address` in config entries and setup flows, allowing Wake-on-LAN packets to target both interfaces seamlessly without manual user configuration.
+- **HOTEL MODE TELEMETRY & SAFETY GUARDS**:
+  - Subscribes to real-time `/remoteapp/mobile/broadcast/ui_service/data/hotelmodechange` broadcasts and monitors `hotel_mode` flags in sourcelist telemetry.
+  - Added new diagnostic entity `binary_sensor.<tv_name>_hotel_mode` and `hotel_mode` extra state attribute on the `media_player` entity.
+  - Logs proactive warnings when source switching or app launching is requested while the TV OS is in Hotel Mode.
+- **UDP PORT 36671 ACTIVE DISCOVERY PROBE**:
+  - Added proprietary UDP port 36671 discovery probing (`probe_udp_port` / `async_probe_udp_port`) supporting HiSmart and RemoteNow discovery payloads as an additional fallback for complex or segmented networks.
+  - Added `probe-udp` subcommand to diagnostic tools (`scripts/test_client.py` and `scripts/diag.sh`).
+- **WILDCARD MQTT DIAGNOSTIC SNIFFING**:
+  - Added real-time `/remoteapp/#` wildcard packet capture (`sniff` command) to `scripts/test_client.py` and `scripts/diag.sh` with timestamped, pretty-printed JSON payloads for effortless troubleshooting of unknown OEM sets.
 - **SILVER QUALITY SCALE: ACTION EXCEPTIONS & RELIABLE AUTOMATIONS (`action-exceptions`)**:
   - Custom domain actions (`vidaa.send_key`, `vidaa.launch_app`, `vidaa.open_browser`, `vidaa.send_key_sequence`, `vidaa.set_tv_setting`, and `vidaa.select_audio_output`) now explicitly raise `HomeAssistantError` if the TV is offline or unreachable, eliminating silent command failures.
   - Action calls now return execution telemetry (`{"success": true/false}`) directly to Home Assistant, allowing automations and scripts to reliably branch and handle delivery errors.

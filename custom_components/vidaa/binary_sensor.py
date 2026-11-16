@@ -34,6 +34,7 @@ async def async_setup_entry(
         [
             VidaaMqttConnectedBinarySensor(client, entry),
             VidaaInUseBinarySensor(client, entry),
+            VidaaHotelModeBinarySensor(client, entry),
         ]
     )
 
@@ -120,6 +121,44 @@ class VidaaInUseBinarySensor(VidaaEntity, BinarySensorEntity):
             self.schedule_update_ha_state()
 
 
+class VidaaHotelModeBinarySensor(VidaaEntity, BinarySensorEntity):
+    """Binary sensor indicating whether the TV is in Hotel Mode."""
+
+    _attr_translation_key = "hotel_mode"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(
+        self,
+        client: VidaaClient,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the hotel mode binary sensor."""
+        super().__init__(client=client, entry=entry)
+        self._attr_unique_id = f"{self._entry_id}_hotel_mode"
+
+    @property
+    def is_on(self) -> bool:
+        """Return True when TV is in Hotel Mode."""
+        return bool(getattr(self._client, "hotel_mode", False))
+
+    async def async_added_to_hass(self) -> None:
+        """Register callbacks when added."""
+        if hasattr(self._client, "register_hotel_mode_callback"):
+            self._client.register_hotel_mode_callback(self._handle_update)
+        self._client.register_sourcelist_callback(self._handle_update)
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Unregister callbacks."""
+        if hasattr(self._client, "unregister_hotel_mode_callback"):
+            self._client.unregister_hotel_mode_callback(self._handle_update)
+        self._client.unregister_sourcelist_callback(self._handle_update)
+
+    def _handle_update(self, *args: Any) -> None:
+        if getattr(self, "hass", None) is not None:
+            self.schedule_update_ha_state()
+
+
 # Backwards-compatible aliases during migration
 HisenseVidaaMqttConnectedBinarySensor = VidaaMqttConnectedBinarySensor
 HisenseVidaaInUseBinarySensor = VidaaInUseBinarySensor
+HisenseVidaaHotelModeBinarySensor = VidaaHotelModeBinarySensor

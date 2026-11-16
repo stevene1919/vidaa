@@ -89,6 +89,7 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: Hisense
             "volume": getattr(client, "volume", None),
             "muted": getattr(client, "muted", False),
             "tv_state": getattr(client, "state", None),
+            "hotel_mode": bool(getattr(client, "hotel_mode", False)),
             "access_token_duration_days": client.access_token_duration,
             "access_token_expires_in_seconds": token_expires_in,
             "refresh_token_duration_days": client.refresh_token_duration,

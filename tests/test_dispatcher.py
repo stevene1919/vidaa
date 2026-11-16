@@ -218,3 +218,40 @@ def test_auth_token_message_masks_tokens_in_debug_logs(caplog) -> None:
     assert "AUTH_REFRESH_SECRET_ACCESS" not in log_output
     assert "AUTH_REFRESH_SECRET_REFRESH" not in log_output
     assert "***" in log_output
+
+
+def test_dispatcher_hotel_mode_broadcast() -> None:
+    """hotelmodechange broadcast updates client.hotel_mode and triggers callbacks."""
+    client = _create_test_client()
+    callback_calls = []
+    client.register_hotel_mode_callback(lambda hm: callback_calls.append(hm))
+
+    dispatch_incoming_mqtt_message(
+        client,
+        f"{client.topics.broadcast}ui_service/data/hotelmodechange",
+        '{"hotel_mode": "on"}',
+    )
+    assert client.hotel_mode is True
+    assert callback_calls == [True]
+
+    dispatch_incoming_mqtt_message(
+        client,
+        f"{client.topics.broadcast}ui_service/data/hotelmodechange",
+        '{"hotel_mode": "off"}',
+    )
+    assert client.hotel_mode is False
+    assert callback_calls == [True, False]
+
+
+def test_dispatcher_hotel_mode_sourcelist() -> None:
+    """sourcelist payload with hotel_mode flag updates client.hotel_mode."""
+    client = _create_test_client()
+    assert client.hotel_mode is False
+
+    dispatch_incoming_mqtt_message(
+        client,
+        f"{client.topics.mobile}ui_service/data/sourcelist",
+        '{"sourcelist": [{"sourceName": "HDMI1", "is_signal": 1}], "hotel_mode": "1"}',
+    )
+    assert client.hotel_mode is True
+

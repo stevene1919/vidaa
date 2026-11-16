@@ -37,6 +37,7 @@ from ..const import (
     CONF_REFRESH_TOKEN,
     CONF_REFRESH_TOKEN_DURATION,
     CONF_REFRESH_TOKEN_TIME,
+    CONF_SECONDARY_MAC_ADDRESS,
     CONF_SW_VERSION,
     CONF_USE_SSL,
     CONF_USERNAME,
@@ -111,18 +112,39 @@ async def async_discover_device_details(
     brand_initial = getattr(client, "brand", None) if client else None
     brand_display_init = BRAND_MAP.get(brand_initial, "Hisense") if brand_initial else "Hisense"
     title = f"{brand_display_init} TV ({default_ip})" if default_ip else f"{brand_display_init} TV"
-    details: dict[str, str | None] = {
+    details: dict[str, Any] = {
         "title": title,
         "model": None,
         "manufacturer": None,
         "sw_version": None,
         "brand": None,
+        "mac_address": None,
+        "secondary_mac_address": None,
     }
     if not client:
         return details
 
     with contextlib.suppress(Exception):
         fp = await client.async_get_device_fingerprint(1.5)
+        raw_wifi = fp.get("mac_wifi")
+        raw_eth = fp.get("mac_ethernet")
+        clean_wifi = format_mac(raw_wifi) if raw_wifi else None
+        clean_eth = format_mac(raw_eth) if raw_eth else None
+        if clean_wifi and clean_eth and clean_wifi != clean_eth:
+            raw_arp = get_arp_mac(default_ip) if default_ip else None
+            arp_mac = format_mac(raw_arp) if raw_arp else None
+            if arp_mac == clean_eth:
+                details["mac_address"] = clean_eth
+                details["secondary_mac_address"] = clean_wifi
+            elif arp_mac == clean_wifi:
+                details["mac_address"] = clean_wifi
+                details["secondary_mac_address"] = clean_eth
+            else:
+                details["mac_address"] = clean_wifi
+                details["secondary_mac_address"] = clean_eth
+        elif clean_wifi or clean_eth:
+            details["mac_address"] = clean_wifi or clean_eth
+
         discovered_name = fp.get("friendly_name") or fp.get("model_code")
         if discovered_name and discovered_name.strip() and discovered_name.strip() != "Renderer":
             details["title"] = discovered_name.strip()
@@ -237,6 +259,7 @@ def collect_client_auth_data(
     sw_version: str | None = None,
     brand: str | None = None,
     brand_profile: str | None = None,
+    secondary_mac_address: str | None = None,
 ) -> dict[str, Any]:
     """Collect authentication credentials and device attributes dictionary for config entry data."""
     data: dict[str, Any] = {
@@ -246,6 +269,8 @@ def collect_client_auth_data(
     }
     if mac_address:
         data[CONF_MAC_ADDRESS] = mac_address
+    if secondary_mac_address:
+        data[CONF_SECONDARY_MAC_ADDRESS] = secondary_mac_address
     if client:
         data.update(
             {

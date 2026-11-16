@@ -91,6 +91,10 @@ class UserFlowMixin:
             self.brand = self.client.brand
         if details.get("sw_version"):
             self.sw_version = details["sw_version"]
+        if details.get("secondary_mac_address") and not getattr(self, "secondary_mac_address", None):
+            self.secondary_mac_address = details["secondary_mac_address"]
+        if details.get("mac_address") and not self.mac_address:
+            self.mac_address = details["mac_address"]
 
     async def _async_probe_device_capabilities(self: VidaaConfigFlow) -> None:
         """Probe TV capabilities (picture/sound menus) to set intelligent default options."""
@@ -116,6 +120,7 @@ class UserFlowMixin:
             sw_version=self.sw_version,
             brand=self.brand,
             brand_profile=getattr(self, "brand_profile", None),
+            secondary_mac_address=getattr(self, "secondary_mac_address", None),
         )
 
     async def _async_init_client_and_auth(

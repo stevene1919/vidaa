@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
@@ -46,6 +47,8 @@ class FeatureProbeResult:
     picture_settings: list[SettingMenuItem] = field(default_factory=list)
     sound_settings: list[SettingMenuItem] = field(default_factory=list)
     raw_payloads: dict[str, Any] = field(default_factory=dict)
+    udp_discovery: dict[str, Any] | None = None
+    hotel_mode: bool = False
 
 
 def load_credentials_file(file_path: str = "credentials.json") -> dict[str, Any]:
@@ -179,6 +182,12 @@ def probe_tv_features(
     result.apps = getattr(client, "apps", [])
     result.sources = getattr(client, "sources", [])
 
+    from ..protocol.discovery import probe_udp_port
+
+    with contextlib.suppress(Exception):
+        result.udp_discovery = probe_udp_port(client.ip, timeout=1.0)
+    result.hotel_mode = bool(getattr(client, "hotel_mode", False))
+
     if not was_connected:
         client.disconnect()
 
@@ -216,6 +225,18 @@ def generate_markdown_report(
         lines.append(f"- **Wi-Fi MAC (UPnP):** `{dev['mac_wifi']}`")
     if dev.get("mac_ethernet"):
         lines.append(f"- **Ethernet MAC (UPnP):** `{dev['mac_ethernet']}`")
+    if probe_result and getattr(probe_result, "udp_discovery", None):
+        udp = probe_result.udp_discovery
+        lines.append(
+            f"- **UDP Discovery (Port 36671):** ✅ Responded (`name={udp.get('name')}`, `model={udp.get('model')}`, `mac={udp.get('mac')}`)"
+        )
+    elif probe_result:
+        lines.append("- **UDP Discovery (Port 36671):** ℹ️ No response (Modern VIDAA sets use UPnP/MQTT)")
+
+    if probe_result and getattr(probe_result, "hotel_mode", False):
+        lines.append("- **Hotel Mode:** ⚠️ ACTIVE (Source switches and app launches are dropped by TV)")
+    elif probe_result:
+        lines.append("- **Hotel Mode:** Inactive (Standard operation)")
 
     tv_ts = dev.get("tv_timestamp") or get_tv_timestamp(ip)
     if tv_ts:

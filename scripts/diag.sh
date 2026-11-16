@@ -44,5 +44,11 @@ python3 -c "import aiomqtt, cryptography" >/dev/null 2>&1 || {
     pip3 install --quiet --upgrade aiomqtt cryptography defusedxml aiohttp >/dev/null 2>&1 || pip install --quiet --upgrade aiomqtt cryptography defusedxml aiohttp >/dev/null 2>&1 || true
 }
 
-echo "==> 🔬 Running TV diagnostics report..."
-python3 scripts/test_client.py report "$@"
+ACTION="report"
+if [ "$1" = "sniff" ] || [ "$1" = "probe-udp" ] || [ "$1" = "ping" ] || [ "$1" = "upnp" ] || [ "$1" = "listen" ]; then
+    ACTION="$1"
+    shift
+fi
+
+echo "==> 🔬 Running TV diagnostics ($ACTION)..."
+python3 scripts/test_client.py "$ACTION" "$@"

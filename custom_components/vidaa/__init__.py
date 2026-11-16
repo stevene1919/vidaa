@@ -52,6 +52,7 @@ from .const import (
     CONF_REFRESH_TOKEN,
     CONF_REFRESH_TOKEN_DURATION,
     CONF_REFRESH_TOKEN_TIME,
+    CONF_SECONDARY_MAC_ADDRESS,
     CONF_SW_VERSION,
     CONF_USE_SSL,
     CONF_USERNAME,
@@ -248,6 +249,30 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
                     entry,
                     data={**entry.data, CONF_MAC_ADDRESS: mac},
                     unique_id=entry.unique_id or mac,
+                )
+
+    sec_mac = entry.options.get(CONF_SECONDARY_MAC_ADDRESS) or data.get(CONF_SECONDARY_MAC_ADDRESS)
+    if not sec_mac and data.get(CONF_IP_ADDRESS):
+        with contextlib.suppress(Exception):
+            from homeassistant.helpers.device_registry import format_mac
+
+            from .tv.fingerprint import get_device_fingerprint
+
+            fp = await hass.async_add_executor_job(get_device_fingerprint, data[CONF_IP_ADDRESS])
+            mac_wifi = format_mac(fp["mac_wifi"]) if fp.get("mac_wifi") else None
+            mac_eth = format_mac(fp["mac_ethernet"]) if fp.get("mac_ethernet") else None
+            detected_sec = None
+            if mac_wifi and mac_eth and mac_wifi != mac_eth:
+                if mac == mac_wifi:
+                    detected_sec = mac_eth
+                elif mac == mac_eth:
+                    detected_sec = mac_wifi
+                else:
+                    detected_sec = mac_eth
+            if detected_sec:
+                hass.config_entries.async_update_entry(
+                    entry,
+                    data={**entry.data, CONF_SECONDARY_MAC_ADDRESS: detected_sec},
                 )
 
     use_ssl = entry.options.get(CONF_USE_SSL, data.get(CONF_USE_SSL, DEFAULT_USE_SSL))

@@ -108,6 +108,18 @@ class CallbackRegistryMixin:
     def unregister_sound_callback(self, callback: Callable) -> None:
         self._unregister_callback("sound", callback)
 
+    def register_hotel_mode_callback(self, callback: Callable) -> None:
+        self._register_callback("hotel_mode", callback)
+
+    def unregister_hotel_mode_callback(self, callback: Callable) -> None:
+        self._unregister_callback("hotel_mode", callback)
+
+    def register_raw_message_callback(self, callback: Callable) -> None:
+        self._register_callback("raw_message", callback)
+
+    def unregister_raw_message_callback(self, callback: Callable) -> None:
+        self._unregister_callback("raw_message", callback)
+
     def register_device_info_callback(self, callback: Callable) -> None:
         self._register_callback("device_info", callback)
 
@@ -158,11 +170,21 @@ class CallbackRegistryMixin:
         apply_volume_update(self, data)
         self._dispatch("volume", data)
 
+    def _dispatch_hotel_mode_update(self, is_hotel_mode: bool) -> None:
+        self.hotel_mode = bool(is_hotel_mode)
+        self._dispatch("hotel_mode", self.hotel_mode)
+
     def _dispatch_sourcelist_update(self, data: Any) -> None:
         if isinstance(data, list):
             self.sources = data
         elif isinstance(data, dict) and "sourcelist" in data:
             self.sources = data["sourcelist"]
+        if isinstance(data, dict) and "hotel_mode" in data:
+            self._dispatch_hotel_mode_update(str(data["hotel_mode"]).lower() in ("1", "on", "true"))
+        elif isinstance(self.sources, list) and self.sources:
+            first_src = self.sources[0]
+            if isinstance(first_src, dict) and "hotel_mode" in first_src:
+                self._dispatch_hotel_mode_update(str(first_src["hotel_mode"]).lower() in ("1", "on", "true"))
         if isinstance(self.sources, list):
             for source in self.sources:
                 if isinstance(source, dict) and (

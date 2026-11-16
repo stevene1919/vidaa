@@ -162,6 +162,9 @@
       },
       "in_use": {
         "name": "In use"
+      },
+      "hotel_mode": {
+        "name": "Hotel mode"
       }
     },
     "button": {

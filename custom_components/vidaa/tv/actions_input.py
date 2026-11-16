@@ -244,6 +244,13 @@ async def async_change_source(client: VidaaClient, source_id: str, source_name: 
     if not client.connected or not client.mqtt_client:
         return False
 
+    if getattr(client, "hotel_mode", False):
+        _LOGGER.warning(
+            "[%s] Source change to '%s' requested, but TV is currently in Hotel Mode (TV OS ignores source switching while Hotel Mode is active)",
+            getattr(client, "ip", "unknown"),
+            source_name or source_id,
+        )
+
     clean_source_id = str(source_id).strip()
     clean_source_name = source_name.strip() if source_name else None
     if not clean_source_name:
@@ -303,6 +310,12 @@ def launch_app(client: VidaaClient, app_id: str, app_name: str, url: str) -> Non
 async def async_launch_app(client: VidaaClient, app_id: str, app_name: str, url: str) -> bool:
     """Launches an installed Smart TV application asynchronously."""
     if client.connected and client.mqtt_client:
+        if getattr(client, "hotel_mode", False):
+            _LOGGER.warning(
+                "[%s] App launch for '%s' requested, but TV is currently in Hotel Mode (TV OS ignores app launching while Hotel Mode is active)",
+                getattr(client, "ip", "unknown"),
+                app_name or app_id,
+            )
         payload = json.dumps(
             {
                 "appId": app_id,

@@ -587,6 +587,68 @@ async def do_listen(
         await client.async_disconnect()
 
 
+async def do_sniff(
+    creds: dict[str, Any],
+    certfile: str | None,
+    keyfile: str | None,
+    topic: str = "/remoteapp/#",
+    ca_cert: str | None = None,
+    verify_ssl: bool = False,
+    brand: str | None = None,
+) -> None:
+    ip = creds.get("ip_address")
+    print(f"\n[SNIFF] Connecting to TV at {ip} and subscribing to topic filter '{topic}'...")
+
+    client = create_client_from_creds(creds, certfile, keyfile, ca_cert=ca_cert, verify_ssl=verify_ssl, brand=brand)
+
+    def on_raw(t: str, p: str) -> None:
+        now = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        try:
+            parsed = json.loads(p)
+            formatted = json.dumps(parsed, indent=2)
+        except Exception:
+            formatted = p
+        print(f"\n[{now}] 📥 Topic: {t}\n{formatted}")
+
+    if hasattr(client, "register_raw_message_callback"):
+        client.register_raw_message_callback(on_raw)
+    client.register_disconnected_callback(lambda: print("\n⚠️ [DISCONNECTED] TV disconnected"))
+
+    def on_connected() -> None:
+        print(f"✅ Connected! Subscribing to wildcard topic: {topic}")
+        if client.mqtt_client:
+            client.mqtt_client.subscribe(topic)
+
+    client.register_connected_callback(on_connected)
+
+    await client.async_connect_and_run()
+    print(f"Sniffing MQTT broker messages on '{topic}' (Press Ctrl+C to stop)...")
+
+    try:
+        while True:
+            await asyncio.sleep(1)
+    except KeyboardInterrupt:
+        print("\nStopping...")
+    finally:
+        await client.async_disconnect()
+
+
+def do_probe_udp(ip: str, timeout: float = 2.0, port: int = 36671) -> None:
+    from custom_components.vidaa.protocol.discovery import probe_udp_port
+
+    print(f"\n[UDP PROBE] Sending discovery probe to {ip}:{port} (timeout={timeout}s)...")
+    res = probe_udp_port(ip, timeout=timeout, port=port)
+    if res:
+        print("✅ Received UDP discovery response from TV!")
+        print(f"  • Name:     {res.get('name')}")
+        print(f"  • Model:    {res.get('model')}")
+        print(f"  • MAC:      {res.get('mac')}")
+        print(f"  • Raw JSON: {json.dumps(res.get('raw'), indent=2)}")
+    else:
+        print(f"❌ No response received from {ip}:{port} within {timeout}s.")
+        print("   (Note: Older RemoteNow TVs listen on UDP 36671, while modern VIDAA sets use UPnP/MQTT).")
+
+
 def do_refresh(
     creds: dict[str, Any],
     certfile: str | None,
@@ -870,6 +932,8 @@ def main() -> None:
             "send-text",
             "wake",
             "upnp",
+            "sniff",
+            "probe-udp",
         ],
         help="Action to perform",
     )
@@ -914,6 +978,9 @@ def main() -> None:
     )
     parser.add_argument(
         "--config", default=DEFAULT_CREDS_FILE, help=f"Path to credentials file (default: {DEFAULT_CREDS_FILE})"
+    )
+    parser.add_argument(
+        "--topic", default="/remoteapp/#", help="MQTT topic or wildcard filter for sniff action (default: /remoteapp/#)"
     )
     parser.add_argument("-v", "--debug", action="store_true", help="Enable verbose debug logging")
 
@@ -1143,6 +1210,32 @@ def main() -> None:
             print("Error: --ip <IP> is required for 'upnp' action (or valid credentials.json).")
             sys.exit(1)
         do_upnp(ip)
+
+    elif args.action == "sniff":
+        ip = args.ip or creds.get("ip_address")
+        if not ip:
+            print("Error: --ip <IP> is required for 'sniff' action (or valid credentials.json).")
+            sys.exit(1)
+        creds["ip_address"] = ip
+        topic_target = args.key or args.topic or "/remoteapp/#"
+        asyncio.run(
+            do_sniff(
+                creds,
+                cert_path,
+                args.key_file,
+                topic=topic_target,
+                ca_cert=args.ca_cert,
+                verify_ssl=args.verify_ssl,
+                brand=brand,
+            )
+        )
+
+    elif args.action == "probe-udp":
+        ip = args.ip or (creds.get("ip_address") if creds else None)
+        if not ip:
+            print("Error: --ip <IP> is required for 'probe-udp' action (or valid credentials.json).")
+            sys.exit(1)
+        do_probe_udp(ip)
 
 
 if __name__ == "__main__":

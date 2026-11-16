@@ -85,7 +85,12 @@ class VidaaOptionsFlowHandler(config_entries.OptionsFlow):
                     ): bool,
                     vol.Optional(
                         CONF_SECONDARY_MAC_ADDRESS,
-                        default=options.get(CONF_SECONDARY_MAC_ADDRESS, ""),
+                        default=options.get(CONF_SECONDARY_MAC_ADDRESS)
+                        or (
+                            getattr(self._entry, "data", {}).get(CONF_SECONDARY_MAC_ADDRESS, "")
+                            if hasattr(self, "_entry") and self._entry
+                            else ""
+                        ),
                     ): str,
                     vol.Optional(
                         CONF_REFRESH_IN_STANDBY,

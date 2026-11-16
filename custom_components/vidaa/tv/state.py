@@ -271,6 +271,7 @@ class TvStateMixin:
         """Initializes all live state variables to clean defaults."""
         self.connected: bool = False
         self.state: str = "off"
+        self.hotel_mode: bool = False
         self.volume: int = 0
         self.muted: bool = False
         self.sources: list[dict[str, Any]] = []

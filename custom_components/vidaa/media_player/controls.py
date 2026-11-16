@@ -38,7 +38,9 @@ class MediaPlayerControlsMixin:
         if self._options.get(CONF_ENABLE_WOL, DEFAULT_ENABLE_WOL):
             if self._mac:
                 mac_targets.append(self._mac)
-            sec_mac = self._options.get(CONF_SECONDARY_MAC_ADDRESS)
+            sec_mac = self._options.get(CONF_SECONDARY_MAC_ADDRESS) or getattr(
+                self._entry, "data", {}
+            ).get(CONF_SECONDARY_MAC_ADDRESS)
             if sec_mac and sec_mac not in mac_targets:
                 mac_targets.append(sec_mac)
 

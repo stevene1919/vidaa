@@ -156,6 +156,7 @@ class VidaaMediaPlayer(
         """Return audio output and active source/tuner context attributes."""
         attributes: dict[str, Any] = {
             "audio_output": "ARC / eARC" if self._volume_type == 1 else "TV Speakers",
+            "hotel_mode": bool(getattr(self._client, "hotel_mode", False)),
         }
         if self._source:
             attributes["raw_source"] = self._source

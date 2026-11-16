@@ -36,6 +36,7 @@ class DiscoveryFlowMixin:
         self.model = getattr(parsed, "model", None)
         self.brand = getattr(parsed, "brand", "his") or "his"
         self.mac_address = parsed.mac_address
+        self.secondary_mac_address = getattr(parsed, "secondary_mac_address", None)
         if not self.mac_address and parsed.host:
             self.mac_address = await async_resolve_mac(self.hass, parsed.host)
 

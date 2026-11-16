@@ -15,6 +15,9 @@ If this integration makes controlling your smart home entertainment a breeze, co
 - **SILVER QUALITY SCALE: ACTION EXCEPTIONS & RELIABLE AUTOMATIONS (`action-exceptions`)**:
   - Custom domain actions (`vidaa.send_key`, `vidaa.launch_app`, `vidaa.open_browser`, `vidaa.send_key_sequence`, `vidaa.set_tv_setting`, and `vidaa.select_audio_output`) now explicitly raise `HomeAssistantError` if the TV is offline or unreachable, eliminating silent command failures.
   - Action calls now return execution telemetry (`{"success": true/false}`) directly to Home Assistant, allowing automations and scripts to reliably branch and handle delivery errors.
+- **CLEAN MEDIA PLAYER TRANSPORT & POWER CONTROLS (#55)**:
+  - Eliminated the split `|` (Power On) and `O` (Power Off) buttons that appeared when enabling media controls, restoring a single unified power toggle button (`mdi:power-standby`) across all Lovelace entity cards and device pages.
+  - Retired artificial `assumed_state: True` flag in favor of dynamic `MediaPlayerState.PLAYING` / `STATE_PAUSED` state transitions while media controls are active, preserving native channel stepping (`KEY_CHANNELUP` / `KEY_CHANNELDOWN`) and skip buttons while fixing simultaneous play/pause/stop button highlighting.
 - **SEAMLESS ENTITY STATE INTEGRITY (No Optimistic Desync)**:
   - All TV entity platforms (`media_player`, `remote`, `select`, `number`, `switch`, and `button`) now verify live MQTT connection health before sending commands.
   - If the TV is powered off or temporarily disconnected, controls fail cleanly with descriptive user-facing alerts and avoid optimistic state changes, ensuring your dashboard toggles and mode selectors never get out of sync with your physical TV.

@@ -67,6 +67,7 @@ class MediaPlayerControlsMixin:
                 translation_key="send_key_failed",
                 translation_placeholders={"key": "KEY_POWER", "error": "command delivery failed"},
             )
+        self._paused = False
         self.async_write_ha_state()
 
     async def async_set_volume_level(self: VidaaMediaPlayer, volume: float) -> None:
@@ -154,6 +155,8 @@ class MediaPlayerControlsMixin:
                 translation_key="send_key_failed",
                 translation_placeholders={"key": "KEY_PLAY", "error": "command delivery failed"},
             )
+        self._paused = False
+        self.async_write_ha_state()
 
     async def async_media_pause(self: VidaaMediaPlayer) -> None:
         """Send pause command."""
@@ -170,6 +173,8 @@ class MediaPlayerControlsMixin:
                 translation_key="send_key_failed",
                 translation_placeholders={"key": "KEY_PAUSE", "error": "command delivery failed"},
             )
+        self._paused = True
+        self.async_write_ha_state()
 
     async def async_media_stop(self: VidaaMediaPlayer) -> None:
         """Send stop command."""
@@ -186,6 +191,8 @@ class MediaPlayerControlsMixin:
                 translation_key="send_key_failed",
                 translation_placeholders={"key": "KEY_STOP", "error": "command delivery failed"},
             )
+        self._paused = False
+        self.async_write_ha_state()
 
     async def async_media_next_track(self: VidaaMediaPlayer) -> None:
         """Send next track command: Channel Up on Live TV, fast-forward/skip in media apps."""

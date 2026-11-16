@@ -7,7 +7,7 @@ from homeassistant.components.media_player import (
     MediaPlayerDeviceClass,
     MediaPlayerEntityFeature,
 )
-from homeassistant.const import STATE_OFF, STATE_ON
+from homeassistant.const import STATE_OFF, STATE_ON, STATE_PAUSED, STATE_PLAYING
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
@@ -40,22 +40,32 @@ def test_media_player_and_remote_device_info(mock_client, mock_entry):
 
 
 def test_media_player_assumed_state(mock_client, mock_entry):
-    """Test media player assumed_state respects enable_media_controls option."""
-    # 1. By default (enable_media_controls=False): assumed_state is False even when on
+    """Test media player state and features respect enable_media_controls option."""
+    # 1. By default (enable_media_controls=False): assumed_state is False, state is STATE_ON
     mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
     mock_client.is_on = True
     mock_client.connected = True
     assert mp.assumed_state is False
+    assert mp.state == STATE_ON
     assert not (mp.supported_features & MediaPlayerEntityFeature.PLAY)
 
-    # 2. When enable_media_controls is explicitly enabled in options
+    # 2. When enable_media_controls is explicitly enabled in options:
+    # assumed_state is still False (never splits power buttons into | and O),
+    # but state becomes STATE_PLAYING so frontend renders channel/track controls cleanly.
     mock_entry.options = {CONF_ENABLE_MEDIA_CONTROLS: True}
     mp_with_controls = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
-    assert mp_with_controls.assumed_state is True
+    assert mp_with_controls.assumed_state is False
+    assert mp_with_controls.state == STATE_PLAYING
     assert bool(mp_with_controls.supported_features & MediaPlayerEntityFeature.PLAY)
 
+    # Test pause toggle
+    mp_with_controls._paused = True
+    assert mp_with_controls.state == STATE_PAUSED
+    mp_with_controls._paused = False
+    assert mp_with_controls.state == STATE_PLAYING
+
     mock_client.is_on = False
-    assert mp_with_controls.assumed_state is False
+    assert mp_with_controls.state == STATE_OFF
 
 
 @pytest.mark.anyio

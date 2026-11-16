@@ -48,6 +48,7 @@ class MediaPlayerStateHandlerMixin:
                 self._channel_name = parsed["channel_name"]
                 self._channel_num = parsed["channel_num"]
         elif not parsed["is_on"]:
+            self._paused = False
             self._app_id = None
             self._connected_device = None
             self._channel_name = None
@@ -123,5 +124,6 @@ class MediaPlayerStateHandlerMixin:
     def _handle_disconnected(self: VidaaMediaPlayer) -> None:
         if self._client:
             self._client.is_on = False
+        self._paused = False
         self._state = STATE_OFF
         self._schedule_ha_update()

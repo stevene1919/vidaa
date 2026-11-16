@@ -160,6 +160,9 @@ if "homeassistant" not in sys.modules:
     const = types.ModuleType("homeassistant.const")
     const.STATE_OFF = "off"
     const.STATE_ON = "on"
+    const.STATE_PAUSED = "paused"
+    const.STATE_PLAYING = "playing"
+    const.STATE_IDLE = "idle"
     const.ATTR_DEVICE_ID = "device_id"
     const.ATTR_ENTITY_ID = "entity_id"
     const.CONF_DEVICE_ID = "device_id"
@@ -348,6 +351,15 @@ if "homeassistant" not in sys.modules:
         VIDEO = "video"
         TVSHOW = "tvshow"
 
+    class MediaPlayerState:
+        OFF = "off"
+        ON = "on"
+        PLAYING = "playing"
+        PAUSED = "paused"
+        IDLE = "idle"
+        STANDBY = "standby"
+
+    media_player.MediaPlayerState = MediaPlayerState
     media_player.MediaType = MediaType
     media_player.MediaPlayerEntity = MediaPlayerEntity
     media_player.MediaPlayerDeviceClass = MediaPlayerDeviceClass

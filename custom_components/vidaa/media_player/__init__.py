@@ -13,7 +13,7 @@ from homeassistant.components.media_player import (
     MediaType,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_OFF, STATE_ON
+from homeassistant.const import STATE_OFF, STATE_ON, STATE_PAUSED, STATE_PLAYING
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -84,6 +84,7 @@ class VidaaMediaPlayer(
         self._channel_name = None
         self._channel_num = None
         self._state = STATE_ON if getattr(client, "connected", False) else STATE_OFF
+        self._paused = False
         self._debounce_handle: asyncio.TimerHandle | None = None
 
     async def async_added_to_hass(self) -> None:
@@ -135,13 +136,15 @@ class VidaaMediaPlayer(
         """Return the current playback state."""
         if not self._client.connected or not self._client.is_on:
             return STATE_OFF
+        enable_controls = self._options.get(CONF_ENABLE_MEDIA_CONTROLS, DEFAULT_ENABLE_MEDIA_CONTROLS)
+        if enable_controls:
+            return STATE_PAUSED if getattr(self, "_paused", False) else STATE_PLAYING
         return STATE_ON
 
     @property
     def assumed_state(self) -> bool:
-        """Return True when TV is on so frontend displays playback and channel controls."""
-        enable_controls = self._options.get(CONF_ENABLE_MEDIA_CONTROLS, DEFAULT_ENABLE_MEDIA_CONTROLS)
-        return bool(enable_controls and self._client and self._client.is_on)
+        """Return False: VIDAA maintains two-way MQTT state telemetry."""
+        return False
 
     @property
     def available(self) -> bool:

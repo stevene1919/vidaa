@@ -2,6 +2,35 @@
 
 All notable changes to the VIDAA Smart TV integration will be documented in this file.
 
+## [3.6.0] - 2026-11-16
+
+### ☕ Support the Project
+
+If this integration makes controlling your smart home entertainment a breeze, consider supporting continued open-source development:
+
+[![Support on Ko-fi](https://img.shields.io/badge/Support%20on-Ko--fi-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/stevene_)
+
+### 🌟 What's New & Highlights in v3.6.0
+
+- **SILVER QUALITY SCALE: ACTION EXCEPTIONS & RELIABLE AUTOMATIONS (`action-exceptions`)**:
+  - Custom domain actions (`vidaa.send_key`, `vidaa.launch_app`, `vidaa.open_browser`, `vidaa.send_key_sequence`, `vidaa.set_tv_setting`, and `vidaa.select_audio_output`) now explicitly raise `HomeAssistantError` if the TV is offline or unreachable, eliminating silent command failures.
+  - Action calls now return execution telemetry (`{"success": true/false}`) directly to Home Assistant, allowing automations and scripts to reliably branch and handle delivery errors.
+- **SEAMLESS ENTITY STATE INTEGRITY (No Optimistic Desync)**:
+  - All TV entity platforms (`media_player`, `remote`, `select`, `number`, `switch`, and `button`) now verify live MQTT connection health before sending commands.
+  - If the TV is powered off or temporarily disconnected, controls fail cleanly with descriptive user-facing alerts and avoid optimistic state changes, ensuring your dashboard toggles and mode selectors never get out of sync with your physical TV.
+- **MQTT SESSION RESILIENCE & DEADLOCK ELIMINATION**:
+  - Replaced uncoordinated session disconnects with an asynchronous ordered queue adapter (`MqttSessionAdapter`).
+  - If a connection drops unexpectedly while commands are queued, pending futures are drained and cleanly resolved with connection errors rather than hanging indefinitely.
+- **INTELLIGENT AUTH-REJECTION RECOVERY & REAUTH TEARDOWN**:
+  - Fixed an edge case where broker connection rejections (such as expired access tokens after firmware upgrades) could enter an immediate retry loop using the invalidated token.
+  - Recovery now pauses stale reconnection attempts, automatically acquires fresh credentials via the refresh token with exponential backoff, and cleanly cancels background retry tasks when Home Assistant prompts for reauthentication.
+- **STANDALONE CLI DIAGNOSTICS & TEST UTILITY CONSOLIDATION**:
+  - Core client and protocol modules have been decoupled from Home Assistant test stubs, allowing standalone troubleshooting tools (`scripts/test_client.py` and `scripts/diag.sh`) to run out-of-the-box in bare Python environments.
+  - Added `scripts/diag.sh`: a zero-setup one-liner runner that automatically fetches prerequisites and runs full diagnostics for quick GitHub issue reporting.
+- **ENRICHED PROTOCOL ARCHITECTURE & COMPREHENSIVE HARDWARE MAPPINGS**:
+  - Enriched technical architecture documentation with detailed SoC and chipset profiles (Novatek, MediaTek, Realtek), internal service routing, and SSL cipher suites.
+  - Added user testing guides for verifying TV capabilities alongside the official VIDAA iOS and Android apps.
+
 ## [3.5.1] - 2026-11-14
 
 ### ☕ Support the Project

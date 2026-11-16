@@ -244,7 +244,9 @@ class TvTokenLifecycleMixin:
 
         await self.async_sync_clock(timeout=2.0)
 
-        had_session = self._mqtt_task is not None or self.mqtt_client is not None
+        had_session = self.mqtt_client is not None or (
+            getattr(self, "_mqtt_task", None) is not None and not self._mqtt_task.done()
+        )
         if had_session:
             await self._async_stop_session()
 

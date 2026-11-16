@@ -124,6 +124,8 @@ class CallbackRegistryMixin:
         self._dispatch("clock_drift", offset)
 
     def _dispatch_auth_failed(self) -> None:
+        if hasattr(self, "_token_manager") and hasattr(self._token_manager, "cancel_rejected_retry"):
+            self._token_manager.cancel_rejected_retry()
         self._dispatch("auth_failed", self)
 
     def _dispatch_connected(self) -> None:

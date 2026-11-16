@@ -166,59 +166,65 @@ class ConnectionManagerMixin:
         """Runs one or more aiomqtt sessions, routing messages until cancelled."""
         loop = asyncio.get_running_loop()
         delay = RECONNECT_MIN_DELAY
-        while True:
-            adapter: MqttSessionAdapter | None = None
-            try:
-                async with Client(
-                    hostname=self.ip,
-                    port=MQTT_PORT,
-                    username=username,
-                    password=password,
-                    identifier=client_id,
-                    tls_context=ssl_ctx,
-                    protocol=ProtocolVersion.V311,
-                    clean_session=True,
-                    keepalive=60,
-                    timeout=10,
-                ) as session:
-                    adapter = MqttSessionAdapter(session, loop)
-                    self.mqtt_client = adapter
-                    delay = RECONNECT_MIN_DELAY
-                    self._handle_connected(adapter, standard)
+        try:
+            while True:
+                adapter: MqttSessionAdapter | None = None
+                try:
+                    async with Client(
+                        hostname=self.ip,
+                        port=MQTT_PORT,
+                        username=username,
+                        password=password,
+                        identifier=client_id,
+                        tls_context=ssl_ctx,
+                        protocol=ProtocolVersion.V311,
+                        clean_session=True,
+                        keepalive=60,
+                        timeout=10,
+                    ) as session:
+                        adapter = MqttSessionAdapter(session, loop)
+                        self.mqtt_client = adapter
+                        delay = RECONNECT_MIN_DELAY
+                        self._handle_connected(adapter, standard)
+                        if ready is not None and not ready.done():
+                            ready.set_result(True)
+                        async for message in session.messages:
+                            self._handle_message(str(message.topic), decode_mqtt_payload(message.payload))
+                except asyncio.CancelledError:
+                    raise
+                except MqttConnectError as err:
+                    rc = extract_connect_rc(err)
+                    self.connected = False
+                    _LOGGER.warning("[%s] Failed to connect to TV MQTT broker (return code: %d)", self.ip, rc)
+                    rejected = Exception(
+                        f"MQTT connection rejected with code {rc} (Not authorized / invalid credentials)"
+                    )
                     if ready is not None and not ready.done():
-                        ready.set_result(True)
-                    async for message in session.messages:
-                        self._handle_message(str(message.topic), decode_mqtt_payload(message.payload))
-            except asyncio.CancelledError:
-                raise
-            except MqttConnectError as err:
-                rc = extract_connect_rc(err)
-                self.connected = False
-                _LOGGER.warning("[%s] Failed to connect to TV MQTT broker (return code: %d)", self.ip, rc)
-                rejected = Exception(f"MQTT connection rejected with code {rc} (Not authorized / invalid credentials)")
-                if ready is not None and not ready.done():
-                    ready.set_exception(rejected)
-                if self._auth_future and not self._auth_future.done():
-                    self._safe_set_future_exception(self._auth_future, rejected)
+                        ready.set_exception(rejected)
+                    if self._auth_future and not self._auth_future.done():
+                        self._safe_set_future_exception(self._auth_future, rejected)
+                        return
+                    if rc in AUTH_REJECTION_CODES:
+                        if standard:
+                            self._spawn(self._token_manager.async_handle_auth_rejection(rc))
+                        return
+                except (MqttError, OSError) as err:
+                    _LOGGER.debug("[%s] MQTT session error: %s", self.ip, err)
+                    if ready is not None and not ready.done():
+                        ready.set_exception(Exception(f"Cannot connect to TV MQTT Broker: {err}"))
+                finally:
+                    if adapter is not None:
+                        adapter.close()
+                        if self.mqtt_client is adapter:
+                            self.mqtt_client = None
+                    self._handle_disconnected()
+                if not reconnect:
                     return
-                if rc in AUTH_REJECTION_CODES:
-                    if standard:
-                        self._spawn(self._token_manager.async_handle_auth_rejection(rc))
-                    return
-            except (MqttError, OSError) as err:
-                _LOGGER.debug("[%s] MQTT session error: %s", self.ip, err)
-                if ready is not None and not ready.done():
-                    ready.set_exception(Exception(f"Cannot connect to TV MQTT Broker: {err}"))
-            finally:
-                if adapter is not None:
-                    adapter.close()
-                    if self.mqtt_client is adapter:
-                        self.mqtt_client = None
-                self._handle_disconnected()
-            if not reconnect:
-                return
-            await asyncio.sleep(delay)
-            delay = min(delay * 2, RECONNECT_MAX_DELAY)
+                await asyncio.sleep(delay)
+                delay = min(delay * 2, RECONNECT_MAX_DELAY)
+        finally:
+            if getattr(self, "_mqtt_task", None) is asyncio.current_task():
+                self._mqtt_task = None
 
     async def _async_stop_session(self: VidaaClient) -> None:
         """Cancels the running MQTT supervisor task and waits for teardown."""

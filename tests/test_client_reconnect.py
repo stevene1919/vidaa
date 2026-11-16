@@ -467,3 +467,136 @@ async def test_handle_disconnected_fails_pending_queries():
     assert "test/resp" not in client._pending_queries
 
     await client.async_disconnect()
+
+
+@pytest.mark.anyio
+async def test_auth_rejection_clears_mqtt_task_and_prevents_stale_reconnect():
+    """Verify auth rejection clears _mqtt_task and failed refresh does not attempt stale reconnect."""
+    now = int(time.time())
+    client = VidaaClient(
+        ip="192.168.50.12",
+        client_id="cid",
+        username="u",
+        access_token="expired_tok",
+        refresh_token="valid_ref",
+        refresh_token_time=now,
+        refresh_token_duration=30,
+    )
+    loop = asyncio.get_running_loop()
+    client._loop = loop
+
+    from aiomqtt.exceptions import MqttConnectError
+
+    mock_connect_err = MqttConnectError(5)
+
+    with (
+        patch("custom_components.vidaa.protocol.connection.Client") as mock_client_cls,
+        patch.object(client, "async_sync_clock"),
+    ):
+        mock_client_cls.side_effect = mock_connect_err
+
+        ready = loop.create_future()
+        client._mqtt_task = loop.create_task(
+            client._mqtt_session_loop(
+                client.client_id,
+                client.username,
+                client.access_token,
+                None,
+                reconnect=True,
+                standard=True,
+                ready=ready,
+            )
+        )
+        await client._mqtt_task
+
+        assert client._mqtt_task is None
+        assert client.mqtt_client is None
+        assert client.connected is False
+
+    with (
+        patch(
+            "custom_components.vidaa.client.async_perform_token_refresh",
+            return_value=None,
+        ),
+        patch.object(client, "async_sync_clock"),
+        patch.object(client, "async_connect_and_run") as mock_connect,
+    ):
+        refreshed = await client.async_refresh_tokens()
+        assert refreshed is False
+        mock_connect.assert_not_called()
+
+    await client.async_disconnect()
+
+
+@pytest.mark.anyio
+async def test_auth_rejection_recovery_triggers_connect_on_success():
+    """Verify that when token refresh succeeds following auth rejection, connection is established with new credentials."""
+    now = int(time.time())
+    client = VidaaClient(
+        ip="192.168.50.12",
+        client_id="cid",
+        username="u",
+        access_token="old_tok",
+        refresh_token="valid_ref",
+        refresh_token_time=now,
+        refresh_token_duration=30,
+    )
+    client.connected = False
+    loop = asyncio.get_running_loop()
+    client._loop = loop
+
+    with (
+        patch(
+            "custom_components.vidaa.client.async_perform_token_refresh",
+            return_value={
+                "accesstoken": "new_shiny_token",
+                "accesstoken_time": now,
+                "accesstoken_duration_day": 2,
+                "refreshtoken": "new_refresh_token",
+            },
+        ),
+        patch.object(client, "async_sync_clock"),
+        patch.object(client, "async_connect_and_run") as mock_connect,
+    ):
+        await client._token_manager.async_refresh_token_and_update_creds()
+
+        assert client.access_token == "new_shiny_token"
+        assert client.refresh_token == "new_refresh_token"
+        assert client._token_manager.rejected_refresh_failures == 0
+        assert client._token_manager.broker_rejection_failures == 0
+        mock_connect.assert_awaited_once()
+
+    await client.async_disconnect()
+
+
+@pytest.mark.anyio
+async def test_auth_rejection_max_attempts_cancels_retry_and_dispatches_auth_failed():
+    """Verify repeated broker rejections cancel any scheduled retry tasks and fire auth_failed callback."""
+    now = int(time.time())
+    client = VidaaClient(
+        ip="192.168.50.12",
+        client_id="cid",
+        username="u",
+        access_token="old_tok",
+        refresh_token="valid_ref",
+        refresh_token_time=now,
+        refresh_token_duration=30,
+    )
+    mock_auth_failed = MagicMock()
+    client.register_auth_failed_callback(mock_auth_failed)
+    client._token_manager.broker_rejection_failures = client.MAX_BROKER_REJECTION_ATTEMPTS - 1
+    client._token_manager.last_refresh_connect_rc = 5
+
+    loop = asyncio.get_running_loop()
+    dummy_task = loop.create_task(asyncio.sleep(100))
+    client._token_manager.rejected_retry_task = dummy_task
+
+    with patch.object(client, "async_check_and_refresh_token", return_value=False):
+        await client._token_manager.async_refresh_token_and_update_creds()
+
+    mock_auth_failed.assert_called_once()
+    await asyncio.sleep(0)
+    assert dummy_task.cancelled()
+    assert client._token_manager.rejected_retry_task is None
+
+    await client.async_disconnect()

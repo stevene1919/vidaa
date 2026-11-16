@@ -230,11 +230,18 @@ class TokenLifecycleManager:
         _LOGGER.debug("[%s] Next reconnect attempt in %.0f s", self.client.ip, delay)
 
     async def _rejected_retry_runner(self, delay: float) -> None:
-        """Waits delay seconds and triggers reconnection."""
+        """Waits delay seconds and triggers reconnection or token refresh."""
         await asyncio.sleep(delay)
         self.rejected_retry_task = None
         try:
-            await self.client.async_connect_and_run()
+            if self.client.refresh_token and not is_token_expired(
+                self.client.refresh_token_time,
+                self.client.refresh_token_duration,
+                clock_offset=self.client.clock_offset,
+            ):
+                await self.async_handle_auth_rejection(self.last_refresh_connect_rc or 5)
+            else:
+                await self.client.async_connect_and_run()
         except Exception as e:
             _LOGGER.debug("[%s] Scheduled reconnect failed: %s", self.client.ip, e)
 
@@ -242,15 +249,34 @@ class TokenLifecycleManager:
         """Immediate retry trigger for tests or manual invocation."""
         try:
             loop = asyncio.get_running_loop()
-            self._retry_fire_task = loop.create_task(self.client.async_connect_and_run())
+            if self.client.refresh_token and not is_token_expired(
+                self.client.refresh_token_time,
+                self.client.refresh_token_duration,
+                clock_offset=self.client.clock_offset,
+            ):
+                self._retry_fire_task = loop.create_task(
+                    self.async_handle_auth_rejection(self.last_refresh_connect_rc or 5)
+                )
+            else:
+                self._retry_fire_task = loop.create_task(self.client.async_connect_and_run())
         except RuntimeError:
-            asyncio.run(self.client.async_connect_and_run())
+            if self.client.refresh_token and not is_token_expired(
+                self.client.refresh_token_time,
+                self.client.refresh_token_duration,
+                clock_offset=self.client.clock_offset,
+            ):
+                asyncio.run(self.async_handle_auth_rejection(self.last_refresh_connect_rc or 5))
+            else:
+                asyncio.run(self.client.async_connect_and_run())
 
     def cancel_rejected_retry(self) -> None:
-        """Cancels any pending rejection retry task."""
+        """Cancels any pending rejection retry or auth refresh task."""
         if self.rejected_retry_task is not None:
             self.rejected_retry_task.cancel()
             self.rejected_retry_task = None
+        if getattr(self, "auth_refresh_task", None) is not None:
+            self.auth_refresh_task.cancel()
+            self.auth_refresh_task = None
 
     async def async_refresh_token_and_update_creds(self) -> None:
         """Attempts token refresh and dispatches reauth if broker repeatedly rejects."""
@@ -260,6 +286,9 @@ class TokenLifecycleManager:
                 _LOGGER.info("[%s] Token successfully refreshed on connection failure.", client.ip)
                 self.rejected_refresh_failures = 0
                 self.broker_rejection_failures = 0
+                self.cancel_rejected_retry()
+                if not client.connected and client.access_token and client.client_id and client.username:
+                    await client.async_connect_and_run()
             else:
                 self.rejected_refresh_failures += 1
                 if self.last_refresh_connect_rc in (4, 5, 134, 135):
@@ -282,6 +311,7 @@ class TokenLifecycleManager:
                         self.broker_rejection_failures,
                         self.last_refresh_connect_rc,
                     )
+                    self.cancel_rejected_retry()
                     client._dispatch_auth_failed()
                     return
                 if not client.refresh_token or is_token_expired(
@@ -290,7 +320,15 @@ class TokenLifecycleManager:
                     clock_offset=client.clock_offset,
                 ):
                     _LOGGER.warning("[%s] Refresh token is missing or expired. Reauthentication required.", client.ip)
+                    self.cancel_rejected_retry()
                     client._dispatch_auth_failed()
+                    return
+
+                backoff = float(min(60 * (2**self.rejected_refresh_failures), 1800))
+                if hasattr(self.client, "_schedule_rejected_retry"):
+                    self.client._schedule_rejected_retry(backoff)
+                else:
+                    self.schedule_rejected_retry(backoff)
         except Exception as e:
             _LOGGER.warning("[%s] Background token refresh error: %s", client.ip, e)
             if not client.refresh_token or is_token_expired(
@@ -298,6 +336,7 @@ class TokenLifecycleManager:
                 client.refresh_token_duration,
                 clock_offset=client.clock_offset,
             ):
+                self.cancel_rejected_retry()
                 client._dispatch_auth_failed()
         finally:
             async with self.refresh_lock:

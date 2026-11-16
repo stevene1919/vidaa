@@ -64,6 +64,7 @@ When an automation or manual service call fails, Home Assistant displays an erro
 
 ### 1. Pairing Fails or PIN Does Not Appear on Screen
 * **Smart / Connected Services Disabled (Terms of Use Not Accepted):** VIDAA OS suppresses the on-screen 4-digit pairing PIN popup if **Smart Services** (Connected Services, Terms of Use, and Privacy Policy) are turned off or skipped in TV settings (`Settings → Support / System → Terms & Conditions / Smart Services`). Enable them on the TV and try pairing again. If you wish to isolate the TV from the internet, you can safely block its IP address from WAN/internet access at your router once pairing is completed.
+* **TV Hardware Clock Drift (Firewall-Blocked / Isolated IoT LANs):** VIDAA OS lacks a battery-backed Real-Time Clock (RTC). If the TV is completely cut off from the internet by a router firewall or DNS sinkhole (e.g. AdGuard / Pi-hole) without an NTP redirect rule, its internal clock will drift or reset after reboots/power cycles. The TV's MQTT broker rejects modern timestamped authentication challenges if the TV's internal clock differs from real time by more than ±60–120 seconds, resulting in a silent connection failure (`rc: 5 / 135`) without ever displaying the 4-digit PIN. Temporarily allow outbound internet access (or check TV Settings → System → Time/Date, verify the time, and power-cycle the TV). See [Section 6 of Network Requirements](network_requirements.md#6-tv-hardware-clock-ntp-sync--isolated-iot-lans-wan-blocked) for long-term UDP 123 NAT redirection.
 * **Mobile App Conflict:** VIDAA TVs typically allow only one active remote control session at a time. If the official **RemoteNOW** or **VIDAA** mobile app is currently running on a phone or tablet, close the mobile app completely before starting pairing in Home Assistant.
 * **Keystore Bundle Filename:** Verify that `client_mobile_android.p12` or `El.p12` is in `/config/ssl/`.
 * **Stale Pairing Cache:** In Home Assistant, restart the config flow or trigger re-pairing via `button.<tv_name>_trigger_re_pairing`.
@@ -78,12 +79,22 @@ When an automation or manual service call fails, Home Assistant displays an erro
   * Keep Home Assistant's client certificates properly configured in `/config/ssl/` as documented in [`certificates.md`](certificates.md) to enable automatic mutual TLS authentication.
 
 ### 3. Broker Rejection or "Not Authorized" Error (`rc: 5` / `rc: 135`)
-* **Cause: OEM Brand Code Mismatch:**
+An MQTT return code of `rc: 5` (MQTT 3.1.1) or `rc: 135` (MQTT 5.0) indicates that the mutual TLS handshake completed successfully, but the TV's internal broker explicitly rejected the generated client credentials. This is caused by one of two issues:
+
+* **Cause A: TV Hardware Clock Drift / Missing NTP (WAN-Blocked Sets):**
+  * Modern VIDAA firmware validates the HMAC-SHA256 / MD5 password signature against the TV's internal real-time clock. If the TV's system clock is skewed by more than ~60–120 seconds relative to real UTC time, authentication fails with `rc: 5 / 135`.
+  * While the integration automatically queries the TV's HTTP `Date:` header on port `38400` to calculate drift offset, **some partner chassis (such as Loewe) do not serve HTTP responses on port 38400**, leaving Home Assistant with no choice but to fall back to host local time.
+  * **Fix:**
+    1. Check **Settings → System → Time/Date** on the TV. Ensure the on-screen time, date, and timezone match real time.
+    2. If the TV is isolated from the internet by a firewall, temporarily allow WAN access and reboot the TV so its internal NTP client can sync.
+    3. For permanent network isolation, configure a router firewall DNAT redirection rule capturing `UDP 123` (NTP) from the TV and redirecting to your local gateway/NTP server. See [Section 6 of Network Requirements](network_requirements.md#6-tv-hardware-clock-ntp-sync--isolated-iot-lans-wan-blocked).
+
+* **Cause B: OEM Brand Code Mismatch:**
   * When communicating with licensed partner brands (Toshiba, Loewe, TPV/Philips, Sharp, JVC, TOPTRO, etc.), the TV/projector broker validates client credentials against an OEM brand prefix salt. If generic Hisense credentials (`his`) are sent to a partner device, the broker rejects authentication with `rc: 5` (MQTT 3.1.1) or `rc: 135` (MQTT 5.0).
-* **Fix:**
-  * Keep **Brand Profile** set to **Auto Detect (Recommended)**. When enabled, the integration queries UPnP port `38400` / `18400` to extract `brand=` from `<modelDescription>` or cascades through supported candidate OEM brands (`tos`, `loe`, `tpv`, `shp`, `jvc`, `tpo`).
-  * If adding a device across an isolated VLAN where UPnP is blocked and cascade is exhausted, open **Settings → Devices & Services → VIDAA Smart TV → Configure → Security** and manually select your device's brand from the dropdown.
-  * Inspect `sensor.<tv_name>_session_status` attributes (`brand_profile`, `active_brand`, `auth_profile`) to view the currently configured brand profile and active OEM brand in real time.
+  * **Fix:**
+    * Keep **Brand Profile** set to **Auto Detect (Recommended)**. When enabled, the integration queries UPnP port `38400` / `18400` to extract `brand=` from `<modelDescription>` or cascades through supported candidate OEM brands (`tos`, `loe`, `tpv`, `shp`, `jvc`, `tpo`).
+    * If adding a device across an isolated VLAN where UPnP is blocked and cascade is exhausted, open **Settings → Devices & Services → VIDAA Smart TV → Configure → Security** and manually select your device's brand from the dropdown.
+    * Inspect `sensor.<tv_name>_session_status` attributes (`brand_profile`, `active_brand`, `auth_profile`) to view the currently configured brand profile and active OEM brand in real time.
 
 ### 4. Baseline Verification: Testing with the Official VIDAA App (iOS & Android)
 * If Home Assistant fails to discover your TV or the 4-digit pairing PIN never appears on your TV screen, testing with the official companion mobile app is the fastest way to confirm whether your TV hardware and network are ready:

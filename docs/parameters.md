@@ -243,4 +243,6 @@ To view live integration logs:
    - `[custom_components.vidaa.protocol.connection] [<ip>] MQTT session error: Disconnected during message iteration`
    - `[custom_components.vidaa.protocol.dispatcher] [<ip>] Message received: <payload> on topic <topic>`
 
-> **Audio output routing:** `media_player.<tv>` exposes an `audio_output` attribute (`TV Speakers` or `ARC / eARC`), derived from the TV's `volume_type` broadcasts. VIDAA firmware does not report Optical/SPDIF or Bluetooth output over MQTT, so those modes appear as `TV Speakers`.
+> **Audio output routing & external amplifiers (ARC/eARC):**
+> - `media_player.<tv>` exposes an `audio_output` attribute (`TV Speakers` or `ARC / eARC`), derived from the TV's `volume_type` broadcasts (retiring legacy standalone sensor/select entities). VIDAA firmware does not report Optical/SPDIF or Bluetooth output over MQTT, so those modes appear as `TV Speakers`.
+> - **Volume slider vs. external amplifiers:** Moving the volume slider sends an absolute level (`actions/changevolume`), which VIDAA OS only applies to internal TV speakers. When audio is routed to an external soundbar or AVR via ARC/eARC, the TV ignores absolute percentage values and only forwards step commands (`KEY_VOLUMEUP` / `KEY_VOLUMEDOWN`). Use `media_player.volume_up` / `media_player.volume_down` for external amplifiers.

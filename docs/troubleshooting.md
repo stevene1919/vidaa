@@ -120,6 +120,27 @@ An MQTT return code of `rc: 5` (MQTT 3.1.1) or `rc: 135` (MQTT 5.0) indicates th
 
 ---
 
+## 🔊 Audio, Volume & External Amplifier (ARC/eARC) Behavior
+
+### 1. Volume Slider Does Nothing When Connected to an External Amp or Soundbar
+* **Cause: Absolute Volume vs. CEC Step Control:**
+  * When you drag the volume slider in Home Assistant, the integration sends an absolute volume command (`0–100` via `actions/changevolume`).
+  * On VIDAA OS, the TV firmware **only applies absolute percentage volume changes to the TV's internal speakers**.
+  * When an external AV receiver or soundbar is connected via **HDMI ARC/eARC (CEC)**, the TV firmware ignores absolute network volume commands and delegates volume control to the external amplifier over HDMI-CEC. The CEC protocol requires incremental step commands.
+* **Solution:**
+  * Use the **Volume Up** and **Volume Down** buttons (`media_player.volume_up` / `media_player.volume_down`, or send key `KEY_VOLUMEUP` / `KEY_VOLUMEDOWN`). The TV forwards these step keypresses directly across the HDMI ARC/eARC bus to adjust your amplifier volume.
+  * In Lovelace dashboards, use pill rockers or button cards mapped to `volume_up` and `volume_down` rather than the continuous slider when outputting to an external amplifier.
+
+### 2. Missing `sensor.<tv>_audio_output` Entity
+* **Explanation:**
+  * In earlier integration versions, standalone `sensor.<tv>_audio_output` and `select.<tv>_audio_output` entities were exposed.
+  * These were intentionally retired in favor of the **`audio_output` state attribute** directly on the main `media_player.<tv_name>` entity (`TV Speakers` or `ARC / eARC`).
+  * This eliminates entity registry clutter while keeping audio output state readily accessible in automations and templates (e.g. `state_attr('media_player.living_room_tv', 'audio_output')`). Note that VIDAA firmware only distinguishes `ARC / eARC` from internal speakers over MQTT; Optical/SPDIF and Bluetooth appear as `TV Speakers`.
+
+---
+
+---
+
 ## 📊 Diagnostic Logs & Bug Reporting
 
 If you continue to experience problems:

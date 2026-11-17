@@ -27,10 +27,10 @@
 
 只需 3 个简步，3 分钟内完成设置：
 
-### 1️⃣ 通过 HACS 安装
-点击下方按钮（或在 HACS 中搜索 **VIDAA Smart TV** → 集成 → 下载）：
+### 1️⃣ 通过 Marketplace (HACS) 安装
+点击下方按钮（或在 Marketplace (HACS) 中搜索 **VIDAA Smart TV** → 集成 → 下载）：
 
-[![打开 HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
+[![打开 Marketplace (HACS)](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
 
 ### 2️⃣ 放置证书密钥文件 (`client_mobile_android.p12` 或 `El.p12`)
 VIDAA 电视要求在 36669 端口进行双向 TLS 认证。将通用秘钥文件 **`client_mobile_android.p12`**（或 `El.p12`）放置在 Home Assistant 的 **`/config/ssl/`** 目录中。

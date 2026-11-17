@@ -27,10 +27,10 @@ Verbindet sich **direkt** mit dem internen MQTT-Broker des Fernsehers (TLS-Port 
 
 Die Einrichtung dauert weniger als 3 Minuten in 3 einfachen Schritten:
 
-### 1️⃣ Installation über HACS
-Klicken Sie auf den Button unten (oder suchen Sie in HACS nach **VIDAA Smart TV** → Integrationen → Herunterladen):
+### 1️⃣ Installation über Marketplace (HACS)
+Klicken Sie auf den Button unten (oder suchen Sie in Marketplace (HACS) nach **VIDAA Smart TV** → Integrationen → Herunterladen):
 
-[![HACS öffnen](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
+[![Marketplace (HACS) öffnen](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
 
 ### 2️⃣ Schlüsseldatei (`client_mobile_android.p12` oder `El.p12`) hinterlegen
 VIDAA-Fernseher erfordern gegenseitiges TLS auf Port 36669. Kopieren Sie die universelle Datei **`client_mobile_android.p12`** (oder `El.p12`) in Ihr Home Assistant-Verzeichnis **`/config/ssl/`**.

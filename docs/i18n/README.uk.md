@@ -27,10 +27,10 @@
 
 Налаштування займає менше 3 хвилин у 3 простих кроки:
 
-### 1️⃣ Встановлення через HACS
-Натисніть кнопку нижче (або знайдіть **VIDAA Smart TV** у HACS → Інтеграції → Завантажити):
+### 1️⃣ Встановлення через Marketplace (HACS)
+Натисніть кнопку нижче (або знайдіть **VIDAA Smart TV** у Marketplace (HACS) → Інтеграції → Завантажити):
 
-[![Відкрити HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
+[![Відкрити Marketplace (HACS)](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
 
 ### 2️⃣ Розміщення файлу ключа (`client_mobile_android.p12` або `El.p12`)
 Телевізорам VIDAA потрібне взаємне шифрування TLS на порту 36669. Скопіюйте універсальний файл **`client_mobile_android.p12`** (або `El.p12`) у каталог Home Assistant **`/config/ssl/`**.

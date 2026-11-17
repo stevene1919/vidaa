@@ -376,6 +376,17 @@ async def test_remote_send_command_num_repeats_option(mock_client, mock_entry):
     await rem.async_send_command(["up"], num_repeats=3, delay_secs=0)
     assert mock_client.send_command.call_count == 3
 
+    # Float values from options (e.g. from HA NumberSelector serialization) or kwargs do not crash range().
+    mock_entry.options = {"enable_remote": True, "key_repeat": 2.0}
+    rem_float = HisenseVidaaRemote(client=mock_client, entry=mock_entry)
+    mock_client.send_command.reset_mock()
+    await rem_float.async_send_command(["up"], num_repeats=1, delay_secs=0)
+    assert mock_client.send_command.call_count == 2
+
+    mock_client.send_command.reset_mock()
+    await rem_float.async_send_command(["up"], num_repeats=4.0, delay_secs=0)
+    assert mock_client.send_command.call_count == 4
+
 
 @pytest.mark.anyio
 async def test_media_player_mute_is_idempotent(mock_client, mock_entry):

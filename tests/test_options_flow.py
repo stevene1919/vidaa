@@ -93,7 +93,7 @@ async def test_options_flow(monkeypatch: pytest.MonkeyPatch) -> None:
             "enable_sound_controls": True,
             "enable_audio_only": True,
             "key_delay": 0.3,
-            "key_repeat": 2,
+            "key_repeat": 2.0,
         }
     )
     assert result_feat_submit["type"] == "create_entry"
@@ -103,6 +103,7 @@ async def test_options_flow(monkeypatch: pytest.MonkeyPatch) -> None:
     assert result_feat_submit["data"]["enable_audio_only"] is True
     assert result_feat_submit["data"]["key_delay"] == 0.3
     assert result_feat_submit["data"]["key_repeat"] == 2
+    assert isinstance(result_feat_submit["data"]["key_repeat"], int)
 
     # Test security step with invalid non-existent paths
     result_sec_form = await handler.async_step_security()

@@ -199,6 +199,11 @@ class VidaaOptionsFlowHandler(config_entries.OptionsFlow):
     ) -> config_entries.ConfigFlowResult:
         """Entities, device features, and remote timing controls."""
         if user_input is not None:
+            if CONF_KEY_REPEAT in user_input:
+                try:
+                    user_input[CONF_KEY_REPEAT] = round(float(user_input[CONF_KEY_REPEAT]))
+                except (ValueError, TypeError):
+                    user_input[CONF_KEY_REPEAT] = DEFAULT_KEY_REPEAT
             updated_options = {**self.config_entry.options, **user_input}
             return self.async_create_entry(title="", data=updated_options)
 
@@ -247,7 +252,7 @@ class VidaaOptionsFlowHandler(config_entries.OptionsFlow):
                     ),
                     vol.Optional(
                         CONF_KEY_REPEAT,
-                        default=options.get(CONF_KEY_REPEAT, DEFAULT_KEY_REPEAT),
+                        default=int(options.get(CONF_KEY_REPEAT, DEFAULT_KEY_REPEAT)),
                     ): selector.NumberSelector(
                         selector.NumberSelectorConfig(
                             min=1,

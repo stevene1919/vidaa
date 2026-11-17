@@ -147,14 +147,35 @@ class VidaaRemote(VidaaEntity, RemoteEntity):
                 translation_domain=DOMAIN,
                 translation_key="not_connected",
             )
-        default_delay = self._options.get(CONF_KEY_DELAY, DEFAULT_KEY_DELAY)
-        default_repeats = self._options.get(CONF_KEY_REPEAT, DEFAULT_KEY_REPEAT)
-        num_repeats = kwargs.get("num_repeats", default_repeats)
+        try:
+            default_delay = float(self._options.get(CONF_KEY_DELAY, DEFAULT_KEY_DELAY))
+        except (ValueError, TypeError):
+            default_delay = DEFAULT_KEY_DELAY
+
+        try:
+            default_repeats = int(self._options.get(CONF_KEY_REPEAT, DEFAULT_KEY_REPEAT))
+        except (ValueError, TypeError):
+            default_repeats = DEFAULT_KEY_REPEAT
+
+        raw_repeats = kwargs.get("num_repeats", default_repeats)
+        try:
+            num_repeats = int(raw_repeats)
+        except (ValueError, TypeError):
+            num_repeats = default_repeats
+
         if num_repeats == SERVICE_DEFAULT_NUM_REPEATS:
             # HA always sends the service default; fall back to the key_repeat option.
             num_repeats = default_repeats
-        delay_secs = kwargs.get("delay_secs", default_delay)
-        hold_secs = kwargs.get("hold_secs", 0.0)
+
+        try:
+            delay_secs = float(kwargs.get("delay_secs", default_delay))
+        except (ValueError, TypeError):
+            delay_secs = default_delay
+
+        try:
+            hold_secs = float(kwargs.get("hold_secs", 0.0))
+        except (ValueError, TypeError):
+            hold_secs = 0.0
 
         for _ in range(num_repeats):
             for single_cmd in command:

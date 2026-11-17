@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import logging
+import os
 import time
 from typing import TYPE_CHECKING, Any
 
@@ -149,8 +150,14 @@ class VidaaClient(
                 )
             )
         ):
-            self.certfile = certfile
-            self.keyfile = keyfile
+            if auth_profile in ("legacy", "static") and not (
+                certfile and os.path.isfile(certfile) and keyfile and os.path.isfile(keyfile)
+            ):
+                self.certfile = None
+                self.keyfile = None
+            else:
+                self.certfile = certfile
+                self.keyfile = keyfile
             self.ca_cert = ca_cert
         else:
             self.certfile, self.keyfile = resolve_certificates(
@@ -226,6 +233,8 @@ class VidaaClient(
     # --------------------------------------------------------------------------
     def validate_certificates(self) -> None:
         """Validates that local client certificates exist on disk."""
+        if not self.use_ssl or self.auth_profile in ("legacy", "static"):
+            return
         self.certfile, self.keyfile = resolve_certificates(
             auth_profile=self.auth_profile, certfile=self.certfile, keyfile=self.keyfile
         )

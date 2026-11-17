@@ -118,14 +118,18 @@ class CertsFlowMixin:
 
                 certs_exist = await _check_exist(self.certfile, self.keyfile)
                 if not certs_exist:
-                    cert_exists = await _check_exist(self.certfile, self.certfile)
-                    key_exists = await _check_exist(self.keyfile, self.keyfile)
-                    if not cert_exists:
-                        errors[CONF_CERTFILE] = "certs_not_found"
-                    elif not key_exists:
-                        errors[CONF_KEYFILE] = "certs_not_found"
+                    if self.auth_profile in ("legacy", "static"):
+                        self.certfile = None
+                        self.keyfile = None
                     else:
-                        errors["base"] = "certs_not_found"
+                        cert_exists = await _check_exist(self.certfile, self.certfile)
+                        key_exists = await _check_exist(self.keyfile, self.keyfile)
+                        if not cert_exists:
+                            errors[CONF_CERTFILE] = "certs_not_found"
+                        elif not key_exists:
+                            errors[CONF_KEYFILE] = "certs_not_found"
+                        else:
+                            errors["base"] = "certs_not_found"
                 else:
 
                     async def _validate(c: str | None, k: str | None) -> tuple[bool, str | None]:

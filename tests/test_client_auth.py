@@ -24,6 +24,26 @@ def test_legacy_static_auth():
     assert client.check_and_refresh_token(force=True) is False
 
 
+@pytest.mark.anyio
+async def test_legacy_static_ssl_without_client_certs():
+    """Test legacy static authentication supports TLS without client certificates (Issue #71)."""
+    client = VidaaClient(
+        ip="192.168.1.46",
+        auth_profile="legacy",
+        use_ssl=True,
+        certfile="/nonexistent/cert.crt",
+        keyfile="/nonexistent/key.key",
+    )
+    # validate_certificates does not raise FileNotFoundError for legacy
+    client.validate_certificates()
+
+    # _async_build_ssl_context succeeds and returns an SSLContext without client certs
+    ssl_ctx = await client._async_build_ssl_context()
+    assert ssl_ctx is not None
+    assert ssl_ctx.verify_mode == 0  # ssl.CERT_NONE
+    assert ssl_ctx.check_hostname is False
+
+
 def test_probe_auth_methods():
     """Test probing various auth algorithms returns structured capability dict."""
     client = VidaaClient(ip="192.168.50.12")

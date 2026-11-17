@@ -285,6 +285,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
     if use_ssl and auth_profile not in ("legacy", "static"):
         certfile, keyfile = await hass.async_add_executor_job(resolve_certificates, auth_profile, certfile, keyfile)
         ca_cert = await hass.async_add_executor_job(resolve_ca_certificate, None)
+    elif auth_profile in ("legacy", "static"):
+        if certfile and not os.path.isfile(certfile):
+            certfile = None
+        if keyfile and not os.path.isfile(keyfile):
+            keyfile = None
 
     brand_pref = entry.options.get(CONF_BRAND, data.get(CONF_BRAND, DEFAULT_BRAND_OPTION))
     if brand_pref == "auto":

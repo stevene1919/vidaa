@@ -269,7 +269,12 @@ class ReauthFlowMixin:
             if self._async_mac_is_configured_elsewhere():
                 return self.async_abort(reason="already_configured")
 
-            if self.auth_profile in ("auto", "legacy"):
+            if self.auth_profile in ("legacy", "static"):
+                has_certs = await self._async_resolve_ssl_certs()
+                if not has_certs:
+                    self.certfile = None
+                    self.keyfile = None
+            elif self.auth_profile == "auto":
                 if not await self._async_resolve_ssl_certs():
                     return await self.async_step_certs()
             else:

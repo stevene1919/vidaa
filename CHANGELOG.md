@@ -18,6 +18,7 @@ If this integration makes controlling your smart home entertainment a breeze, co
   - **Unified Power Button**: We removed the separate Power On and Power Off buttons on cards ([#55](https://github.com/stevene1919/vidaa/issues/55)). You now have a single, clean power button that works just like your physical remote.
   - **No More "Ghost" Toggles**: Dashboard switches and buttons will no longer flip back and forth if your TV is sleeping or turned off at the wall. Home Assistant now checks if the TV is truly awake before changing states on your screen.
   - **Fixed Remote Key Presses**: Fixed an issue where repeating keys or rapid button clicks on the remote entity could fail ([#70](https://github.com/stevene1919/vidaa/issues/70)).
+  - **Older Hisense TV Compatibility**: Older models using static credentials (such as the B7100 series) now connect securely over TLS without needing custom certificate files ([#71](https://github.com/stevene1919/vidaa/issues/71)).
 - **Helpful, Clear Alerts (No More Silent Failures)**:
   - If your TV is turned off, unplugged, or disconnected and an action or automation runs, Home Assistant will now clearly tell you (e.g. *"TV offline: Device unreachable"*) instead of failing silently.
   - If your TV loses its pairing after a power outage or firmware update, the TV entity will cleanly show as **Unavailable** and an **Authentication Problem** indicator will turn on to let you know right away.
@@ -44,6 +45,8 @@ If this integration makes controlling your smart home entertainment a breeze, co
   - Controls fail cleanly with descriptive user-facing alerts and avoid optimistic state changes when the TV is powered off or disconnected.
 - **Remote Entity Typing & Sanitization (#70)**:
   - Coerced `key_repeat` options to integers and sanitized `num_repeats` handling to prevent typing errors during rapid command sequences.
+- **Legacy Static TLS Without Client Certificates (#71)**:
+  - Enabled TLS 1.2 on port 36669 for Legacy Static authentication profiles without requiring client certificates, preventing setup blocks (`certs_not_found`) and connection timeouts on older models (such as Hisense B7100 series).
 - **Diagnostic Maintenance Suite**:
   - Renamed `trigger_reauth` to **Start re-authentication** (`button.<tv>_start_re_authentication`), added automatic WoL wake pulse before PIN requests, and added clickable persistent notifications directing to Repairs and Integrations.
   - Enhanced **Force reconnect** (`button.<tv>_force_reconnect`) to clear exponential backoff cooldowns, await connection resolution up to 3s, and surface actionable errors instead of false positive completions.

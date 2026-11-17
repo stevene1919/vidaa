@@ -236,7 +236,20 @@ class UserFlowMixin:
                     self.manufacturer = BRAND_MAP[self.brand]
             self.mac_address = await async_resolve_mac(self.hass, self.ip_address)
 
-            if self.auth_profile in ("auto", "legacy"):
+            if self.auth_profile in ("legacy", "static"):
+                # Legacy static profiles support TLS without client certificates
+                has_certs = await self._async_resolve_ssl_certs()
+                if not has_certs:
+                    self.certfile = None
+                    self.keyfile = None
+                try:
+                    return await self._async_init_client_and_auth()
+                except AbortFlow:
+                    raise
+                except Exception as e:
+                    _LOGGER.warning("[%s] Failed to connect or initiate auth with TV: %s", self.ip_address, e)
+                    errors["base"] = "cannot_connect"
+            elif self.auth_profile == "auto":
                 if await self._async_resolve_ssl_certs():
                     try:
                         return await self._async_init_client_and_auth()

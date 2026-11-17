@@ -580,3 +580,33 @@ async def test_ssdp_discovery_duplicate_ip_aborts_without_mac():
     result = await flow.async_step_ssdp(discovery_info)
     assert result["type"] == "abort"
     assert result["reason"] == "already_configured"
+
+
+@pytest.mark.anyio
+async def test_user_step_legacy_profile_without_certs_proceeds(monkeypatch):
+    """Test user flow with legacy profile proceeds without certs (Issue #71)."""
+    hass = MagicMock(spec=HomeAssistant)
+    hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
+    flow = VidaaConfigFlow()
+    flow.hass = hass
+    flow.context = {}
+
+    monkeypatch.setattr(
+        "custom_components.vidaa.flow.user.async_resolve_mac",
+        AsyncMock(return_value="e8:51:77:ec:98:1c"),
+    )
+    monkeypatch.setattr(
+        "custom_components.vidaa.config_flow.VidaaConfigFlow._async_init_client_and_auth",
+        AsyncMock(return_value={"type": "form", "step_id": "options"}),
+    )
+    monkeypatch.setattr(
+        "custom_components.vidaa.config_flow.VidaaConfigFlow._async_resolve_ssl_certs",
+        AsyncMock(return_value=False),
+    )
+
+    result = await flow.async_step_user(user_input={"ip_address": "192.168.1.46", "auth_profile": "legacy"})
+    assert result["type"] == "form"
+    assert result["step_id"] == "options"
+    assert flow.certfile is None
+    assert flow.keyfile is None
+    assert flow.use_ssl is True

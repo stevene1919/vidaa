@@ -34,11 +34,13 @@ This document tracks active pending tasks, investigations, and future roadmap it
 
 ### 2. Cold AC Power Interruption Empirical Testing
 
-- [ ] **Physical Hardware Behavior Under Abrupt Mains Cut**:
-  - Test physical behavior of TV and SoC when mains AC power is abruptly disconnected and restored (simulated blackout / wall switch cut).
-  - Observe and document whether the TV restores to Cold Standby (screen off, network stack/broker uninitialized) or returns to active power state.
-  - Determine if the TV reboots into Fast Power On (`fake_sleep`) or remains in cold standby until woken by physical remote, chassis button, or IR blaster pulse.
-  - Evaluate integration handling, state transitions, reconnect behavior, and token persistence after cold AC boot once network connectivity resumes.
+- [x] **Physical Hardware Behavior Under Abrupt Mains Cut**:
+  - Empirically tested physical behavior of TV and SoC when mains AC power is abruptly disconnected and restored via Matter smart plug (`switch.bedroom_hisense_tv_plug`).
+  - **Cold Standby Default**: Observed and verified that upon AC power restoration, the TV restores to Cold Standby (`0.0 W`, red LED on, screen off, SoC and network stack/MQTT broker completely uninitialized).
+  - **Wake Requirement**: Confirmed the TV remains in cold standby until woken by physical remote control or chassis power button (WoL packets are unhandled during cold AC standby). Upon waking, power draw jumps to ~80–102 W.
+  - **Network & ICMP**: Confirmed Hisense TV firmware has ICMP echo replies disabled (does not respond to ping); network presence must be tracked via L2 ARP / switch telemetry and TCP port `36669`.
+  - **Token Invalidation on Hard Power Cut**: Verified that an abrupt mains power cut purges the TV broker's volatile session tokens, resulting in MQTT `rc: 134` (`Connection Refused, not authorized`) on both access and refresh token handshakes.
+  - **Integration Resilience & UI Feedback**: Confirmed that `_dispatch_auth_failed()` cleanly marks `media_player` and `remote` entities as `unavailable`, flips `binary_sensor.<device>_authentication_problem` to `on`, sets `sensor.<device>_session_status` to `Reauth Required`, and creates a repair issue in Settings > System > Repairs. Verified that `button.force_reconnect` raises actionable `HomeAssistantError` instead of false green checkmarks when unauthenticated, and `button.trigger_re_pairing` immediately initiates interactive PIN reauth.
 
 ---
 

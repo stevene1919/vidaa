@@ -5,11 +5,9 @@ from unittest.mock import MagicMock
 
 from custom_components.vidaa.binary_sensor import (
     HisenseVidaaAuthProblemBinarySensor,
-    HisenseVidaaHotelModeBinarySensor,
     HisenseVidaaInUseBinarySensor,
     HisenseVidaaMqttConnectedBinarySensor,
     VidaaAuthProblemBinarySensor,
-    VidaaHotelModeBinarySensor,
     VidaaInUseBinarySensor,
     VidaaMqttConnectedBinarySensor,
     async_setup_entry as async_setup_binary_sensors,
@@ -20,7 +18,6 @@ def test_binary_sensor_backwards_compatibility_aliases():
     """Verify legacy HisenseVidaa* binary sensor classes are aliases for Vidaa* classes."""
     assert HisenseVidaaMqttConnectedBinarySensor is VidaaMqttConnectedBinarySensor
     assert HisenseVidaaInUseBinarySensor is VidaaInUseBinarySensor
-    assert HisenseVidaaHotelModeBinarySensor is VidaaHotelModeBinarySensor
     assert HisenseVidaaAuthProblemBinarySensor is VidaaAuthProblemBinarySensor
 
 
@@ -41,22 +38,28 @@ def test_binary_sensor_entities(mock_client, mock_entry):
     # Remains available so user and automations can see the problem status
     assert bs_auth.available is True
 
-    # Test platform setup adds 4 binary sensors
+    # Test platform setup adds 3 binary sensors
     hass = MagicMock()
     added_sensors = []
     asyncio.run(async_setup_binary_sensors(hass, mock_entry, lambda entities: added_sensors.extend(entities)))
-    assert len(added_sensors) == 4
+    assert len(added_sensors) == 3
 
 
-def test_hotel_mode_binary_sensor(mock_client, mock_entry):
-    """Test hotel mode binary sensor."""
-    mock_client.hotel_mode = False
-    sensor_hotel = VidaaHotelModeBinarySensor(mock_client, mock_entry)
-    assert sensor_hotel.is_on is False
-    assert sensor_hotel.unique_id == f"{mock_entry.entry_id}_hotel_mode"
+def test_deprecated_hotel_mode_registry_cleanup(mock_client, mock_entry, monkeypatch):
+    """Test that async_setup_entry removes deprecated hotel_mode binary sensor from registry."""
+    hass = MagicMock()
+    mock_reg = MagicMock()
+    mock_reg.async_get_entity_id.return_value = "binary_sensor.hisense_tv_hotel_mode"
+    monkeypatch.setattr("homeassistant.helpers.entity_registry.async_get", lambda h: mock_reg)
 
-    mock_client.hotel_mode = True
-    assert sensor_hotel.is_on is True
+    added_sensors = []
+    asyncio.run(async_setup_binary_sensors(hass, mock_entry, lambda entities: added_sensors.extend(entities)))
+
+    mock_reg.async_get_entity_id.assert_called_once_with(
+        "binary_sensor", "vidaa", f"{mock_entry.entry_id}_hotel_mode"
+    )
+    mock_reg.async_remove.assert_called_once_with("binary_sensor.hisense_tv_hotel_mode")
+    assert len(added_sensors) == 3
 
 
 def test_in_use_binary_sensor_dormant_and_hdmi_states(mock_client, mock_entry):

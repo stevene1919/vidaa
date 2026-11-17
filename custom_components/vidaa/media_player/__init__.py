@@ -97,6 +97,8 @@ class VidaaMediaPlayer(
         self._client.register_sound_callback(self._handle_sound_update)
         self._client.register_disconnected_callback(self._handle_disconnected)
         self._client.register_auth_failed_callback(self._handle_auth_failed)
+        if hasattr(self._client, "register_hotel_mode_callback"):
+            self._client.register_hotel_mode_callback(self._handle_state_update)
 
         # Sync state now that callbacks are registered and active.
         # Do not assume "on": the broker is also reachable in standby (fake_sleep).
@@ -127,6 +129,8 @@ class VidaaMediaPlayer(
         self._client.unregister_sound_callback(self._handle_sound_update)
         self._client.unregister_disconnected_callback(self._handle_disconnected)
         self._client.unregister_auth_failed_callback(self._handle_auth_failed)
+        if hasattr(self._client, "unregister_hotel_mode_callback"):
+            self._client.unregister_hotel_mode_callback(self._handle_state_update)
 
     @property
     def unique_id(self) -> str:

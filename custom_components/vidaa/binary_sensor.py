@@ -11,9 +11,11 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .client import VidaaClient
+from .const import DOMAIN
 from .entity import VidaaEntity
 
 if TYPE_CHECKING:
@@ -30,11 +32,16 @@ async def async_setup_entry(
     """Set up VIDAA binary sensors."""
     client: VidaaClient = entry.runtime_data.client
 
+    # Clean up deprecated hotel_mode binary sensor from registry if present
+    ent_reg = er.async_get(hass)
+    hotel_mode_uid = f"{entry.entry_id}_hotel_mode"
+    if entity_id := ent_reg.async_get_entity_id("binary_sensor", DOMAIN, hotel_mode_uid):
+        ent_reg.async_remove(entity_id)
+
     async_add_entities(
         [
             VidaaMqttConnectedBinarySensor(client, entry),
             VidaaInUseBinarySensor(client, entry),
-            VidaaHotelModeBinarySensor(client, entry),
             VidaaAuthProblemBinarySensor(client, entry),
         ]
     )
@@ -122,43 +129,6 @@ class VidaaInUseBinarySensor(VidaaEntity, BinarySensorEntity):
             self.schedule_update_ha_state()
 
 
-class VidaaHotelModeBinarySensor(VidaaEntity, BinarySensorEntity):
-    """Binary sensor indicating whether the TV is in Hotel Mode."""
-
-    _attr_translation_key = "hotel_mode"
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-
-    def __init__(
-        self,
-        client: VidaaClient,
-        entry: ConfigEntry,
-    ) -> None:
-        """Initialize the hotel mode binary sensor."""
-        super().__init__(client=client, entry=entry)
-        self._attr_unique_id = f"{self._entry_id}_hotel_mode"
-
-    @property
-    def is_on(self) -> bool:
-        """Return True when TV is in Hotel Mode."""
-        return bool(getattr(self._client, "hotel_mode", False))
-
-    async def async_added_to_hass(self) -> None:
-        """Register callbacks when added."""
-        if hasattr(self._client, "register_hotel_mode_callback"):
-            self._client.register_hotel_mode_callback(self._handle_update)
-        self._client.register_sourcelist_callback(self._handle_update)
-
-    async def async_will_remove_from_hass(self) -> None:
-        """Unregister callbacks."""
-        if hasattr(self._client, "unregister_hotel_mode_callback"):
-            self._client.unregister_hotel_mode_callback(self._handle_update)
-        self._client.unregister_sourcelist_callback(self._handle_update)
-
-    def _handle_update(self, *args: Any) -> None:
-        if getattr(self, "hass", None) is not None:
-            self.schedule_update_ha_state()
-
-
 class VidaaAuthProblemBinarySensor(VidaaEntity, BinarySensorEntity):
     """Binary sensor indicating whether the TV has rejected stored credentials and re-pairing is required."""
 
@@ -200,5 +170,4 @@ class VidaaAuthProblemBinarySensor(VidaaEntity, BinarySensorEntity):
 # Backwards-compatible aliases during migration
 HisenseVidaaMqttConnectedBinarySensor = VidaaMqttConnectedBinarySensor
 HisenseVidaaInUseBinarySensor = VidaaInUseBinarySensor
-HisenseVidaaHotelModeBinarySensor = VidaaHotelModeBinarySensor
 HisenseVidaaAuthProblemBinarySensor = VidaaAuthProblemBinarySensor

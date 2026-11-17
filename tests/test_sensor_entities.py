@@ -558,3 +558,13 @@ async def test_switch_and_button_action_exceptions(mock_client, mock_entry):
     with pytest.raises(HomeAssistantError) as exc_info:
         await b_probe.async_press()
     assert exc_info.value.translation_key == "not_connected"
+
+    # 5. Auth failed raises auth_required
+    mock_client.auth_failed = True
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await sw_audio.async_turn_on()
+    assert exc_info.value.translation_key == "auth_required"
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await b_probe.async_press()
+    assert exc_info.value.translation_key == "auth_required"

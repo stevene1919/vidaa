@@ -20,6 +20,7 @@ from .const import (
     DOMAIN,
 )
 from .entity import VidaaEntity
+from .helpers import check_client_command_readiness
 
 if TYPE_CHECKING:
     from . import VidaaConfigEntry
@@ -91,12 +92,7 @@ class VidaaAudioOnlySwitch(VidaaEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn off the screen while keeping audio active."""
-        if not self._client or getattr(self._client, "connected", True) is False:
-            raise HomeAssistantError(
-                "Cannot enable audio only mode: TV is currently disconnected.",
-                translation_domain=DOMAIN,
-                translation_key="not_connected",
-            )
+        check_client_command_readiness(self._client)
         # Guarantee screen is awake first, then toggle off
         await self._client.async_send_key(WAKE_KEY)
         await asyncio.sleep(KEY_GAP_SECONDS)
@@ -113,12 +109,7 @@ class VidaaAudioOnlySwitch(VidaaEntity, SwitchEntity):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Wake the screen back up."""
-        if not self._client or getattr(self._client, "connected", True) is False:
-            raise HomeAssistantError(
-                "Cannot disable audio only mode: TV is currently disconnected.",
-                translation_domain=DOMAIN,
-                translation_key="not_connected",
-            )
+        check_client_command_readiness(self._client)
         res = await self._client.async_send_key(WAKE_KEY)
         if res is False:
             raise HomeAssistantError(

@@ -360,6 +360,12 @@
     },
     "send_text_input_failed": {
       "message": "Texteingabe konnte nicht gesendet werden: {error}"
+    },
+    "auth_required": {
+      "message": "Authentication required: Re-pair TV in Settings > Integrations."
+    },
+    "turn_on_failed": {
+      "message": "Wake-on-LAN failed: TV did not wake up."
     }
   },
   "selector": {

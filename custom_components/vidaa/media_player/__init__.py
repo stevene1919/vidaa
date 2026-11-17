@@ -151,7 +151,7 @@ class VidaaMediaPlayer(
     @property
     def available(self) -> bool:
         """Return entity availability."""
-        if getattr(self._client, "auth_failed", False):
+        if getattr(self._client, "auth_failed", False) is True:
             return False
         return bool(self._entry_id and (self._client.access_token or self._mac))
 

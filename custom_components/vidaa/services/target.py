@@ -210,8 +210,14 @@ def _resolve_service_targets(hass: HomeAssistant, call: ServiceCall) -> list[Any
             translation_key="no_target_device",
         )
     if not any(getattr(client, "connected", False) for client in clients):
+        if any(getattr(client, "auth_failed", False) is True for client in clients):
+            raise ServiceValidationError(
+                "Authentication required: Re-pair TV in Settings > Integrations.",
+                translation_domain=DOMAIN,
+                translation_key="auth_required",
+            )
         raise ServiceValidationError(
-            "Cannot send command: TV is currently disconnected.",
+            "TV offline: Device unreachable.",
             translation_domain=DOMAIN,
             translation_key="not_connected",
         )

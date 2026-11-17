@@ -20,6 +20,7 @@ from .const import (
     DOMAIN,
 )
 from .entity import VidaaEntity
+from .helpers import check_client_command_readiness
 
 if TYPE_CHECKING:
     from . import VidaaConfigEntry
@@ -65,11 +66,23 @@ class VidaaForceReconnectButton(VidaaBaseButton):
 
     async def async_press(self) -> None:
         """Handle button press."""
+        if getattr(self._client, "auth_failed", False) is True:
+            raise HomeAssistantError(
+                "Authentication required: Re-pair TV in Settings > Integrations.",
+                translation_domain=DOMAIN,
+                translation_key="auth_required",
+            )
         _LOGGER.info("Manually forcing MQTT reconnection to TV at %s", self._client.ip)
         await self._client.async_disconnect()
         try:
             await self._client.async_connect_and_run()
         except Exception as err:
+            if getattr(self._client, "auth_failed", False) is True:
+                raise HomeAssistantError(
+                    "Authentication required: Re-pair TV in Settings > Integrations.",
+                    translation_domain=DOMAIN,
+                    translation_key="auth_required",
+                ) from err
             raise HomeAssistantError(
                 f"Failed to reconnect to TV at {self._client.ip}: {err}",
                 translation_domain=DOMAIN,
@@ -118,12 +131,7 @@ class VidaaProbeCapabilitiesButton(VidaaBaseButton):
 
     async def async_press(self) -> None:
         """Handle button press to probe capabilities."""
-        if getattr(self._client, "connected", True) is False:
-            raise HomeAssistantError(
-                "Cannot probe capabilities: TV is not connected via MQTT",
-                translation_domain=DOMAIN,
-                translation_key="not_connected",
-            )
+        check_client_command_readiness(self._client)
 
         _LOGGER.info("[%s] Probing TV picture and sound menu capabilities over MQTT...", self._client.ip)
         await self._client.async_get_picture_settings()

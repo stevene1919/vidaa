@@ -15,6 +15,7 @@ from ..const import (
     DEFAULT_ENABLE_WOL,
     DOMAIN,
 )
+from ..helpers import check_client_command_readiness
 from ..tv.media import async_execute_play_media, async_execute_select_source
 
 if TYPE_CHECKING:
@@ -28,6 +29,12 @@ class MediaPlayerControlsMixin:
 
     async def async_turn_on(self: VidaaMediaPlayer) -> None:
         """Turn on or wake the TV."""
+        if getattr(self._client, "auth_failed", False) is True:
+            raise HomeAssistantError(
+                "Authentication required: Re-pair TV in Settings > Integrations.",
+                translation_domain=DOMAIN,
+                translation_key="auth_required",
+            )
         runtime_data = getattr(self._entry, "runtime_data", None)
         if runtime_data and getattr(runtime_data, "turn_on", None):
             await runtime_data.turn_on.async_run(self.hass, getattr(self, "_context", None))
@@ -38,26 +45,32 @@ class MediaPlayerControlsMixin:
         if self._options.get(CONF_ENABLE_WOL, DEFAULT_ENABLE_WOL):
             if self._mac:
                 mac_targets.append(self._mac)
-            sec_mac = self._options.get(CONF_SECONDARY_MAC_ADDRESS) or getattr(
-                self._entry, "data", {}
-            ).get(CONF_SECONDARY_MAC_ADDRESS)
+            sec_mac = self._options.get(CONF_SECONDARY_MAC_ADDRESS) or getattr(self._entry, "data", {}).get(
+                CONF_SECONDARY_MAC_ADDRESS
+            )
             if sec_mac and sec_mac not in mac_targets:
                 mac_targets.append(sec_mac)
 
         success = await self._client.async_turn_on(mac_targets if mac_targets else None)
         if success is False:
             raise HomeAssistantError(
-                "Failed to turn on TV: TV is disconnected and Wake-on-LAN is not configured or failed",
+                "Wake-on-LAN failed: TV did not wake up.",
                 translation_domain=DOMAIN,
-                translation_key="not_connected",
+                translation_key="turn_on_failed",
             )
         self.async_write_ha_state()
 
     async def async_turn_off(self: VidaaMediaPlayer) -> None:
         """Turn off the TV."""
+        if getattr(self._client, "auth_failed", False) is True:
+            raise HomeAssistantError(
+                "Authentication required: Re-pair TV in Settings > Integrations.",
+                translation_domain=DOMAIN,
+                translation_key="auth_required",
+            )
         if getattr(self._client, "connected", True) is False and self._client.is_on:
             raise HomeAssistantError(
-                "Cannot turn off TV: TV is currently disconnected.",
+                "TV offline: Device unreachable.",
                 translation_domain=DOMAIN,
                 translation_key="not_connected",
             )
@@ -74,12 +87,7 @@ class MediaPlayerControlsMixin:
 
     async def async_set_volume_level(self: VidaaMediaPlayer, volume: float) -> None:
         """Set volume level (0.0 to 1.0)."""
-        if getattr(self._client, "connected", True) is False:
-            raise HomeAssistantError(
-                "Cannot send command: TV is currently disconnected.",
-                translation_domain=DOMAIN,
-                translation_key="not_connected",
-            )
+        check_client_command_readiness(self._client)
         res = await self._client.async_set_volume(int(volume * 100))
         if res is False:
             raise HomeAssistantError(
@@ -91,12 +99,7 @@ class MediaPlayerControlsMixin:
 
     async def async_volume_up(self: VidaaMediaPlayer) -> None:
         """Step volume up."""
-        if getattr(self._client, "connected", True) is False:
-            raise HomeAssistantError(
-                "Cannot send command: TV is currently disconnected.",
-                translation_domain=DOMAIN,
-                translation_key="not_connected",
-            )
+        check_client_command_readiness(self._client)
         if await self._client.async_send_key("KEY_VOLUMEUP") is False:
             raise HomeAssistantError(
                 "Failed to send volume up: command delivery failed",
@@ -107,12 +110,7 @@ class MediaPlayerControlsMixin:
 
     async def async_volume_down(self: VidaaMediaPlayer) -> None:
         """Step volume down."""
-        if getattr(self._client, "connected", True) is False:
-            raise HomeAssistantError(
-                "Cannot send command: TV is currently disconnected.",
-                translation_domain=DOMAIN,
-                translation_key="not_connected",
-            )
+        check_client_command_readiness(self._client)
         if await self._client.async_send_key("KEY_VOLUMEDOWN") is False:
             raise HomeAssistantError(
                 "Failed to send volume down: command delivery failed",
@@ -126,12 +124,7 @@ class MediaPlayerControlsMixin:
         # KEY_MUTE is a toggle: only send it when the requested state differs from
         # the state tracked from TV broadcasts, so idempotent automations don't flip
         # the TV on every run.
-        if getattr(self._client, "connected", True) is False:
-            raise HomeAssistantError(
-                "Cannot send command: TV is currently disconnected.",
-                translation_domain=DOMAIN,
-                translation_key="not_connected",
-            )
+        check_client_command_readiness(self._client)
         if bool(mute) == bool(self._muted):
             return
         if await self._client.async_send_key("KEY_MUTE") is False:
@@ -144,12 +137,7 @@ class MediaPlayerControlsMixin:
 
     async def async_media_play(self: VidaaMediaPlayer) -> None:
         """Send play command."""
-        if getattr(self._client, "connected", True) is False:
-            raise HomeAssistantError(
-                "Cannot send command: TV is currently disconnected.",
-                translation_domain=DOMAIN,
-                translation_key="not_connected",
-            )
+        check_client_command_readiness(self._client)
         if await self._client.async_send_key("KEY_PLAY") is False:
             raise HomeAssistantError(
                 "Failed to send play: command delivery failed",
@@ -162,12 +150,7 @@ class MediaPlayerControlsMixin:
 
     async def async_media_pause(self: VidaaMediaPlayer) -> None:
         """Send pause command."""
-        if getattr(self._client, "connected", True) is False:
-            raise HomeAssistantError(
-                "Cannot send command: TV is currently disconnected.",
-                translation_domain=DOMAIN,
-                translation_key="not_connected",
-            )
+        check_client_command_readiness(self._client)
         if await self._client.async_send_key("KEY_PAUSE") is False:
             raise HomeAssistantError(
                 "Failed to send pause: command delivery failed",
@@ -180,12 +163,7 @@ class MediaPlayerControlsMixin:
 
     async def async_media_stop(self: VidaaMediaPlayer) -> None:
         """Send stop command."""
-        if getattr(self._client, "connected", True) is False:
-            raise HomeAssistantError(
-                "Cannot send command: TV is currently disconnected.",
-                translation_domain=DOMAIN,
-                translation_key="not_connected",
-            )
+        check_client_command_readiness(self._client)
         if await self._client.async_send_key("KEY_STOP") is False:
             raise HomeAssistantError(
                 "Failed to send stop: command delivery failed",
@@ -198,12 +176,7 @@ class MediaPlayerControlsMixin:
 
     async def async_media_next_track(self: VidaaMediaPlayer) -> None:
         """Send next track command: Channel Up on Live TV, fast-forward/skip in media apps."""
-        if getattr(self._client, "connected", True) is False:
-            raise HomeAssistantError(
-                "Cannot send command: TV is currently disconnected.",
-                translation_domain=DOMAIN,
-                translation_key="not_connected",
-            )
+        check_client_command_readiness(self._client)
         key = "KEY_CHANNELUP" if (hasattr(self, "is_live_tv") and self.is_live_tv()) else "KEY_FORWARDS"
         if await self._client.async_send_key(key) is False:
             raise HomeAssistantError(
@@ -215,12 +188,7 @@ class MediaPlayerControlsMixin:
 
     async def async_media_previous_track(self: VidaaMediaPlayer) -> None:
         """Send previous track command: Channel Down on Live TV, rewind/skip in media apps."""
-        if getattr(self._client, "connected", True) is False:
-            raise HomeAssistantError(
-                "Cannot send command: TV is currently disconnected.",
-                translation_domain=DOMAIN,
-                translation_key="not_connected",
-            )
+        check_client_command_readiness(self._client)
         key = "KEY_CHANNELDOWN" if (hasattr(self, "is_live_tv") and self.is_live_tv()) else "KEY_BACK"
         if await self._client.async_send_key(key) is False:
             raise HomeAssistantError(
@@ -242,12 +210,7 @@ class MediaPlayerControlsMixin:
             await self.async_turn_on()
             await asyncio.sleep(0.5)
 
-        if getattr(self._client, "connected", True) is False:
-            raise HomeAssistantError(
-                "Cannot play media: TV is currently disconnected.",
-                translation_domain=DOMAIN,
-                translation_key="not_connected",
-            )
+        check_client_command_readiness(self._client)
 
         res = await async_execute_play_media(self._client, self._app_dict, media_type, media_id)
         if res is False:
@@ -269,12 +232,7 @@ class MediaPlayerControlsMixin:
             await self.async_turn_on()
             await asyncio.sleep(0.5)
 
-        if getattr(self._client, "connected", True) is False:
-            raise HomeAssistantError(
-                "Cannot select source: TV is currently disconnected.",
-                translation_domain=DOMAIN,
-                translation_key="not_connected",
-            )
+        check_client_command_readiness(self._client)
 
         res = await async_execute_select_source(self._client, self._source_dict, self._app_dict, source)
         if res is False:
@@ -287,12 +245,7 @@ class MediaPlayerControlsMixin:
 
     async def async_select_sound_mode(self: VidaaMediaPlayer, sound_mode: str) -> None:
         """Select sound mode."""
-        if getattr(self._client, "connected", True) is False:
-            raise HomeAssistantError(
-                "Cannot set sound mode: TV is currently disconnected.",
-                translation_domain=DOMAIN,
-                translation_key="not_connected",
-            )
+        check_client_command_readiness(self._client)
         res = await self._client.async_set_sound_mode(sound_mode)
         if res is False:
             raise HomeAssistantError(

@@ -19,6 +19,7 @@ from .const import (
     DOMAIN,
 )
 from .entity import VidaaEntity
+from .helpers import check_client_command_readiness
 
 if TYPE_CHECKING:
     from . import VidaaConfigEntry
@@ -100,12 +101,7 @@ class VidaaBacklightNumber(VidaaBaseNumber):
 
     async def async_set_native_value(self, value: float) -> None:
         """Set new backlight level."""
-        if getattr(self._client, "connected", True) is False:
-            raise HomeAssistantError(
-                "Cannot set backlight: TV is currently disconnected.",
-                translation_domain=DOMAIN,
-                translation_key="not_connected",
-            )
+        check_client_command_readiness(self._client)
         res = await self._client.async_set_backlight(int(value))
         if res is False:
             raise HomeAssistantError(
@@ -148,12 +144,7 @@ class VidaaBrightnessNumber(VidaaBaseNumber):
 
     async def async_set_native_value(self, value: float) -> None:
         """Set new brightness level."""
-        if getattr(self._client, "connected", True) is False:
-            raise HomeAssistantError(
-                "Cannot set brightness: TV is currently disconnected.",
-                translation_domain=DOMAIN,
-                translation_key="not_connected",
-            )
+        check_client_command_readiness(self._client)
         res = await self._client.async_set_brightness(int(value))
         if res is False:
             raise HomeAssistantError(
@@ -196,12 +187,7 @@ class VidaaContrastNumber(VidaaBaseNumber):
 
     async def async_set_native_value(self, value: float) -> None:
         """Set new contrast level."""
-        if getattr(self._client, "connected", True) is False:
-            raise HomeAssistantError(
-                "Cannot set contrast: TV is currently disconnected.",
-                translation_domain=DOMAIN,
-                translation_key="not_connected",
-            )
+        check_client_command_readiness(self._client)
         res = await self._client.async_set_contrast(int(value))
         if res is False:
             raise HomeAssistantError(

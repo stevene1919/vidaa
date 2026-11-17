@@ -22,6 +22,7 @@ from .const import (
     LEGACY_DOMAIN,
 )
 from .entity import VidaaEntity
+from .helpers import check_client_command_readiness
 
 if TYPE_CHECKING:
     from . import VidaaConfigEntry
@@ -94,12 +95,7 @@ class VidaaPictureModeSelect(VidaaEntity, SelectEntity):
 
     async def async_select_option(self, option: str) -> None:
         """Change picture mode option."""
-        if getattr(self._client, "connected", True) is False:
-            raise HomeAssistantError(
-                "Cannot change picture mode: TV is currently disconnected.",
-                translation_domain=DOMAIN,
-                translation_key="not_connected",
-            )
+        check_client_command_readiness(self._client)
         res = await self._client.async_set_picture_mode(option)
         if res is False:
             raise HomeAssistantError(
@@ -168,12 +164,7 @@ class VidaaSoundModeSelect(VidaaEntity, SelectEntity):
 
     async def async_select_option(self, option: str) -> None:
         """Change sound mode option."""
-        if getattr(self._client, "connected", True) is False:
-            raise HomeAssistantError(
-                "Cannot change sound mode: TV is currently disconnected.",
-                translation_domain=DOMAIN,
-                translation_key="not_connected",
-            )
+        check_client_command_readiness(self._client)
         res = await self._client.async_set_sound_mode(option)
         if res is False:
             raise HomeAssistantError(

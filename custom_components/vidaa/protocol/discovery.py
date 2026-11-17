@@ -161,9 +161,7 @@ def parse_ssdp_discovery(
                 continue
             mac_clean = v.replace(":", "").replace("-", "").replace(".", "").strip()
             formatted_mac = (
-                ":".join(mac_clean[i : i + 2] for i in range(0, 12, 2)).lower()
-                if len(mac_clean) == 12
-                else v.lower()
+                ":".join(mac_clean[i : i + 2] for i in range(0, 12, 2)).lower() if len(mac_clean) == 12 else v.lower()
             )
             if k == "macwifi":
                 mac_wifi = formatted_mac
@@ -183,11 +181,7 @@ def parse_ssdp_discovery(
         secondary_mac = mac_ethernet
     else:
         mac_address = mac_wifi or mac_ethernet or mac_generic or arp_mac
-        secondary_mac = (
-            mac_ethernet
-            if mac_address == mac_wifi
-            else (mac_wifi if mac_address == mac_ethernet else None)
-        )
+        secondary_mac = mac_ethernet if mac_address == mac_wifi else (mac_wifi if mac_address == mac_ethernet else None)
 
     if secondary_mac and secondary_mac == mac_address:
         secondary_mac = None
@@ -326,10 +320,7 @@ def probe_udp_port(ip: str, timeout: float = 1.5, port: int = UDP_DISCOVERY_PORT
                     resp = {"raw": data.decode("utf-8", errors="ignore")}
 
                 name = (
-                    resp.get("devicename")
-                    or resp.get("name")
-                    or resp.get("device_name")
-                    or resp.get("friendly_name")
+                    resp.get("devicename") or resp.get("name") or resp.get("device_name") or resp.get("friendly_name")
                 )
                 model = resp.get("model") or resp.get("model_name")
                 raw_mac = resp.get("mac") or resp.get("macaddress")
@@ -349,7 +340,7 @@ def probe_udp_port(ip: str, timeout: float = 1.5, port: int = UDP_DISCOVERY_PORT
                     "mac": clean_mac,
                     "raw": resp,
                 }
-            except socket.timeout:
+            except TimeoutError:
                 break
             except Exception as err:
                 _LOGGER.debug("Error receiving UDP probe response from %s:%s: %s", ip, port, err)
@@ -368,4 +359,3 @@ async def async_probe_udp_port(
     """Non-blocking async wrapper around probe_udp_port."""
     active_loop = loop or asyncio.get_running_loop()
     return await active_loop.run_in_executor(None, probe_udp_port, ip, timeout, port)
-

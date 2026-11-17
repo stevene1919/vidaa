@@ -389,6 +389,23 @@ async def test_call_against_disconnected_tvs_raises_not_connected():
 
 
 @pytest.mark.anyio
+async def test_call_against_auth_failed_tvs_raises_auth_required():
+    """Verify that a service call targeted at an auth_failed TV raises auth_required."""
+    hass, client_living, client_kitchen = _two_tv_hass()
+    handlers = await _register_handlers(hass)
+    client_living.connected = False
+    client_living.auth_failed = True
+    client_kitchen.connected = False
+
+    call = ServiceCall(domain=DOMAIN, service=SERVICE_SEND_KEY, data={ATTR_KEY: "KEY_HOME", "entity_id": "all"})
+
+    with pytest.raises(ServiceValidationError) as err:
+        await handlers[SERVICE_SEND_KEY](call)
+
+    assert err.value.translation_key == "auth_required"
+
+
+@pytest.mark.anyio
 async def test_send_key_sequence_service():
     """Test send_key_sequence service with list and comma-separated string."""
     hass, client_living, _client_kitchen = _two_tv_hass()

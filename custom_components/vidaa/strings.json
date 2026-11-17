@@ -336,8 +336,14 @@
     "no_target_device": {
       "message": "No matching VIDAA Smart TV was found for the specified service call target."
     },
+    "auth_required": {
+      "message": "Authentication required: Re-pair TV in Settings > Integrations."
+    },
+    "turn_on_failed": {
+      "message": "Wake-on-LAN failed: TV did not wake up."
+    },
     "not_connected": {
-      "message": "Cannot send command: TV is currently disconnected."
+      "message": "TV offline: Device unreachable."
     },
     "send_key_failed": {
       "message": "Failed to send key {key}: {error}"

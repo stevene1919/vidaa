@@ -1072,6 +1072,7 @@ def mock_client():
     client.picture_settings = []
     client.sound_settings = []
     client.has_active_signal = False
+    client.auth_failed = False
     client.sync_clock = MagicMock(return_value=0)
     client.async_sync_clock = AsyncMock(return_value=0)
     client.async_connect_and_run = AsyncMock()

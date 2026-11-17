@@ -332,4 +332,3 @@ def test_probe_udp_port_timeout():
         res = probe_udp_port("192.168.50.12", timeout=0.1)
 
     assert res is None
-

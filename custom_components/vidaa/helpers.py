@@ -2,12 +2,35 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
 
 from .const import DOMAIN
+
+
+@callback
+def check_client_command_readiness(client: Any) -> None:
+    """Validate client readiness before executing an action.
+
+    Raises HomeAssistantError with translation_key='auth_required' if authentication failed.
+    Raises HomeAssistantError with translation_key='not_connected' if client is disconnected.
+    """
+    if getattr(client, "auth_failed", False) is True:
+        raise HomeAssistantError(
+            "Authentication required: Re-pair TV in Settings > Integrations.",
+            translation_domain=DOMAIN,
+            translation_key="auth_required",
+        )
+    if client is None or getattr(client, "connected", True) is False:
+        raise HomeAssistantError(
+            "TV offline: Device unreachable.",
+            translation_domain=DOMAIN,
+            translation_key="not_connected",
+        )
 
 
 @callback

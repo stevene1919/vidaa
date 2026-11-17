@@ -324,3 +324,13 @@ async def test_select_and_number_action_exceptions_and_no_optimistic_update(mock
         await bl.async_set_native_value(30)
     assert exc_info.value.translation_key == "set_picture_setting_failed"
     assert bl.native_value == 80.0
+
+    # 3. When auth_failed is True, selecting an option raises auth_required
+    mock_client.auth_failed = True
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await pic_sel.async_select_option("Dynamic")
+    assert exc_info.value.translation_key == "auth_required"
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await bl.async_set_native_value(30)
+    assert exc_info.value.translation_key == "auth_required"

@@ -1008,3 +1008,57 @@ async def test_remote_action_exceptions(mock_client, mock_entry):
     with pytest.raises(HomeAssistantError) as exc_info:
         await rem.async_turn_off()
     assert exc_info.value.translation_key == "not_connected"
+
+
+@pytest.mark.anyio
+async def test_media_player_and_remote_action_exceptions_on_auth_failed(mock_client, mock_entry):
+    """Test media player and remote raise auth_required when client.auth_failed is True."""
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    rem = HisenseVidaaRemote(client=mock_client, entry=mock_entry)
+    mock_client.auth_failed = True
+    mock_client.connected = False
+
+    # 1. async_turn_on raises auth_required
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await mp.async_turn_on()
+    assert exc_info.value.translation_key == "auth_required"
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await rem.async_turn_on()
+    assert exc_info.value.translation_key == "auth_required"
+
+    # 2. async_turn_off raises auth_required
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await mp.async_turn_off()
+    assert exc_info.value.translation_key == "auth_required"
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await rem.async_turn_off()
+    assert exc_info.value.translation_key == "auth_required"
+
+    # 3. async_send_command raises auth_required
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await rem.async_send_command(["KEY_POWER"])
+    assert exc_info.value.translation_key == "auth_required"
+
+    # 4. async_set_volume_level raises auth_required
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await mp.async_set_volume_level(0.5)
+    assert exc_info.value.translation_key == "auth_required"
+
+
+@pytest.mark.anyio
+async def test_media_player_and_remote_turn_on_failed_wol(mock_client, mock_entry):
+    """Test media player and remote raise turn_on_failed when client.async_turn_on returns False."""
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    rem = HisenseVidaaRemote(client=mock_client, entry=mock_entry)
+    mock_client.auth_failed = False
+    mock_client.async_turn_on = AsyncMock(return_value=False)
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await mp.async_turn_on()
+    assert exc_info.value.translation_key == "turn_on_failed"
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await rem.async_turn_on()
+    assert exc_info.value.translation_key == "turn_on_failed"

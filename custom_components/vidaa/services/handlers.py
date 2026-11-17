@@ -39,6 +39,12 @@ async def handle_send_key(hass: HomeAssistant, call: ServiceCall) -> dict[str, A
     target_clients = _resolve_service_targets(hass, call)
 
     for client in target_clients:
+        if getattr(client, "auth_failed", False) is True:
+            raise HomeAssistantError(
+                "Authentication required: Re-pair TV in Settings > Integrations.",
+                translation_domain=DOMAIN,
+                translation_key="auth_required",
+            )
         if getattr(client, "connected", True) is False:
             raise HomeAssistantError(
                 f"Failed to send key {key}: TV is disconnected",
@@ -84,6 +90,12 @@ async def handle_send_key_sequence(hass: HomeAssistant, call: ServiceCall) -> di
         )
 
     for client in target_clients:
+        if getattr(client, "auth_failed", False) is True:
+            raise HomeAssistantError(
+                "Authentication required: Re-pair TV in Settings > Integrations.",
+                translation_domain=DOMAIN,
+                translation_key="auth_required",
+            )
         if getattr(client, "connected", True) is False:
             raise HomeAssistantError(
                 "Failed to execute key sequence: TV is disconnected",
@@ -131,6 +143,12 @@ async def handle_change_channel(hass: HomeAssistant, call: ServiceCall) -> dict[
         )
 
     for client in target_clients:
+        if getattr(client, "auth_failed", False) is True:
+            raise HomeAssistantError(
+                "Authentication required: Re-pair TV in Settings > Integrations.",
+                translation_domain=DOMAIN,
+                translation_key="auth_required",
+            )
         if getattr(client, "connected", True) is False:
             raise HomeAssistantError(
                 "Failed to change channel: TV is disconnected",
@@ -255,6 +273,12 @@ async def handle_set_picture_setting(hass: HomeAssistant, call: ServiceCall) -> 
     menu_val = call.data.get(ATTR_MENU_VALUE)
     target_clients = _resolve_service_targets(hass, call)
     for client in target_clients:
+        if getattr(client, "auth_failed", False) is True:
+            raise HomeAssistantError(
+                "Authentication required: Re-pair TV in Settings > Integrations.",
+                translation_domain=DOMAIN,
+                translation_key="auth_required",
+            )
         if getattr(client, "connected", True) is False:
             raise HomeAssistantError(
                 f"Failed to set picture setting (menu_id={menu_id}): TV is disconnected",
@@ -287,6 +311,12 @@ async def handle_set_sound_setting(hass: HomeAssistant, call: ServiceCall) -> di
     menu_val = call.data.get(ATTR_MENU_VALUE)
     target_clients = _resolve_service_targets(hass, call)
     for client in target_clients:
+        if getattr(client, "auth_failed", False) is True:
+            raise HomeAssistantError(
+                "Authentication required: Re-pair TV in Settings > Integrations.",
+                translation_domain=DOMAIN,
+                translation_key="auth_required",
+            )
         if getattr(client, "connected", True) is False:
             raise HomeAssistantError(
                 f"Failed to set sound setting (menu_id={menu_id}): TV is disconnected",
@@ -319,6 +349,12 @@ async def handle_send_text_input(hass: HomeAssistant, call: ServiceCall) -> dict
     action = call.data.get(ATTR_ACTION, "insert")
     target_clients = _resolve_service_targets(hass, call)
     for client in target_clients:
+        if getattr(client, "auth_failed", False) is True:
+            raise HomeAssistantError(
+                "Authentication required: Re-pair TV in Settings > Integrations.",
+                translation_domain=DOMAIN,
+                translation_key="auth_required",
+            )
         if getattr(client, "connected", True) is False:
             raise HomeAssistantError(
                 "Failed to send text input: TV is disconnected",

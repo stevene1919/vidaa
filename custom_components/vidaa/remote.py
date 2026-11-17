@@ -28,6 +28,7 @@ from .const import (
     DOMAIN,
 )
 from .entity import VidaaEntity
+from .helpers import check_client_command_readiness
 
 if TYPE_CHECKING:
     from . import VidaaConfigEntry
@@ -93,7 +94,7 @@ class VidaaRemote(VidaaEntity, RemoteEntity):
     @property
     def available(self) -> bool:
         """Return true if remote is available."""
-        if getattr(self._client, "auth_failed", False):
+        if getattr(self._client, "auth_failed", False) is True:
             return False
         return bool(self._entry_id and (self._client.access_token or self._mac))
 
@@ -106,30 +107,42 @@ class VidaaRemote(VidaaEntity, RemoteEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the TV on."""
+        if getattr(self._client, "auth_failed", False) is True:
+            raise HomeAssistantError(
+                "Authentication required: Re-pair TV in Settings > Integrations.",
+                translation_domain=DOMAIN,
+                translation_key="auth_required",
+            )
         mac_targets = []
         if self._options.get(CONF_ENABLE_WOL, DEFAULT_ENABLE_WOL):
             if self._mac:
                 mac_targets.append(self._mac)
-            sec_mac = self._options.get(CONF_SECONDARY_MAC_ADDRESS) or getattr(
-                self._entry, "data", {}
-            ).get(CONF_SECONDARY_MAC_ADDRESS)
+            sec_mac = self._options.get(CONF_SECONDARY_MAC_ADDRESS) or getattr(self._entry, "data", {}).get(
+                CONF_SECONDARY_MAC_ADDRESS
+            )
             if sec_mac and sec_mac not in mac_targets:
                 mac_targets.append(sec_mac)
 
         success = await self._client.async_turn_on(mac_targets if mac_targets else None)
         if success is False:
             raise HomeAssistantError(
-                "Failed to turn on TV: TV is disconnected and Wake-on-LAN is not configured or failed",
+                "Wake-on-LAN failed: TV did not wake up.",
                 translation_domain=DOMAIN,
-                translation_key="not_connected",
+                translation_key="turn_on_failed",
             )
         self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the TV off."""
+        if getattr(self._client, "auth_failed", False) is True:
+            raise HomeAssistantError(
+                "Authentication required: Re-pair TV in Settings > Integrations.",
+                translation_domain=DOMAIN,
+                translation_key="auth_required",
+            )
         if getattr(self._client, "connected", True) is False and self._client.is_on:
             raise HomeAssistantError(
-                "Cannot turn off TV: TV is currently disconnected.",
+                "TV offline: Device unreachable.",
                 translation_domain=DOMAIN,
                 translation_key="not_connected",
             )
@@ -145,12 +158,7 @@ class VidaaRemote(VidaaEntity, RemoteEntity):
 
     async def async_send_command(self, command: Iterable[str], **kwargs: Any) -> None:
         """Send a list of commands to the TV."""
-        if getattr(self._client, "connected", True) is False:
-            raise HomeAssistantError(
-                "Cannot send remote commands: TV is currently disconnected.",
-                translation_domain=DOMAIN,
-                translation_key="not_connected",
-            )
+        check_client_command_readiness(self._client)
         try:
             default_delay = float(self._options.get(CONF_KEY_DELAY, DEFAULT_KEY_DELAY))
         except (ValueError, TypeError):

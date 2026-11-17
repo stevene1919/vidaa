@@ -334,6 +334,12 @@
     },
     "unhandled_trigger_type": {
       "message": "不支持触发器类型 {trigger_type}。"
+    },
+    "auth_required": {
+      "message": "Authentication required: Re-pair TV in Settings > Integrations."
+    },
+    "turn_on_failed": {
+      "message": "Wake-on-LAN failed: TV did not wake up."
     }
   },
   "selector": {

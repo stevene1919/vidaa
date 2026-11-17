@@ -254,4 +254,3 @@ def test_dispatcher_hotel_mode_sourcelist() -> None:
         '{"sourcelist": [{"sourceName": "HDMI1", "is_signal": 1}], "hotel_mode": "1"}',
     )
     assert client.hotel_mode is True
-

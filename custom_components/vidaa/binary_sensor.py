@@ -178,7 +178,7 @@ class VidaaAuthProblemBinarySensor(VidaaEntity, BinarySensorEntity):
     @property
     def is_on(self) -> bool:
         """Return True when TV has rejected authentication and reauth is required."""
-        return bool(getattr(self._client, "auth_failed", False))
+        return getattr(self._client, "auth_failed", False) is True
 
     async def async_added_to_hass(self) -> None:
         """Register callbacks when added."""

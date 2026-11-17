@@ -160,9 +160,7 @@ class ReauthFlowMixin:
 
         from ..protocol.wol import send_wake_on_lan
 
-        await self.hass.async_add_executor_job(
-            partial(send_wake_on_lan, list(dict.fromkeys(macs)), ip=self.ip_address)
-        )
+        await self.hass.async_add_executor_job(partial(send_wake_on_lan, list(dict.fromkeys(macs)), ip=self.ip_address))
 
         deadline = time.monotonic() + REAUTH_WAKE_TIMEOUT
         while time.monotonic() < deadline:

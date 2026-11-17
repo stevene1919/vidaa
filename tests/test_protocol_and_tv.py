@@ -358,3 +358,67 @@ async def test_set_volume_and_async_set_volume() -> None:
     assert mqtt_mock.publish.call_count == 2
     await client.async_set_volume(40)
     assert client.async_publish.call_count == 2
+
+
+@pytest.mark.anyio
+async def test_async_turn_on_tv_reconnect_race_skips_key_power_when_already_awake() -> None:
+    """When TV wakes via WoL and reconnects MQTT, do not send KEY_POWER if initial state reports awake."""
+    from unittest.mock import AsyncMock
+
+    from custom_components.vidaa.tv.actions_power import async_turn_on_tv
+
+    client = VidaaClient(ip="192.168.50.12", client_id="cid")
+    client.connected = False
+    client.is_on = False
+    client.has_active_signal = False
+    client.send_wake_on_lan = MagicMock(return_value=True)
+    client.async_send_key = AsyncMock(return_value=True)
+
+    async def fake_ensure_connected() -> bool:
+        client.connected = True
+        return True
+
+    async def fake_sleep(delay: float) -> None:
+        if delay >= 1.0:
+            # Simulate TV broadcasting sourceswitch/gettvinfo within the 1.0s settle window
+            client.is_on = True
+            client.has_active_signal = True
+
+    client.async_ensure_connected = AsyncMock(side_effect=fake_ensure_connected)
+
+    with patch("custom_components.vidaa.tv.actions_power.asyncio.sleep", side_effect=fake_sleep):
+        res = await async_turn_on_tv(client, mac_targets=["e8:51:77:ec:98:1c"])
+
+    assert res is True
+    assert client.is_on is True
+    client.send_wake_on_lan.assert_called_once()
+    client.async_send_key.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_async_turn_on_tv_reconnect_sends_key_power_when_still_in_standby() -> None:
+    """When TV reconnects MQTT and remains in fake_sleep_0 standby, send KEY_POWER to wake screen."""
+    from unittest.mock import AsyncMock
+
+    from custom_components.vidaa.tv.actions_power import async_turn_on_tv
+
+    client = VidaaClient(ip="192.168.50.12", client_id="cid")
+    client.connected = False
+    client.is_on = False
+    client.has_active_signal = False
+    client.send_wake_on_lan = MagicMock(return_value=True)
+    client.async_send_key = AsyncMock(return_value=True)
+
+    async def fake_ensure_connected() -> bool:
+        client.connected = True
+        return True
+
+    client.async_ensure_connected = AsyncMock(side_effect=fake_ensure_connected)
+
+    with patch("custom_components.vidaa.tv.actions_power.asyncio.sleep", new_callable=AsyncMock):
+        res = await async_turn_on_tv(client, mac_targets=["e8:51:77:ec:98:1c"])
+
+    assert res is True
+    assert client.is_on is True
+    client.send_wake_on_lan.assert_called_once()
+    client.async_send_key.assert_awaited_once_with("KEY_POWER")

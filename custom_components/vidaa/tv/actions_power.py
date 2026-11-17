@@ -101,14 +101,27 @@ def turn_on_tv(
             )
     else:
         _LOGGER.debug(
-            "[%s] TV MQTT not connected. Attempting reconnect to send KEY_POWER",
+            "[%s] TV MQTT not connected. Attempting reconnect to check power state",
             getattr(client, "ip", "unknown"),
         )
         try:
             if client.ensure_connected():
                 for _ in range(50):
                     if client.connected:
-                        client.send_key("KEY_POWER")
+                        # Allow initial state broadcast (ui_service/state, gettvinfo) to arrive
+                        # so we do not toggle off a TV that already woke via Wake-on-LAN.
+                        time.sleep(1.0)
+                        if not client.is_on and getattr(client, "has_active_signal", False) is not True:
+                            _LOGGER.debug(
+                                "[%s] TV reconnected in standby/fake_sleep. Sending KEY_POWER to wake screen",
+                                getattr(client, "ip", "unknown"),
+                            )
+                            client.send_key("KEY_POWER")
+                        else:
+                            _LOGGER.debug(
+                                "[%s] TV reconnected and is already awake. Skipping KEY_POWER to prevent powering down",
+                                getattr(client, "ip", "unknown"),
+                            )
                         break
                     time.sleep(0.1)
         except Exception as e:
@@ -157,15 +170,31 @@ async def async_turn_on_tv(
         return True
 
     _LOGGER.debug(
-        "[%s] TV MQTT not connected. Attempting reconnect to send KEY_POWER",
+        "[%s] TV MQTT not connected. Attempting reconnect to check power state",
         getattr(client, "ip", "unknown"),
     )
     try:
         if await client.async_ensure_connected():
             for _ in range(50):
                 if client.connected:
-                    res = await client.async_send_key("KEY_POWER")
-                    if res is not False:
+                    # Wait for the TV's initial state broadcast (ui_service/state, gettvinfo)
+                    # before deciding whether KEY_POWER is needed, preventing a race where
+                    # a TV waking from deep sleep via WoL is toggled right back off.
+                    await asyncio.sleep(1.0)
+                    if not client.is_on and getattr(client, "has_active_signal", False) is not True:
+                        _LOGGER.debug(
+                            "[%s] TV reconnected in standby/fake_sleep. Sending KEY_POWER to wake screen",
+                            getattr(client, "ip", "unknown"),
+                        )
+                        res = await client.async_send_key("KEY_POWER")
+                        if res is not False:
+                            client.is_on = True
+                            return True
+                    else:
+                        _LOGGER.debug(
+                            "[%s] TV reconnected and is already awake. Skipping KEY_POWER to prevent powering down",
+                            getattr(client, "ip", "unknown"),
+                        )
                         client.is_on = True
                         return True
                     break

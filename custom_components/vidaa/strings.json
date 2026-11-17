@@ -23,7 +23,7 @@
       },
       "reauth_confirm": {
         "title": "Reauthenticate VIDAA TV",
-        "description": "Home Assistant needs to pair with your VIDAA TV ({ip_address}) again. Press Submit to display the PIN on your TV screen."
+        "description": "Home Assistant needs to pair with your VIDAA TV ({ip_address}) again. Press Submit: if the TV is in standby, Home Assistant will try to wake it, then a PIN will appear on the TV screen."
       },
       "reconfigure": {
         "title": "Reconfigure VIDAA Smart TV",
@@ -59,6 +59,7 @@
     },
     "error": {
       "cannot_connect": "Failed to connect to the TV.",
+      "tv_not_awake": "The TV did not respond. Turn it on with the remote, wait until the picture appears, then press Submit again.",
       "invalid_auth": "Invalid PIN code. Please try again.",
       "certs_not_found": "Certificate or private key file was not found at the specified path. Please check the file location and permissions.",
       "unknown": "An unknown error occurred.",

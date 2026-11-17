@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
+import time
 from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
@@ -20,6 +23,7 @@ from ..const import (
     CONF_IP_ADDRESS,
     CONF_KEYFILE,
     CONF_MAC_ADDRESS,
+    CONF_SECONDARY_MAC_ADDRESS,
     CONF_USE_SSL,
     DEFAULT_AUTH_PROFILE,
     DEFAULT_BRAND,
@@ -33,6 +37,9 @@ if TYPE_CHECKING:
     from ..config_flow import VidaaConfigFlow
 
 _LOGGER = logging.getLogger(__name__)
+
+REAUTH_WAKE_TIMEOUT = 20.0
+REAUTH_BROKER_SETTLE = 3.0
 
 
 class ReauthFlowMixin:
@@ -117,6 +124,54 @@ class ReauthFlowMixin:
         self.keyfile = current_options.get(CONF_KEYFILE, entry_data.get(CONF_KEYFILE))
         return await self.async_step_reauth_confirm()
 
+    async def _async_port_open(self, ip: str, port: int, timeout: float = 1.0) -> bool:
+        """Check if target TCP port is open and accepting connections."""
+        try:
+            conn = asyncio.open_connection(ip, port)
+            _reader, writer = await asyncio.wait_for(conn, timeout=timeout)
+            writer.close()
+            with contextlib.suppress(Exception):
+                await writer.wait_closed()
+            return True
+        except Exception:
+            return False
+
+    async def _async_wake_tv_for_pairing(self: VidaaConfigFlow) -> bool:
+        """Ensure the TV is awake enough to display a PIN. Returns True when reachable."""
+        if not self.ip_address:
+            return False
+        if await self._async_port_open(self.ip_address, 36669, timeout=1.5):
+            return True
+
+        macs = [
+            m
+            for m in (
+                self.mac_address,
+                self._reauth_entry.options.get(CONF_SECONDARY_MAC_ADDRESS) if self._reauth_entry else None,
+                self._reauth_entry.data.get(CONF_SECONDARY_MAC_ADDRESS) if self._reauth_entry else None,
+            )
+            if m
+        ]
+        if not macs:
+            return False
+
+        _LOGGER.info("[%s] TV not reachable on port 36669; sending Wake-on-LAN before reauth", self.ip_address)
+        from functools import partial
+
+        from ..protocol.wol import send_wake_on_lan
+
+        await self.hass.async_add_executor_job(
+            partial(send_wake_on_lan, list(dict.fromkeys(macs)), ip=self.ip_address)
+        )
+
+        deadline = time.monotonic() + REAUTH_WAKE_TIMEOUT
+        while time.monotonic() < deadline:
+            if await self._async_port_open(self.ip_address, 36669, timeout=1.0):
+                await asyncio.sleep(REAUTH_BROKER_SETTLE)
+                return True
+            await asyncio.sleep(1.0)
+        return False
+
     async def async_step_reauth_confirm(
         self: VidaaConfigFlow, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
@@ -126,6 +181,14 @@ class ReauthFlowMixin:
             # Disconnect any existing running client for this entry to prevent
             # duplicate MQTT Client ID collisions during the reauth flow.
             await self._async_disconnect_existing_client()
+
+            if not await self._async_wake_tv_for_pairing():
+                errors["base"] = "tv_not_awake"
+                return self.async_show_form(
+                    step_id="reauth_confirm",
+                    description_placeholders={"ip_address": self.ip_address or ""},
+                    errors=errors,
+                )
 
             if self.use_ssl and not (self.certfile and self.keyfile):
                 await self._async_resolve_ssl_certs()

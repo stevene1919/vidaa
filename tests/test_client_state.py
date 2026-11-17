@@ -410,6 +410,27 @@ def test_generic_manufacturer_filtered_in_device_info_update():
     assert client.model_name == "65U7G"
 
 
+def test_device_info_update_extracts_dual_mac():
+    """Test apply_device_info_update extracts eth0 and wlan0 MAC addresses."""
+    from custom_components.vidaa.tv.state import apply_device_info_update
+
+    client = MagicMock()
+    client.mac_ethernet = None
+    client.mac_wifi = None
+
+    apply_device_info_update(
+        client,
+        {
+            "eth0": "e43bc957f14f",
+            "wlan0": "e85177ec981c",
+            "model_name": "58A53FXVT",
+        },
+    )
+
+    assert client.mac_ethernet == "e4:3b:c9:57:f1:4f"
+    assert client.mac_wifi == "e8:51:77:ec:98:1c"
+
+
 @pytest.mark.anyio
 async def test_async_send_command_text_prefixes():
     """Test async_send_command parses and dispatches text and clear commands."""

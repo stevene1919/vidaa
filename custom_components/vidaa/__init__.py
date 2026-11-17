@@ -518,21 +518,64 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
                     updates["manufacturer"] = client.manufacturer
                 if client.firmware_version and client.firmware_version != device.sw_version:
                     updates["sw_version"] = client.firmware_version
+                # Merge discovered MAC connections into device registry if live client reported them
+                if client.mac_wifi or client.mac_ethernet:
+                    new_connections = (
+                        set(device.connections)
+                        if isinstance(getattr(device, "connections", None), (set, list, tuple))
+                        else set()
+                    )
+                    for mac_candidate in (client.mac_wifi, client.mac_ethernet):
+                        if mac_candidate:
+                            new_connections.add((dr.CONNECTION_NETWORK_MAC, dr.format_mac(mac_candidate)))
+                    if isinstance(getattr(device, "connections", None), set) and new_connections != device.connections:
+                        updates["merge_connections"] = new_connections
+
                 if updates:
                     dev_reg.async_update_device(device.id, **updates)
-                    new_data = dict(entry.data)
-                    data_changed = False
-                    if "model" in updates and updates["model"] != new_data.get(CONF_MODEL):
-                        new_data[CONF_MODEL] = updates["model"]
-                        data_changed = True
-                    if "manufacturer" in updates and updates["manufacturer"] != new_data.get(CONF_MANUFACTURER):
-                        new_data[CONF_MANUFACTURER] = updates["manufacturer"]
-                        data_changed = True
-                    if "sw_version" in updates and updates["sw_version"] != new_data.get(CONF_SW_VERSION):
-                        new_data[CONF_SW_VERSION] = updates["sw_version"]
-                        data_changed = True
-                    if data_changed:
-                        hass.config_entries.async_update_entry(entry, data=new_data)
+
+                new_data = dict(entry.data)
+                data_changed = False
+
+                # Auto-enrich primary MAC if missing
+                if not new_data.get(CONF_MAC_ADDRESS) and (client.mac_wifi or client.mac_ethernet):
+                    new_data[CONF_MAC_ADDRESS] = dr.format_mac(client.mac_wifi or client.mac_ethernet)
+                    data_changed = True
+
+                # Auto-enrich secondary MAC if missing
+                primary_mac = new_data.get(CONF_MAC_ADDRESS)
+                detected_sec = None
+                if client.mac_wifi and client.mac_ethernet and client.mac_wifi != client.mac_ethernet:
+                    if primary_mac == client.mac_wifi:
+                        detected_sec = client.mac_ethernet
+                    elif primary_mac == client.mac_ethernet:
+                        detected_sec = client.mac_wifi
+                    else:
+                        detected_sec = client.mac_ethernet
+                elif client.mac_ethernet and primary_mac != client.mac_ethernet:
+                    detected_sec = client.mac_ethernet
+                elif client.mac_wifi and primary_mac != client.mac_wifi:
+                    detected_sec = client.mac_wifi
+
+                if (
+                    detected_sec
+                    and not entry.options.get(CONF_SECONDARY_MAC_ADDRESS)
+                    and new_data.get(CONF_SECONDARY_MAC_ADDRESS) != detected_sec
+                ):
+                    new_data[CONF_SECONDARY_MAC_ADDRESS] = detected_sec
+                    data_changed = True
+
+                if "model" in updates and updates["model"] != new_data.get(CONF_MODEL):
+                    new_data[CONF_MODEL] = updates["model"]
+                    data_changed = True
+                if "manufacturer" in updates and updates["manufacturer"] != new_data.get(CONF_MANUFACTURER):
+                    new_data[CONF_MANUFACTURER] = updates["manufacturer"]
+                    data_changed = True
+                if "sw_version" in updates and updates["sw_version"] != new_data.get(CONF_SW_VERSION):
+                    new_data[CONF_SW_VERSION] = updates["sw_version"]
+                    data_changed = True
+                if data_changed:
+                    hass.config_entries.async_update_entry(entry, data=new_data)
         except Exception as err:
             _LOGGER.debug("[%s] Dynamic device registry enrichment failed: %s", client.ip, err)
 

@@ -136,6 +136,18 @@ def apply_device_info_update(client: VidaaClient, data: Any) -> None:
     if firmware_version and str(firmware_version).strip():
         client.firmware_version = str(firmware_version).strip()
 
+    mac_eth = data.get("eth0") or data.get("mac_eth") or data.get("mac_ethernet")
+    if mac_eth and str(mac_eth).strip():
+        cleaned_eth = str(mac_eth).replace(":", "").replace("-", "").lower().strip()
+        if len(cleaned_eth) == 12:
+            client.mac_ethernet = ":".join(cleaned_eth[i : i + 2] for i in range(0, 12, 2))
+
+    mac_wifi = data.get("wlan0") or data.get("mac_wifi") or data.get("mac_wlan")
+    if mac_wifi and str(mac_wifi).strip():
+        cleaned_wifi = str(mac_wifi).replace(":", "").replace("-", "").lower().strip()
+        if len(cleaned_wifi) == 12:
+            client.mac_wifi = ":".join(cleaned_wifi[i : i + 2] for i in range(0, 12, 2))
+
     # gettvinfo provides authoritative live power state via fake_sleep_state:
     # 0 = standby (fake_sleep_0), 1 = awake (fake_sleep_1 / on).
     if data.get("fake_sleep", 1) in (1, "1", True) and "fake_sleep_state" in data:
@@ -298,6 +310,8 @@ class TvStateMixin:
         self.model_name: str | None = None
         self.manufacturer: str | None = None
         self.firmware_version: str | None = None
+        self.mac_wifi: str | None = None
+        self.mac_ethernet: str | None = None
         self.clock_offset: int = 0
         self.last_clock_sync: float = 0.0
         self.tv_timestamp: int | None = None

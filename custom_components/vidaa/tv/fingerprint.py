@@ -276,11 +276,15 @@ def query_upnp_descriptor(ip: str, timeout: float = 2.0) -> dict[str, Any]:
 
     for port in UPNP_PORTS:
         try:
-            if not info["tv_timestamp"]:
-                info["tv_timestamp"] = get_tv_timestamp(ip, timeout=timeout)
             url = f"http://{ip}:{port}/MediaServer/rendererdevicedesc.xml"
             req = urllib.request.Request(url, headers={"User-Agent": "HisenseVIDAATestClient"})
             with urllib.request.urlopen(req, timeout=timeout) as response:
+                if not info["tv_timestamp"]:
+                    date_str = response.headers.get("Date") if hasattr(response, "headers") else None
+                    if date_str:
+                        with contextlib.suppress(Exception):
+                            dt = email.utils.parsedate_to_datetime(date_str)
+                            info["tv_timestamp"] = int(dt.timestamp())
                 content = response.read().decode("utf-8", errors="ignore")
                 parsed_desc = parse_upnp_renderer_descriptor(content)
                 info.update({key: val for key, val in parsed_desc.items() if val is not None})

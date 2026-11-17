@@ -60,7 +60,7 @@ def test_get_device_fingerprint():
     mock_response.read.return_value = sample_xml.encode("utf-8")
     mock_response.__enter__.return_value = mock_response
 
-    with patch("urllib.request.urlopen", return_value=mock_response):
+    with patch("urllib.request.urlopen", return_value=mock_response) as mock_urlopen:
         fp = get_device_fingerprint("192.168.50.12")
         assert fp["friendly_name"] == "Living Room TV"
         assert fp["model_name"] == "65U8N"
@@ -69,6 +69,10 @@ def test_get_device_fingerprint():
         assert fp["mac_wifi"] == "E85177EC981C"
         assert fp["mac_ethernet"] == "E43BC957F14F"
         assert fp["platform"] == "1"
+        expected_dt = email.utils.parsedate_to_datetime("Fri, 11 Sep 2026 12:00:00 GMT")
+        assert fp["tv_timestamp"] == int(expected_dt.timestamp())
+        # Single-pass UPnP query: extracts both descriptor and Date header in 1 request
+        assert mock_urlopen.call_count == 1
 
 
 def test_get_device_fingerprint_malformed_xml():
@@ -319,11 +323,10 @@ def test_probe_udp_port_success():
 
 def test_probe_udp_port_timeout():
     """Test UDP port 36671 probe timing out gracefully returns None."""
-    import socket
     from custom_components.vidaa.protocol.discovery import probe_udp_port
 
     mock_sock = MagicMock()
-    mock_sock.recvfrom.side_effect = socket.timeout()
+    mock_sock.recvfrom.side_effect = TimeoutError()
 
     with patch("socket.socket", return_value=mock_sock):
         res = probe_udp_port("192.168.50.12", timeout=0.1)

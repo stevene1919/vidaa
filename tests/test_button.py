@@ -54,6 +54,7 @@ async def test_button_entities(mock_client, mock_entry):
     b_reauth.hass = hass
     assert b_reauth.unique_id == "test_entry_id_trigger_reauth"
     await b_reauth.async_press()
+    mock_client._dispatch_auth_failed.assert_called_once()
     mock_entry.async_start_reauth.assert_called_once_with(hass)
 
     added_buttons = []

@@ -74,8 +74,35 @@ class VidaaForceReconnectButton(VidaaBaseButton):
             )
         _LOGGER.info("Manually forcing MQTT reconnection to TV at %s", self._client.ip)
         await self._client.async_disconnect()
+
+        # Reset backoff counters so manual force reconnect attempts immediately
+        if hasattr(self._client, "_token_manager"):
+            self._client._token_manager.rejected_refresh_failures = 0
+            self._client._token_manager.broker_rejection_failures = 0
+            self._client._token_manager.last_refresh_attempt = 0.0
+
         try:
             await self._client.async_connect_and_run()
+            # Wait briefly to confirm successful connection or surface immediate rejection
+            for _ in range(30):
+                if getattr(self._client, "connected", False) is True:
+                    return
+                if getattr(self._client, "auth_failed", False) is True:
+                    raise HomeAssistantError(
+                        "Authentication required: Re-pair TV in Settings > Integrations.",
+                        translation_domain=DOMAIN,
+                        translation_key="auth_required",
+                    )
+                await asyncio.sleep(0.1)
+
+            if getattr(self._client, "connected", False) is not True:
+                raise HomeAssistantError(
+                    f"Failed to reconnect to TV at {self._client.ip}: device unreachable",
+                    translation_domain=DOMAIN,
+                    translation_key="not_connected",
+                )
+        except HomeAssistantError:
+            raise
         except Exception as err:
             if getattr(self._client, "auth_failed", False) is True:
                 raise HomeAssistantError(
@@ -174,6 +201,8 @@ class VidaaTriggerReauthButton(VidaaBaseButton):
     async def async_press(self) -> None:
         """Handle button press to trigger re-authentication flow."""
         _LOGGER.info("[%s] Manually triggering re-pairing flow for TV", self._client.ip)
+        if hasattr(self._client, "_dispatch_auth_failed"):
+            self._client._dispatch_auth_failed()
         self._entry.async_start_reauth(self.hass)
 
 

@@ -469,3 +469,114 @@ async def test_manual_ip_upnp_brand_autodetect(monkeypatch):
     assert flow.manufacturer == "Loewe"
     assert len(created_clients) == 1
     assert created_clients[0].brand == "loe"
+
+
+@pytest.mark.anyio
+async def test_ssdp_discovery_multi_tv_offers_new_tv():
+    """Verify SSDP discovery offers a second TV when a different TV is already configured."""
+    hass = MagicMock(spec=HomeAssistant)
+    hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
+
+    flow = VidaaConfigFlow()
+    flow.hass = hass
+    flow.context = {}
+
+    # Simulate existing TV 1 in config entries
+    existing_entry = MagicMock()
+    existing_entry.unique_id = "e8:51:77:ec:98:1c"
+    existing_entry.data = {CONF_IP_ADDRESS: "192.168.50.12", CONF_MAC_ADDRESS: "e8:51:77:ec:98:1c"}
+    flow._async_current_entries = MagicMock(return_value=[existing_entry])
+
+    flow.async_set_unique_id = AsyncMock(return_value=None)
+    flow._abort_if_unique_id_configured = MagicMock()
+
+    # Discovery arrives for TV 2 (different MAC & IP)
+    discovery_info = SsdpServiceInfo(
+        ssdp_usn="uuid:87654321-4321-8765-4321-876543210000::urn:schemas-upnp-org:device:MediaRenderer:1",
+        ssdp_st="urn:schemas-upnp-org:device:MediaRenderer:1",
+        ssdp_location="http://192.168.50.15:38400/MediaServer/rendererdevicedesc.xml",
+        ssdp_headers={"_host": "192.168.50.15"},
+        upnp={
+            "friendlyName": "Bedroom TV",
+            "manufacturer": "Hisense",
+            "modelName": "58A53FXVT",
+            "modelDescription": "vidaa_support=1\nbrand=his\nmacWifi=aa:bb:cc:dd:ee:02\n",
+        },
+    )
+
+    result = await flow.async_step_ssdp(discovery_info)
+    assert result["type"] == "form"
+    assert result["step_id"] == "discovery_confirm"
+    assert flow.ip_address == "192.168.50.15"
+    assert flow.mac_address == "aa:bb:cc:dd:ee:02"
+    flow.async_set_unique_id.assert_awaited_once_with("aa:bb:cc:dd:ee:02")
+    flow._abort_if_unique_id_configured.assert_called_once_with(updates={CONF_IP_ADDRESS: "192.168.50.15"})
+
+
+@pytest.mark.anyio
+async def test_ssdp_discovery_dhcp_renewal_updates_ip_and_aborts():
+    """Verify SSDP discovery of an existing TV that renewed DHCP IP updates the IP and aborts."""
+    from homeassistant.data_entry_flow import AbortFlow
+
+    hass = MagicMock(spec=HomeAssistant)
+    hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
+
+    flow = VidaaConfigFlow()
+    flow.hass = hass
+    flow.context = {}
+
+    flow.async_set_unique_id = AsyncMock(return_value=None)
+    # When unique ID is already configured, HA's _abort_if_unique_id_configured raises AbortFlow("already_configured")
+    flow._abort_if_unique_id_configured = MagicMock(side_effect=AbortFlow("already_configured"))
+
+    discovery_info = SsdpServiceInfo(
+        ssdp_usn="uuid:12345678-1234-5678-1234-567812345678::urn:schemas-upnp-org:device:MediaRenderer:1",
+        ssdp_st="urn:schemas-upnp-org:device:MediaRenderer:1",
+        ssdp_location="http://192.168.50.99:38400/MediaServer/rendererdevicedesc.xml",
+        ssdp_headers={"_host": "192.168.50.99"},
+        upnp={
+            "friendlyName": "Living Room TV",
+            "manufacturer": "Hisense",
+            "modelName": "65U7G",
+            "modelDescription": "vidaa_support=1\nbrand=his\nmacWifi=e8:51:77:ec:98:1c\n",
+        },
+    )
+
+    with pytest.raises(AbortFlow) as exc_info:
+        await flow.async_step_ssdp(discovery_info)
+
+    assert exc_info.value.reason == "already_configured"
+    flow._abort_if_unique_id_configured.assert_called_once_with(updates={CONF_IP_ADDRESS: "192.168.50.99"})
+
+
+@pytest.mark.anyio
+async def test_ssdp_discovery_duplicate_ip_aborts_without_mac():
+    """Verify SSDP discovery aborts when IP matches an existing entry even if MAC is not yet resolved."""
+    hass = MagicMock(spec=HomeAssistant)
+    hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
+
+    flow = VidaaConfigFlow()
+    flow.hass = hass
+    flow.context = {}
+
+    existing_entry = MagicMock()
+    existing_entry.data = {CONF_IP_ADDRESS: "192.168.50.12"}
+    flow._async_current_entries = MagicMock(return_value=[existing_entry])
+    flow.async_set_unique_id = AsyncMock()
+
+    discovery_info = SsdpServiceInfo(
+        ssdp_usn="uuid:dummy::urn:schemas-upnp-org:device:MediaRenderer:1",
+        ssdp_st="urn:schemas-upnp-org:device:MediaRenderer:1",
+        ssdp_location="http://192.168.50.12:38400/MediaServer/rendererdevicedesc.xml",
+        ssdp_headers={"_host": "192.168.50.12"},
+        upnp={
+            "friendlyName": "Living Room TV",
+            "manufacturer": "Hisense",
+            "modelName": "65U7G",
+            "modelDescription": "vidaa_support=1\n",
+        },
+    )
+
+    result = await flow.async_step_ssdp(discovery_info)
+    assert result["type"] == "abort"
+    assert result["reason"] == "already_configured"

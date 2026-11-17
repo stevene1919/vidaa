@@ -254,3 +254,32 @@ def test_dispatcher_hotel_mode_sourcelist() -> None:
         '{"sourcelist": [{"sourceName": "HDMI1", "is_signal": 1}], "hotel_mode": "1"}',
     )
     assert client.hotel_mode is True
+
+
+def test_dispatcher_tvsleep_broadcast_dispatches_fake_sleep_0() -> None:
+    """tvsleep broadcast announcement is treated immediately as fake_sleep_0 without waiting for keepalive."""
+    client = _create_test_client()
+    dispatched_states = []
+    client._dispatch_state_update = lambda state: dispatched_states.append(state)
+
+    dispatch_incoming_mqtt_message(
+        client,
+        f"{client.topics.broadcast}platform_service/actions/tvsleep",
+        "",
+    )
+    assert dispatched_states == [{"statetype": "fake_sleep_0"}]
+
+
+def test_dispatcher_unrelated_broadcast_does_not_disturb_power_state() -> None:
+    """Unrelated broadcasts like hotelmodechange must never overwrite power state or dispatch fake states."""
+    client = _create_test_client()
+    dispatched_states = []
+    client._dispatch_state_update = lambda state: dispatched_states.append(state)
+
+    dispatch_incoming_mqtt_message(
+        client,
+        f"{client.topics.broadcast}ui_service/data/hotelmodechange",
+        '{"hotel_mode": "on"}',
+    )
+    assert client.hotel_mode is True
+    assert dispatched_states == []

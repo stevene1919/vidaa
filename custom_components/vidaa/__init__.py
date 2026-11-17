@@ -619,5 +619,5 @@ async def async_unload_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> bo
     if unload_ok:
         if client:
             await client.async_disconnect()
-        await async_unload_services(hass)
+        await async_unload_services(hass, current_entry=entry)
     return unload_ok

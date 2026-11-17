@@ -121,6 +121,40 @@ async def test_services_are_registered_again_after_last_entry_is_reloaded(mock_e
 
 
 @pytest.mark.anyio
+async def test_multi_tv_services_persist_until_last_entry_unloaded(mock_entry, mock_client, monkeypatch):
+    """When multiple TV entries are configured, unloading one preserves domain services until the last entry unloads."""
+    hass = _setup_hass(mock_entry, mock_client, monkeypatch)
+
+    # Create second entry double
+    entry_2 = MagicMock(spec=ConfigEntry)
+    entry_2.entry_id = "test_entry_2"
+    entry_2.unique_id = "e4:3b:c9:57:f1:4f"
+    entry_2.data = {
+        CONF_IP_ADDRESS: "192.168.50.15",
+        CONF_MAC_ADDRESS: "e4:3b:c9:57:f1:4f",
+        CONF_CLIENT_ID: "client_2",
+        CONF_ACCESS_TOKEN: "valid_token",
+        CONF_BRAND: "his",
+        CONF_USE_SSL: True,
+    }
+    entry_2.options = {"enable_remote": True}
+    entry_2.runtime_data = None
+
+    # Setup both entries
+    await async_setup_entry(hass, mock_entry)
+    await async_setup_entry(hass, entry_2)
+    assert {service for _, service in hass.services.registered} == set(ALL_SERVICES)
+
+    # Unload first entry: services must REMAIN because entry_2 is still loaded
+    assert await async_unload_entry(hass, mock_entry) is True
+    assert {service for _, service in hass.services.registered} == set(ALL_SERVICES)
+
+    # Unload second (last) entry: services are cleanly unregistered
+    assert await async_unload_entry(hass, entry_2) is True
+    assert hass.services.registered == {}
+
+
+@pytest.mark.anyio
 async def test_connect_failure_raises_config_entry_not_ready(mock_entry, mock_client, monkeypatch):
     """[F10-leg2] a missing/invalid cert must fail setup cleanly, not leak a FileNotFoundError."""
     mock_entry.runtime_data = None

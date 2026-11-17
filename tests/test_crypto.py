@@ -421,3 +421,30 @@ def test_client_skips_cert_resolution_when_unneeded():
         mock_resolve.assert_not_called()
         assert client3.certfile == "/path/to/cert.pem"
         assert client3.keyfile == "/path/to/key.pem"
+
+
+def test_generate_initial_credentials_unique_per_tv_mac():
+    """Verify distinct TV hardware MACs generate unique MQTT client IDs and topic paths to prevent broker collisions."""
+    from custom_components.vidaa.protocol.crypto import generate_initial_credentials
+    from custom_components.vidaa.protocol.topics import build_topic_paths
+
+    client_id_1, _, _ = generate_initial_credentials(mac="E8:51:77:EC:98:1C", brand="his")
+    client_id_2, _, _ = generate_initial_credentials(mac="E4:3B:C9:57:F1:4F", brand="his")
+    client_id_toshiba, _, _ = generate_initial_credentials(mac="E8:51:77:EC:98:1C", brand="toshiba")
+
+    # Different MACs produce distinct client IDs
+    assert client_id_1 != client_id_2
+    assert "E8:51:77:EC:98:1C" in client_id_1
+    assert "E4:3B:C9:57:F1:4F" in client_id_2
+
+    # Different OEM brands produce distinct client IDs
+    assert client_id_1 != client_id_toshiba
+    assert "$his$" in client_id_1
+    assert "$toshiba$" in client_id_toshiba
+
+    # Unicast topic paths for mobile pushes are fully isolated
+    topics_1 = build_topic_paths(client_id_1)
+    topics_2 = build_topic_paths(client_id_2)
+    assert topics_1.mobile != topics_2.mobile
+    assert topics_1.mobile == f"/remoteapp/mobile/{client_id_1}/"
+    assert topics_2.mobile == f"/remoteapp/mobile/{client_id_2}/"

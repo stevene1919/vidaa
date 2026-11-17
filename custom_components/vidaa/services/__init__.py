@@ -195,7 +195,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                     _LOGGER.debug("Could not register legacy service description schema for %s: %s", service_name, err)
 
 
-async def async_unload_services(hass: HomeAssistant) -> None:
+async def async_unload_services(hass: HomeAssistant, current_entry: Any | None = None) -> None:
     """Unregister all custom services if no active entries remain."""
     loaded_entries: list[Any] = []
     if hasattr(hass, "config_entries") and hasattr(hass.config_entries, "async_loaded_entries"):
@@ -204,7 +204,14 @@ async def async_unload_services(hass: HomeAssistant) -> None:
             if isinstance(res, list):
                 loaded_entries = res
 
-    if len(loaded_entries) > 1:
+    # If another entry remains loaded, do not unregister shared services
+    if current_entry is not None:
+        remaining = [
+            e for e in loaded_entries if getattr(e, "entry_id", None) != getattr(current_entry, "entry_id", None)
+        ]
+        if remaining:
+            return
+    elif len(loaded_entries) > 1:
         return
 
     services_to_remove = [

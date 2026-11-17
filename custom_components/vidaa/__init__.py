@@ -10,6 +10,7 @@ from datetime import timedelta
 from typing import Any
 
 try:
+    from homeassistant.components import persistent_notification
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
     from homeassistant.exceptions import ConfigEntryNotReady
@@ -394,6 +395,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
             data={"entry_id": entry.entry_id},
         )
         entry.async_start_reauth(hass)
+        device_name = getattr(failed_client, "name", None) or "VIDAA TV"
+        persistent_notification.async_create(
+            hass,
+            message=(
+                f"Re-authentication required for **{device_name}** (`{failed_client.ip}`).\n\n"
+                f"Open [Settings > System > Repairs](/config/repairs) or "
+                f"[Settings > Devices & Services](/config/integrations) and click **Reconfigure** "
+                f"to display the 4-digit PIN on your TV and complete pairing."
+            ),
+            title=f"{device_name}: Re-authentication Required",
+            notification_id=f"vidaa_reauth_{entry.entry_id}",
+        )
 
     client.register_auth_failed_callback(_handle_auth_failed)
 
@@ -599,6 +612,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> No
     # keep showing an unfixable card for a TV that is no longer configured.
     ir.async_delete_issue(hass, DOMAIN, f"certificate_missing_{entry.entry_id}")
     ir.async_delete_issue(hass, DOMAIN, f"auth_token_invalidated_{entry.entry_id}")
+    persistent_notification.async_dismiss(hass, f"vidaa_reauth_{entry.entry_id}")
 
 
 async def update_listener(hass: HomeAssistant, entry: VidaaConfigEntry) -> None:

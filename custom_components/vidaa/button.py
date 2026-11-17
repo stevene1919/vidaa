@@ -6,6 +6,7 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
+from homeassistant.components import persistent_notification
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
@@ -204,6 +205,18 @@ class VidaaTriggerReauthButton(VidaaBaseButton):
         if hasattr(self._client, "_dispatch_auth_failed"):
             self._client._dispatch_auth_failed()
         self._entry.async_start_reauth(self.hass)
+        device_name = getattr(self._client, "name", None) or "VIDAA TV"
+        persistent_notification.async_create(
+            self.hass,
+            message=(
+                f"Re-authentication requested for **{device_name}** (`{self._client.ip}`).\n\n"
+                f"Open [Settings > System > Repairs](/config/repairs) or "
+                f"[Settings > Devices & Services](/config/integrations) and click **Reconfigure** "
+                f"to display the 4-digit PIN on your TV and complete pairing."
+            ),
+            title=f"{device_name}: Re-authentication Requested",
+            notification_id=f"vidaa_reauth_{self._entry_id}",
+        )
 
 
 # Backwards-compatible aliases during migration

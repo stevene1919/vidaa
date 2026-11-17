@@ -485,6 +485,27 @@ if "homeassistant" not in sys.modules:
     components.diagnostics = diagnostics
     sys.modules["homeassistant.components.diagnostics"] = diagnostics
 
+    # persistent_notification
+    persistent_notification = types.ModuleType("homeassistant.components.persistent_notification")
+
+    def _pn_async_create(hass, message, title=None, notification_id=None):
+        if hasattr(hass, "data") and isinstance(hass.data, dict):
+            notifications = hass.data.setdefault("persistent_notification", {})
+            notifications[notification_id or "default"] = {
+                "message": message,
+                "title": title,
+                "notification_id": notification_id,
+            }
+
+    def _pn_async_dismiss(hass, notification_id):
+        if hasattr(hass, "data") and isinstance(hass.data, dict):
+            hass.data.get("persistent_notification", {}).pop(notification_id, None)
+
+    persistent_notification.async_create = _pn_async_create
+    persistent_notification.async_dismiss = _pn_async_dismiss
+    components.persistent_notification = persistent_notification
+    sys.modules["homeassistant.components.persistent_notification"] = persistent_notification
+
     # notify
     notify = types.ModuleType("homeassistant.components.notify")
 

@@ -174,7 +174,7 @@
         "name": "Fähigkeiten abfragen"
       },
       "trigger_reauth": {
-        "name": "Erneutes Koppeln auslösen"
+        "name": "Erneute Authentifizierung starten"
       }
     },
     "select": {

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
 from homeassistant import config_entries
+from homeassistant.components import persistent_notification
 from homeassistant.data_entry_flow import AbortFlow
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -78,6 +79,10 @@ class ReauthFlowMixin:
                 self.hass,
                 DOMAIN,
                 f"auth_token_invalidated_{self._reauth_entry.entry_id}",
+            )
+            persistent_notification.async_dismiss(
+                self.hass,
+                f"vidaa_reauth_{self._reauth_entry.entry_id}",
             )
             await self.hass.config_entries.async_reload(self._reauth_entry.entry_id)
         return self.async_abort(reason=reason)

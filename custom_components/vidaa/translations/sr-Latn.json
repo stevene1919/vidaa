@@ -174,7 +174,7 @@
         "name": "Ispitaj mogućnosti"
       },
       "trigger_reauth": {
-        "name": "Pokreni ponovno uparivanje"
+        "name": "Pokreni ponovnu autentifikaciju"
       }
     },
     "select": {

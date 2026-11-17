@@ -182,7 +182,7 @@
         "name": "Probe capabilities"
       },
       "trigger_reauth": {
-        "name": "Trigger re-pairing"
+        "name": "Start re-authentication"
       }
     },
     "select": {

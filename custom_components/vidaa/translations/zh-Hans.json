@@ -175,7 +175,7 @@
         "name": "探测功能支持"
       },
       "trigger_reauth": {
-        "name": "触发重新配对"
+        "name": "开始重新认证"
       }
     },
     "select": {

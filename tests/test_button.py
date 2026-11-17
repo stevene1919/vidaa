@@ -56,6 +56,7 @@ async def test_button_entities(mock_client, mock_entry):
     await b_reauth.async_press()
     mock_client._dispatch_auth_failed.assert_called_once()
     mock_entry.async_start_reauth.assert_called_once_with(hass)
+    assert "vidaa_reauth_test_entry_id" in hass.data.get("persistent_notification", {})
 
     added_buttons = []
     await async_setup_buttons(hass, mock_entry, lambda entities: added_buttons.extend(entities))

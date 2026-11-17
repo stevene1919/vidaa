@@ -174,7 +174,7 @@
         "name": "Sondar capacidades"
       },
       "trigger_reauth": {
-        "name": "Iniciar novo emparelhamento"
+        "name": "Iniciar reautenticação"
       }
     },
     "select": {

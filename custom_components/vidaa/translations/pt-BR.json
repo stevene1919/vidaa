@@ -174,7 +174,7 @@
         "name": "Sondar recursos"
       },
       "trigger_reauth": {
-        "name": "Iniciar novo pareamento"
+        "name": "Iniciar reautenticação"
       }
     },
     "select": {

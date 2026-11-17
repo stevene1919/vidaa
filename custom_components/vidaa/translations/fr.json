@@ -174,7 +174,7 @@
         "name": "Sonder les capacités"
       },
       "trigger_reauth": {
-        "name": "Déclencher le réappairage"
+        "name": "Démarrer la réauthentification"
       }
     },
     "select": {

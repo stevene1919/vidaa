@@ -127,3 +127,10 @@ class MediaPlayerStateHandlerMixin:
         self._paused = False
         self._state = STATE_OFF
         self._schedule_ha_update()
+
+    def _handle_auth_failed(self: VidaaMediaPlayer, *args: Any) -> None:
+        if self._client:
+            self._client.is_on = False
+        self._paused = False
+        self._state = STATE_OFF
+        self._schedule_ha_update()

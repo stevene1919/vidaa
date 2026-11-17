@@ -167,3 +167,20 @@ async def test_async_probe_tv_auth_methods_toptro_rejection_diagnostics():
     # Verify brand prefix and timestamp on probed credentials
     usernames = [call_kw.get("username") for call_kw in probed_creds]
     assert any(u and u.startswith("tpo$") for u in usernames)
+
+
+def test_client_auth_failed_lifecycle():
+    """Test auth_failed flag toggling on dispatch and connection."""
+    client = VidaaClient(ip="192.168.50.12")
+    assert client.auth_failed is False
+
+    cb = MagicMock()
+    client.register_auth_failed_callback(cb)
+
+    client._dispatch_auth_failed()
+    assert client.auth_failed is True
+    cb.assert_called_once_with(client)
+
+    # When MQTT connects, auth_failed resets to False
+    client._handle_connected(standard=False)
+    assert client.auth_failed is False

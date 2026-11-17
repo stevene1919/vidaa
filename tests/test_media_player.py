@@ -46,6 +46,30 @@ def test_media_player_and_remote_device_info(mock_client, mock_entry):
     assert rem_info["model"] == "65U7G"
 
 
+def test_media_player_and_remote_availability_on_auth_failure(mock_client, mock_entry):
+    """Test media_player and remote report unavailable when client.auth_failed is True."""
+    mock_client.auth_failed = False
+    mock_client.connected = False
+    mock_client.is_on = False
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    rem = HisenseVidaaRemote(client=mock_client, entry=mock_entry)
+
+    # Standby / offline without auth failure remains available and reports off
+    assert mp.available is True
+    assert mp.state == "off"
+    assert rem.available is True
+
+    # When TV broker rejects credentials, both entities become unavailable
+    mock_client.auth_failed = True
+    assert mp.available is False
+    assert rem.available is False
+
+    # Test callback handler triggers state update
+    mp._schedule_ha_update = MagicMock()
+    mp._handle_auth_failed()
+    mp._schedule_ha_update.assert_called_once()
+
+
 def test_media_player_assumed_state(mock_client, mock_entry):
     """Test media player state and features respect enable_media_controls option."""
     # 1. By default (enable_media_controls=False): assumed_state is False, state is STATE_ON

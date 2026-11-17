@@ -282,6 +282,7 @@ class TvStateMixin:
     def _init_runtime_state(self) -> None:
         """Initializes all live state variables to clean defaults."""
         self.connected: bool = False
+        self.auth_failed: bool = False
         self.state: str = "off"
         self.hotel_mode: bool = False
         self.volume: int = 0

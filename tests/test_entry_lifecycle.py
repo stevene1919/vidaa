@@ -637,3 +637,16 @@ async def test_setup_entry_prunes_retired_diagnostic_sensors():
         assert res is True
         mock_ent_reg.async_remove.assert_any_call("sensor.test_prune_entry_brand_profile")
         mock_ent_reg.async_remove.assert_any_call("sensor.test_prune_entry_auth_profile")
+
+
+@pytest.mark.anyio
+async def test_setup_entry_missing_credentials_sets_auth_failed(mock_entry, mock_client, monkeypatch):
+    """Test that missing credentials during setup marks client.auth_failed = True."""
+    mock_entry.data = {**mock_entry.data, "access_token": "", "client_id": ""}
+    hass = _setup_hass(mock_entry, mock_client, monkeypatch)
+    mock_client.access_token = ""
+    mock_client.client_id = ""
+    mock_client.auth_failed = False
+
+    await async_setup_entry(hass, mock_entry)
+    assert mock_client.auth_failed is True

@@ -63,6 +63,7 @@ class VidaaRemote(VidaaEntity, RemoteEntity):
         self._client.register_sourcelist_callback(self._handle_update)
         self._client.register_applist_callback(self._handle_update)
         self._client.register_disconnected_callback(self._handle_disconnected)
+        self._client.register_auth_failed_callback(self._handle_update)
 
         # Sync state immediately if client is already connected
         if getattr(self._client, "connected", False):
@@ -77,6 +78,7 @@ class VidaaRemote(VidaaEntity, RemoteEntity):
         self._client.unregister_sourcelist_callback(self._handle_update)
         self._client.unregister_applist_callback(self._handle_update)
         self._client.unregister_disconnected_callback(self._handle_disconnected)
+        self._client.unregister_auth_failed_callback(self._handle_update)
 
     @property
     def unique_id(self) -> str:
@@ -91,6 +93,8 @@ class VidaaRemote(VidaaEntity, RemoteEntity):
     @property
     def available(self) -> bool:
         """Return true if remote is available."""
+        if getattr(self._client, "auth_failed", False):
+            return False
         return bool(self._entry_id and (self._client.access_token or self._mac))
 
     async def _async_exec(self, func: Any, *args: Any) -> Any:

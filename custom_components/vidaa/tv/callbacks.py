@@ -138,6 +138,7 @@ class CallbackRegistryMixin:
     def _dispatch_auth_failed(self) -> None:
         if hasattr(self, "_token_manager") and hasattr(self._token_manager, "cancel_rejected_retry"):
             self._token_manager.cancel_rejected_retry()
+        self.auth_failed = True
         self._dispatch("auth_failed", self)
 
     def _dispatch_connected(self) -> None:

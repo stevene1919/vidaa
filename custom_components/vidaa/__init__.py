@@ -402,6 +402,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
             "[%s] Missing credentials or authentication tokens; starting reauthentication",
             client.ip,
         )
+        client.auth_failed = True
         _handle_auth_failed(client)
     else:
         # Check and refresh tokens

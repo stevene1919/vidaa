@@ -80,6 +80,7 @@ class ConnectionManagerMixin:
             _LOGGER.debug("[%s] Reconnected within debounce window; cancelled pending disconnect dispatch", self.ip)
 
         self.connected = True
+        self.auth_failed = False
         _LOGGER.info("[%s] Connected to TV MQTT broker", self.ip)
         self._dispatch_connected()
         if not standard:

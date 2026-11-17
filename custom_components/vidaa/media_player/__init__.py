@@ -96,6 +96,7 @@ class VidaaMediaPlayer(
         self._client.register_applist_callback(self._handle_applist_update)
         self._client.register_sound_callback(self._handle_sound_update)
         self._client.register_disconnected_callback(self._handle_disconnected)
+        self._client.register_auth_failed_callback(self._handle_auth_failed)
 
         # Sync state now that callbacks are registered and active.
         # Do not assume "on": the broker is also reachable in standby (fake_sleep).
@@ -125,6 +126,7 @@ class VidaaMediaPlayer(
         self._client.unregister_applist_callback(self._handle_applist_update)
         self._client.unregister_sound_callback(self._handle_sound_update)
         self._client.unregister_disconnected_callback(self._handle_disconnected)
+        self._client.unregister_auth_failed_callback(self._handle_auth_failed)
 
     @property
     def unique_id(self) -> str:
@@ -149,6 +151,8 @@ class VidaaMediaPlayer(
     @property
     def available(self) -> bool:
         """Return entity availability."""
+        if getattr(self._client, "auth_failed", False):
+            return False
         return bool(self._entry_id and (self._client.access_token or self._mac))
 
     @property

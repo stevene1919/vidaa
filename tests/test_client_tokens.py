@@ -214,7 +214,7 @@ def test_proactive_token_refresh_triggers_within_12_hours():
 
 
 def test_proactive_token_refresh_deferred_in_standby():
-    """Proactive refresh must not drop the working connection while the TV is in standby."""
+    """Proactive refresh must not drop the working connection while the TV is in standby if refresh_in_standby=False."""
     now = int(time.time())
     client = VidaaClient(
         ip="192.168.50.12",
@@ -224,6 +224,7 @@ def test_proactive_token_refresh_deferred_in_standby():
         refresh_token="valid_refresh",
         refresh_token_time=now - (40 * 3600),
         refresh_token_duration=30,
+        refresh_in_standby=False,
     )
     client.PROACTIVE_REFRESH_SETTLE_SECONDS = 0
     client.state = "off"  # retained fake_sleep_0 received

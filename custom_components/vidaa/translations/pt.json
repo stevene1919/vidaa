@@ -88,11 +88,7 @@
         "description": "Configure Wake-on-LAN, interfaces de rede secundárias e renovação de tokens em espera.",
         "data": {
           "enable_wol": "Ativar arranque através de Wake-on-LAN",
-          "secondary_mac_address": "Endereço MAC secundário (Wi-Fi ou Ethernet)",
-          "refresh_in_standby": "Renovar tokens de acesso enquanto a TV está em espera"
-        },
-        "data_description": {
-          "refresh_in_standby": "Ative se a TV mantiver a ligação de rede quando desligada (ex. Arranque rápido / Fast Power On). O token de acesso de 2 dias é renovado mesmo que a TV não seja ligada, sobrevivendo aos reinícios do Home Assistant. Deixe desativado para televisões que desligam completamente em espera."
+          "secondary_mac_address": "Endereço MAC secundário (Wi-Fi ou Ethernet)"
         }
       },
       "playback_sources": {

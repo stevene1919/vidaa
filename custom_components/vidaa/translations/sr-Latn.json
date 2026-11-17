@@ -88,11 +88,7 @@
         "description": "Konfigurišite Wake-on-LAN, sekundarne mrežne interfejse i obnovu tokena u režimu mirovanja.",
         "data": {
           "enable_wol": "Omogući uključivanje putem Wake-on-LAN-a",
-          "secondary_mac_address": "Sekundarna MAC adresa (Wi-Fi ili Ethernet)",
-          "refresh_in_standby": "Obnovi tokene za pristup dok je televizor u režimu mirovanja"
-        },
-        "data_description": {
-          "refresh_in_standby": "Omogućite ako televizor zadržava mrežnu vezu kada je isključen (npr. Brzo uključivanje / Quick Start). Pristupni token koji traje 2 dana se tada obnavlja čak i ako televizor nije uključen, tako da uparivanje preživljava ponovna pokretanja Home Assistant-a. Ostavite isključeno za televizore koji se potpuno gase u režimu mirovanja."
+          "secondary_mac_address": "Sekundarna MAC adresa (Wi-Fi ili Ethernet)"
         }
       },
       "playback_sources": {

@@ -27,7 +27,6 @@ from ..const import (
     CONF_KEY_REPEAT,
     CONF_KEYFILE,
     CONF_PLAYBACK_DEBOUNCE,
-    CONF_REFRESH_IN_STANDBY,
     CONF_SECONDARY_MAC_ADDRESS,
     CONF_SOURCES,
     CONF_USE_SSL,
@@ -44,7 +43,6 @@ from ..const import (
     DEFAULT_KEY_DELAY,
     DEFAULT_KEY_REPEAT,
     DEFAULT_PLAYBACK_DEBOUNCE,
-    DEFAULT_REFRESH_IN_STANDBY,
     DEFAULT_USE_SSL,
 )
 from ..protocol import check_certs_exist, validate_ssl_certs
@@ -92,10 +90,6 @@ class VidaaOptionsFlowHandler(config_entries.OptionsFlow):
                             else ""
                         ),
                     ): str,
-                    vol.Optional(
-                        CONF_REFRESH_IN_STANDBY,
-                        default=options.get(CONF_REFRESH_IN_STANDBY, DEFAULT_REFRESH_IN_STANDBY),
-                    ): bool,
                 }
             ),
         )

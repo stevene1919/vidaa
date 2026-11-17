@@ -88,11 +88,7 @@
         "description": "Configurez le Wake-on-LAN, les interfaces réseau secondaires et le renouvellement de jeton en veille.",
         "data": {
           "enable_wol": "Activer l'allumage par Wake-on-LAN",
-          "secondary_mac_address": "Adresse MAC secondaire (Wi-Fi ou Ethernet)",
-          "refresh_in_standby": "Renouveler les jetons d'accès pendant que le téléviseur est en veille"
-        },
-        "data_description": {
-          "refresh_in_standby": "Activez cette option si le téléviseur conserve sa connexion réseau lorsqu'il est éteint (ex. Démarrage rapide / Fast Power On). Le jeton d'accès valable 2 jours est ainsi renouvelé même si le téléviseur n'est pas allumé, ce qui permet à l'appairage de survivre aux redémarrages de Home Assistant. Laissez désactivé pour les téléviseurs qui s'éteignent complètement en veille."
+          "secondary_mac_address": "Adresse MAC secondaire (Wi-Fi ou Ethernet)"
         }
       },
       "playback_sources": {

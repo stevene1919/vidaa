@@ -68,11 +68,10 @@ To customize integration behavior for an existing TV, navigate to **Settings →
 
 ### 2.1 Power & Network (`power_network`)
 
-| Parameter                   | Type      | Default | Description                                                                                                                                                    |
-|:--------------------------- |:--------- |:------- |:-------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`enable_wol`**            | `boolean` | `true`  | Automatically sends Wake-on-LAN (WoL) magic packets to wake the TV when powering on from cold standby.                                                         |
-| **`secondary_mac_address`** | `string`  | `None`  | Secondary MAC address (e.g., Ethernet MAC if paired over Wi-Fi, or vice-versa). WoL packets will be broadcast to both MACs simultaneously.                     |
-| **`refresh_in_standby`**    | `boolean` | `false` | When enabled, proactively refreshes MQTT access tokens even while the TV is in standby (recommended for TVs that maintain an active network stack in standby). |
+| Parameter                   | Type      | Default | Description                                                                                                                                |
+|:--------------------------- |:--------- |:------- |:------------------------------------------------------------------------------------------------------------------------------------------ |
+| **`enable_wol`**            | `boolean` | `true`  | Automatically sends Wake-on-LAN (WoL) magic packets to wake the TV when powering on from cold standby.                                     |
+| **`secondary_mac_address`** | `string`  | `None`  | Secondary MAC address (e.g., Ethernet MAC if paired over Wi-Fi, or vice-versa). WoL packets will be broadcast to both MACs simultaneously. |
 
 ### 2.2 Playback & Sources (`playback_sources`)
 

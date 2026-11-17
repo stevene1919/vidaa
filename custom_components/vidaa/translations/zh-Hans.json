@@ -88,11 +88,7 @@
         "description": "配置局域网唤醒 (Wake-on-LAN)、辅助网络接口以及待机状态下的令牌自动续订。",
         "data": {
           "enable_wol": "启用局域网唤醒 (WoL) 开机",
-          "secondary_mac_address": "辅助 MAC 地址 (Wi-Fi 或以太网)",
-          "refresh_in_standby": "电视待机时自动续订访问令牌"
-        },
-        "data_description": {
-          "refresh_in_standby": "如果电视在关机时保持网络连接（例如开启了“快速开机/快速启动”），请启用此选项。这样即使电视未开机，为期 2 天的访问令牌也会自动刷新，确保在 Home Assistant 重启后配对凭据依然有效。对于待机时完全断电的电视，请保持关闭。"
+          "secondary_mac_address": "辅助 MAC 地址 (Wi-Fi 或以太网)"
         }
       },
       "playback_sources": {

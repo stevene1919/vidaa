@@ -85,7 +85,7 @@ class VidaaClient(
         use_ssl: bool = True,
         verify_ssl: bool = False,
         auth_profile: str = "auto",
-        refresh_in_standby: bool = False,
+        refresh_in_standby: bool = True,
         name: str | None = None,
         brand: str = "his",
         session: aiohttp.ClientSession | None = None,

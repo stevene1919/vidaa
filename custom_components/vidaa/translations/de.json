@@ -88,11 +88,7 @@
         "description": "Konfiguriere Wake-on-LAN, sekundäre Netzwerkschnittstellen und Standby-Token-Erneuerung.",
         "data": {
           "enable_wol": "Einschalten über Wake-on-LAN aktivieren",
-          "secondary_mac_address": "Sekundäre MAC-Adresse (WLAN oder Ethernet)",
-          "refresh_in_standby": "Zugriffstoken erneuern, während der Fernseher im Standby ist"
-        },
-        "data_description": {
-          "refresh_in_standby": "Aktivieren, wenn der Fernseher im ausgeschalteten Zustand seine Netzwerkverbindung behält (z. B. Schnellstart / Fast Power On). Das 2-Tage-Zugriffstoken wird dann auch erneuert, wenn der Fernseher nicht eingeschaltet wird, sodass die Kopplung Home Assistant-Neustarts übersteht. Deaktiviert lassen bei Fernsehern, die im Standby vollständig herunterfahren."
+          "secondary_mac_address": "Sekundäre MAC-Adresse (WLAN oder Ethernet)"
         }
       },
       "playback_sources": {

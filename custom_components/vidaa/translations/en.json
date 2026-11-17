@@ -89,11 +89,7 @@
         "description": "Configure Wake-on-LAN, secondary network interfaces, and standby token renewal.",
         "data": {
           "enable_wol": "Enable Wake-on-LAN power on",
-          "secondary_mac_address": "Secondary MAC Address (Wi-Fi or Ethernet)",
-          "refresh_in_standby": "Renew access tokens while the TV is in standby"
-        },
-        "data_description": {
-          "refresh_in_standby": "Enable if the TV keeps its network connection when switched off (e.g. Fast Power On / Quick Start). The 2-day access token is then renewed even if the TV is not turned on, so the pairing survives Home Assistant restarts. Leave off for TVs that fully power down in standby."
+          "secondary_mac_address": "Secondary MAC Address (Wi-Fi or Ethernet)"
         }
       },
       "playback_sources": {

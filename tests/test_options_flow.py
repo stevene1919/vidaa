@@ -56,13 +56,11 @@ async def test_options_flow(monkeypatch: pytest.MonkeyPatch) -> None:
         user_input={
             "enable_wol": True,
             "secondary_mac_address": "AA:BB:CC:DD:EE:FF",
-            "refresh_in_standby": True,
         }
     )
     assert result_pwr_submit["type"] == "create_entry"
     assert result_pwr_submit["data"]["enable_wol"] is True
     assert result_pwr_submit["data"]["secondary_mac_address"] == "AA:BB:CC:DD:EE:FF"
-    assert result_pwr_submit["data"]["refresh_in_standby"] is True
 
     # Test playback_sources step form and submission (including debounce)
     result_src_form = await handler.async_step_playback_sources()

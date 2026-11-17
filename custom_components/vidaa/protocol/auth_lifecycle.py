@@ -72,9 +72,9 @@ class TokenLifecycleManager:
             asyncio.run(self.async_maybe_refresh_while_awake())
 
     def can_refresh_in_standby(self) -> bool:
-        """Whether a token refresh may run while the TV is in standby (``refresh_in_standby`` option)."""
+        """Whether a token refresh may run while the TV is in standby."""
         client = self.client
-        return bool(getattr(client, "refresh_in_standby", False)) and not is_token_expired(
+        return bool(getattr(client, "refresh_in_standby", True)) and not is_token_expired(
             client.access_token_time,
             client.access_token_duration,
             clock_offset=client.clock_offset,

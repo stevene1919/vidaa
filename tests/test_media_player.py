@@ -1,4 +1,4 @@
-"""Tests for Hisense VIDAA media player and remote control entities."""
+"""Tests for Hisense VIDAA media player entity."""
 
 from unittest.mock import AsyncMock, MagicMock
 
@@ -12,13 +12,17 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.vidaa.const import CONF_ENABLE_MEDIA_CONTROLS, DOMAIN, LEGACY_DOMAIN
-from custom_components.vidaa.media_player import VidaaMediaPlayer
-from custom_components.vidaa.remote import HisenseVidaaRemote
+from custom_components.vidaa.media_player import HisenseVidaaMediaPlayer, VidaaMediaPlayer
 from custom_components.vidaa.tv.settings import SettingMenuItem
 
 
-def test_media_player_and_remote_device_info(mock_client, mock_entry):
-    """Test device info registration for media player and remote."""
+def test_media_player_backwards_compatibility_alias():
+    """Verify HisenseVidaaMediaPlayer is an alias for VidaaMediaPlayer for backwards compatibility."""
+    assert HisenseVidaaMediaPlayer is VidaaMediaPlayer
+
+
+def test_media_player_device_info(mock_client, mock_entry):
+    """Test device info registration for media player."""
     mp = VidaaMediaPlayer(
         client=mock_client,
         entry=mock_entry,
@@ -37,32 +41,21 @@ def test_media_player_and_remote_device_info(mock_client, mock_entry):
     assert ("mac", "e8:51:77:ec:98:1c") in dev_info_dual["connections"]
     assert ("mac", "e4:3b:c9:57:f1:4f") in dev_info_dual["connections"]
 
-    rem = HisenseVidaaRemote(
-        client=mock_client,
-        entry=mock_entry,
-    )
-    rem_info = rem.device_info
-    assert rem_info["identifiers"] == {(DOMAIN, "test_entry_id"), (LEGACY_DOMAIN, "test_entry_id")}
-    assert rem_info["model"] == "65U7G"
 
-
-def test_media_player_and_remote_availability_on_auth_failure(mock_client, mock_entry):
-    """Test media_player and remote report unavailable when client.auth_failed is True."""
+def test_media_player_availability_on_auth_failure(mock_client, mock_entry):
+    """Test media_player reports unavailable when client.auth_failed is True."""
     mock_client.auth_failed = False
     mock_client.connected = False
     mock_client.is_on = False
     mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
-    rem = HisenseVidaaRemote(client=mock_client, entry=mock_entry)
 
     # Standby / offline without auth failure remains available and reports off
     assert mp.available is True
     assert mp.state == "off"
-    assert rem.available is True
 
-    # When TV broker rejects credentials, both entities become unavailable
+    # When TV broker rejects credentials, entity becomes unavailable
     mock_client.auth_failed = True
     assert mp.available is False
-    assert rem.available is False
 
     # Test callback handler triggers state update
     mp._schedule_ha_update = MagicMock()
@@ -97,27 +90,6 @@ def test_media_player_assumed_state(mock_client, mock_entry):
 
     mock_client.is_on = False
     assert mp_with_controls.state == STATE_OFF
-
-
-@pytest.mark.anyio
-async def test_remote_send_command(mock_client, mock_entry):
-    """Test remote entity send command handling and burst/hold timings."""
-    rem = HisenseVidaaRemote(
-        client=mock_client,
-        entry=mock_entry,
-    )
-    # Standard command
-    await rem.async_send_command(["home", "ok"], delay_secs=0.01)
-    assert mock_client.send_command.call_count == 2
-
-    # Hold secs for OK long press
-    await rem.async_send_command(["ok"], hold_secs=0.5)
-    mock_client.send_key.assert_called_with("KEY_OK_LONG_PRESS")
-
-    # Hold secs for arbitrary key burst
-    mock_client.send_command.reset_mock()
-    await rem.async_send_command(["up"], hold_secs=0.3)
-    assert mock_client.send_command.call_count == 3
 
 
 @pytest.mark.anyio
@@ -282,49 +254,17 @@ async def test_media_player_cec_source_naming_disabled_by_default(mock_client, m
 
 
 @pytest.mark.anyio
-async def test_remote_and_media_player_idempotent_power_control(mock_client, mock_entry):
-    """Test idempotent power control on media player and remote."""
+async def test_media_player_idempotent_power_control(mock_client, mock_entry):
+    """Test idempotent power control on media player."""
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
-    import asyncio
 
-    def _mock_bg_task(coro, *a, **kw):
-        return asyncio.get_running_loop().create_task(coro)
-
-    hass.async_create_background_task = MagicMock(side_effect=_mock_bg_task)
-
-    rem = HisenseVidaaRemote(
-        client=mock_client,
-        entry=mock_entry,
-    )
-    rem.hass = hass
-    rem.entity_id = "remote.living_room_tv"
-
-    # Mock client connected: initial state should be ON
-    mock_client.connected = True
-    assert rem.is_on is True
-
-    # Calling async_turn_on when already connected & ON must NOT send KEY_POWER
-    mock_client.send_key.reset_mock()
-    await rem.async_turn_on()
-    mock_client.send_key.assert_not_called()
-    assert rem.is_on is True
-
-    # Simulate TV entering fake sleep (screen off)
-    rem._handle_state_update({"statetype": "fake_sleep_0"})
-    assert rem.is_on is False
-
-    # Calling async_turn_on while in fake_sleep_0 MUST send KEY_POWER to wake screen
-    await rem.async_turn_on()
-    mock_client.send_key.assert_called_once_with("KEY_POWER")
-    assert rem.is_on is True
-
-    # Test media_player turn_on idempotence
     mp = VidaaMediaPlayer(
         client=mock_client,
         entry=mock_entry,
     )
     mp.hass = hass
+    mock_client.connected = True
     assert mp.state == "on"
 
     # Calling turn_on when already connected & on must NOT send KEY_POWER
@@ -392,34 +332,6 @@ async def test_media_player_select_source_and_play_media_when_off(mock_client, m
 
 
 @pytest.mark.anyio
-async def test_remote_send_command_num_repeats_option(mock_client, mock_entry):
-    """[F1-leg4] The key_repeat option applies when HA sends the service default."""
-    mock_entry.options = {"enable_remote": True, "key_repeat": 5}
-    rem = HisenseVidaaRemote(client=mock_client, entry=mock_entry)
-
-    # HA's remote.send_command schema always sends num_repeats (default 1): with the
-    # service default the key_repeat option must be honoured.
-    await rem.async_send_command(["up"], num_repeats=1, delay_secs=0)
-    assert mock_client.send_command.call_count == 5
-
-    # An explicit caller-supplied value still wins.
-    mock_client.send_command.reset_mock()
-    await rem.async_send_command(["up"], num_repeats=3, delay_secs=0)
-    assert mock_client.send_command.call_count == 3
-
-    # Float values from options (e.g. from HA NumberSelector serialization) or kwargs do not crash range().
-    mock_entry.options = {"enable_remote": True, "key_repeat": 2.0}
-    rem_float = HisenseVidaaRemote(client=mock_client, entry=mock_entry)
-    mock_client.send_command.reset_mock()
-    await rem_float.async_send_command(["up"], num_repeats=1, delay_secs=0)
-    assert mock_client.send_command.call_count == 2
-
-    mock_client.send_command.reset_mock()
-    await rem_float.async_send_command(["up"], num_repeats=4.0, delay_secs=0)
-    assert mock_client.send_command.call_count == 4
-
-
-@pytest.mark.anyio
 async def test_media_player_mute_is_idempotent(mock_client, mock_entry):
     """[F7-leg4] KEY_MUTE is only sent when the requested state differs from tracked."""
     hass = MagicMock(spec=HomeAssistant)
@@ -452,28 +364,6 @@ async def test_media_player_mute_is_idempotent(mock_client, mock_entry):
     # Requesting unmute differs → send KEY_MUTE.
     await mp.async_mute_volume(False)
     mock_client.send_key.assert_called_once_with("KEY_MUTE")
-
-
-def test_remote_off_ish_statetypes_stay_off(mock_client, mock_entry):
-    """[F3-leg4 residual] remote statetype handling agrees with tv/state.py."""
-    rem = HisenseVidaaRemote(client=mock_client, entry=mock_entry)
-    rem.entity_id = "remote.living_room_tv"
-    mock_client.connected = True
-
-    # (a) an off-ish statetype after a remote callback must keep is_on False
-    rem._handle_state_update({"statetype": "poweroff"})
-    assert mock_client.is_on is False
-    assert rem.is_on is False
-
-    # (b) fake_sleep_1 means the TV is waking up → ON
-    rem._handle_state_update({"statetype": "fake_sleep_1"})
-    assert mock_client.is_on is True
-    assert rem.is_on is True
-
-    # (c) fake_sleep_0 (exact) → OFF
-    rem._handle_state_update({"statetype": "fake_sleep_0"})
-    assert mock_client.is_on is False
-    assert rem.is_on is False
 
 
 @pytest.mark.anyio
@@ -558,25 +448,6 @@ async def test_media_player_string_volume_broadcast(mock_client, mock_entry):
     # Mute broadcast as a string
     mp._handle_volume_update({"volume_type": "2", "volume_value": "1"})
     assert mp._muted is True
-
-
-@pytest.mark.anyio
-async def test_remote_platform_purges_registry_when_disabled(mock_client, mock_entry, monkeypatch):
-    """[F10-leg4] remote registry entry is purged when the feature is disabled."""
-    from custom_components.vidaa.const import CONF_ENABLE_REMOTE, DOMAIN
-    from custom_components.vidaa.remote import async_setup_entry as async_setup_remote
-
-    hass = MagicMock(spec=HomeAssistant)
-    hass.data = {DOMAIN: {mock_entry.entry_id: {"client": mock_client}}}
-    mock_reg = MagicMock()
-    mock_reg.async_get_entity_id.return_value = "remote.living_room_tv"
-    monkeypatch.setattr("homeassistant.helpers.entity_registry.async_get", lambda h: mock_reg)
-    mock_entry.options = {CONF_ENABLE_REMOTE: False}
-
-    entities = []
-    await async_setup_remote(hass, mock_entry, lambda e: entities.extend(e))
-    mock_reg.async_remove.assert_called_once_with("remote.living_room_tv")
-    assert entities == []
 
 
 @pytest.mark.anyio
@@ -985,36 +856,9 @@ async def test_media_player_action_exceptions_on_delivery_failure(mock_client, m
 
 
 @pytest.mark.anyio
-async def test_remote_action_exceptions(mock_client, mock_entry):
-    """Test remote entity actions raise HomeAssistantError when disconnected or command fails."""
-    rem = HisenseVidaaRemote(client=mock_client, entry=mock_entry)
-
-    # 1. Disconnected: send_command raises not_connected
-    mock_client.connected = False
-    with pytest.raises(HomeAssistantError) as exc_info:
-        await rem.async_send_command(["KEY_POWER"])
-    assert exc_info.value.translation_key == "not_connected"
-
-    # 2. Connected but command delivery fails: raises send_key_failed
-    mock_client.connected = True
-    mock_client.async_send_command = AsyncMock(return_value=False)
-    with pytest.raises(HomeAssistantError) as exc_info:
-        await rem.async_send_command(["KEY_MENU"])
-    assert exc_info.value.translation_key == "send_key_failed"
-
-    # 3. Disconnected turn_off when TV on raises not_connected
-    mock_client.connected = False
-    mock_client.is_on = True
-    with pytest.raises(HomeAssistantError) as exc_info:
-        await rem.async_turn_off()
-    assert exc_info.value.translation_key == "not_connected"
-
-
-@pytest.mark.anyio
-async def test_media_player_and_remote_action_exceptions_on_auth_failed(mock_client, mock_entry):
-    """Test media player and remote raise auth_required when client.auth_failed is True."""
+async def test_media_player_action_exceptions_on_auth_failed(mock_client, mock_entry):
+    """Test media player raises auth_required when client.auth_failed is True."""
     mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
-    rem = HisenseVidaaRemote(client=mock_client, entry=mock_entry)
     mock_client.auth_failed = True
     mock_client.connected = False
 
@@ -1023,42 +867,24 @@ async def test_media_player_and_remote_action_exceptions_on_auth_failed(mock_cli
         await mp.async_turn_on()
     assert exc_info.value.translation_key == "auth_required"
 
-    with pytest.raises(HomeAssistantError) as exc_info:
-        await rem.async_turn_on()
-    assert exc_info.value.translation_key == "auth_required"
-
     # 2. async_turn_off raises auth_required
     with pytest.raises(HomeAssistantError) as exc_info:
         await mp.async_turn_off()
     assert exc_info.value.translation_key == "auth_required"
 
-    with pytest.raises(HomeAssistantError) as exc_info:
-        await rem.async_turn_off()
-    assert exc_info.value.translation_key == "auth_required"
-
-    # 3. async_send_command raises auth_required
-    with pytest.raises(HomeAssistantError) as exc_info:
-        await rem.async_send_command(["KEY_POWER"])
-    assert exc_info.value.translation_key == "auth_required"
-
-    # 4. async_set_volume_level raises auth_required
+    # 3. async_set_volume_level raises auth_required
     with pytest.raises(HomeAssistantError) as exc_info:
         await mp.async_set_volume_level(0.5)
     assert exc_info.value.translation_key == "auth_required"
 
 
 @pytest.mark.anyio
-async def test_media_player_and_remote_turn_on_failed_wol(mock_client, mock_entry):
-    """Test media player and remote raise turn_on_failed when client.async_turn_on returns False."""
+async def test_media_player_turn_on_failed_wol(mock_client, mock_entry):
+    """Test media player raises turn_on_failed when client.async_turn_on returns False."""
     mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
-    rem = HisenseVidaaRemote(client=mock_client, entry=mock_entry)
     mock_client.auth_failed = False
     mock_client.async_turn_on = AsyncMock(return_value=False)
 
     with pytest.raises(HomeAssistantError) as exc_info:
         await mp.async_turn_on()
-    assert exc_info.value.translation_key == "turn_on_failed"
-
-    with pytest.raises(HomeAssistantError) as exc_info:
-        await rem.async_turn_on()
     assert exc_info.value.translation_key == "turn_on_failed"

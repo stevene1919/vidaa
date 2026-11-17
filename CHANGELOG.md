@@ -2,7 +2,7 @@
 
 All notable changes to the VIDAA Smart TV integration will be documented in this file.
 
-## [3.6.0] - 2026-11-16
+## [3.6.0-beta.1] - 2026-11-18
 
 ### ☕ Support the Project
 
@@ -10,41 +10,61 @@ If this integration makes controlling your smart home entertainment a breeze, co
 
 [![Support on Ko-fi](https://img.shields.io/badge/Support%20on-Ko--fi-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/stevene_)
 
-### 🌟 What's New & Highlights in v3.6.0
+---
 
-- **DUAL MAC AUTO-EXTRACTION & MULTI-INTERFACE WAKE-ON-LAN**:
+### 🌟 What's New & Highlights
+
+- **A Cleaner Remote & Dashboard Experience**:
+  - **Unified Power Button**: We removed the separate Power On and Power Off buttons on cards ([#55](https://github.com/stevene1919/vidaa/issues/55)). You now have a single, clean power button that works just like your physical remote.
+  - **No More "Ghost" Toggles**: Dashboard switches and buttons will no longer flip back and forth if your TV is sleeping or turned off at the wall. Home Assistant now checks if the TV is truly awake before changing states on your screen.
+  - **Fixed Remote Key Presses**: Fixed an issue where repeating keys or rapid button clicks on the remote entity could fail ([#70](https://github.com/stevene1919/vidaa/issues/70)).
+- **Helpful, Clear Alerts (No More Silent Failures)**:
+  - If your TV is turned off, unplugged, or disconnected and an action or automation runs, Home Assistant will now clearly tell you (e.g. *"TV offline: Device unreachable"*) instead of failing silently.
+  - If your TV loses its pairing after a power outage or firmware update, the TV entity will cleanly show as **Unavailable** and an **Authentication Problem** indicator will turn on to let you know right away.
+- **Easy Reconnecting & Simple Re-pairing**:
+  - **Force Reconnect Button**: If your Wi-Fi dropped out or you restarted your router, clicking **Force Reconnect** immediately retries the connection without waiting around. If the TV is unreachable, it tells you immediately instead of showing a false green checkmark.
+  - **Start Re-authentication Button**: If you ever need to re-pair your TV, this button creates an item under **Settings → System → Repairs** and sends you a notification with a direct link to it so you can finish pairing.
+- **Smarter TV Turn-On (Wi-Fi + Network Cable)**:
+  - If your TV uses Wi-Fi but also has a network cable plugged in, Home Assistant now automatically remembers both addresses so "Turn On" signals always wake the TV reliably.
+- **Hotel Mode Detection**:
+  - Added a new indicator that warns you if your TV has "Hotel Mode" enabled, which can block app launching or lock volume controls.
+
+---
+
+### 🛠️ Technical Details & Refactoring
+
+- **Single Power Toggle & Media Transport Controls (#55)**:
+  - Eliminated split `|` (Power On) and `O` (Power Off) buttons when enabling media controls, restoring a unified power standby button (`mdi:power-standby`) across all Lovelace entity cards and device pages.
+  - Retired artificial `assumed_state: True` flag in favor of dynamic `MediaPlayerState.PLAYING` / `STATE_PAUSED` state transitions while media controls are active.
+- **Action Exceptions & Reliable Error Surfacing (`action-exceptions`)**:
+  - Custom domain actions (`vidaa.send_key`, `vidaa.launch_app`, `vidaa.open_browser`, `vidaa.send_key_sequence`, `vidaa.set_tv_setting`, and `vidaa.select_audio_output`) and entity platforms now explicitly raise `HomeAssistantError` (`auth_required`, `not_connected`, `turn_on_failed`) instead of silent command delivery failures.
+  - Action calls return structured execution telemetry (`{"success": true/false}`) directly to Home Assistant for branching automations.
+- **State Integrity & No Optimistic Desync**:
+  - All TV entity platforms (`media_player`, `remote`, `select`, `number`, `switch`, and `button`) verify live MQTT connection health before sending commands.
+  - Controls fail cleanly with descriptive user-facing alerts and avoid optimistic state changes when the TV is powered off or disconnected.
+- **Remote Entity Typing & Sanitization (#70)**:
+  - Coerced `key_repeat` options to integers and sanitized `num_repeats` handling to prevent typing errors during rapid command sequences.
+- **Diagnostic Maintenance Suite**:
+  - Renamed `trigger_reauth` to **Start re-authentication** (`button.<tv>_start_re_authentication`), added automatic WoL wake pulse before PIN requests, and added clickable persistent notifications directing to Repairs and Integrations.
+  - Enhanced **Force reconnect** (`button.<tv>_force_reconnect`) to clear exponential backoff cooldowns, await connection resolution up to 3s, and surface actionable errors instead of false positive completions.
+  - Added **Probe capabilities** button (`button.<tv>_probe_capabilities`) to actively query picture and sound menu capabilities over MQTT.
+  - Added **Authentication problem** sensor (`binary_sensor.<tv>_authentication_problem`) and **Hotel mode** sensor (`binary_sensor.<tv>_hotel_mode`).
+- **Dual MAC Address Auto-Extraction & Wake-on-LAN**:
   - Automatically parses both Wi-Fi (`macWifi`) and Ethernet (`macEthernet`) MAC addresses from UPnP descriptors and matches the active ARP interface.
-  - Automatically populates `secondary_mac_address` in config entries and setup flows, allowing Wake-on-LAN packets to target both interfaces seamlessly without manual user configuration.
-- **HOTEL MODE TELEMETRY & SAFETY GUARDS**:
-  - Subscribes to real-time `/remoteapp/mobile/broadcast/ui_service/data/hotelmodechange` broadcasts and monitors `hotel_mode` flags in sourcelist telemetry.
-  - Added new diagnostic entity `binary_sensor.<tv_name>_hotel_mode` and `hotel_mode` extra state attribute on the `media_player` entity.
-  - Logs proactive warnings when source switching or app launching is requested while the TV OS is in Hotel Mode.
-- **UDP PORT 36671 ACTIVE DISCOVERY PROBE**:
-  - Added proprietary UDP port 36671 discovery probing (`probe_udp_port` / `async_probe_udp_port`) supporting HiSmart and RemoteNow discovery payloads as an additional fallback for complex or segmented networks.
-  - Added `probe-udp` subcommand to diagnostic tools (`scripts/test_client.py` and `scripts/diag.sh`).
-- **WILDCARD MQTT DIAGNOSTIC SNIFFING**:
-  - Added real-time `/remoteapp/#` wildcard packet capture (`sniff` command) to `scripts/test_client.py` and `scripts/diag.sh` with timestamped, pretty-printed JSON payloads for effortless troubleshooting of unknown OEM sets.
-- **SILVER QUALITY SCALE: ACTION EXCEPTIONS & RELIABLE AUTOMATIONS (`action-exceptions`)**:
-  - Custom domain actions (`vidaa.send_key`, `vidaa.launch_app`, `vidaa.open_browser`, `vidaa.send_key_sequence`, `vidaa.set_tv_setting`, and `vidaa.select_audio_output`) now explicitly raise `HomeAssistantError` if the TV is offline or unreachable, eliminating silent command failures.
-  - Action calls now return execution telemetry (`{"success": true/false}`) directly to Home Assistant, allowing automations and scripts to reliably branch and handle delivery errors.
-- **CLEAN MEDIA PLAYER TRANSPORT & POWER CONTROLS (#55)**:
-  - Eliminated the split `|` (Power On) and `O` (Power Off) buttons that appeared when enabling media controls, restoring a single unified power toggle button (`mdi:power-standby`) across all Lovelace entity cards and device pages.
-  - Retired artificial `assumed_state: True` flag in favor of dynamic `MediaPlayerState.PLAYING` / `STATE_PAUSED` state transitions while media controls are active, preserving native channel stepping (`KEY_CHANNELUP` / `KEY_CHANNELDOWN`) and skip buttons while fixing simultaneous play/pause/stop button highlighting.
-- **SEAMLESS ENTITY STATE INTEGRITY (No Optimistic Desync)**:
-  - All TV entity platforms (`media_player`, `remote`, `select`, `number`, `switch`, and `button`) now verify live MQTT connection health before sending commands.
-  - If the TV is powered off or temporarily disconnected, controls fail cleanly with descriptive user-facing alerts and avoid optimistic state changes, ensuring your dashboard toggles and mode selectors never get out of sync with your physical TV.
-- **MQTT SESSION RESILIENCE & DEADLOCK ELIMINATION**:
-  - Replaced uncoordinated session disconnects with an asynchronous ordered queue adapter (`MqttSessionAdapter`).
-  - If a connection drops unexpectedly while commands are queued, pending futures are drained and cleanly resolved with connection errors rather than hanging indefinitely.
-- **INTELLIGENT AUTH-REJECTION RECOVERY & REAUTH TEARDOWN**:
-  - Fixed an edge case where broker connection rejections (such as expired access tokens after firmware upgrades) could enter an immediate retry loop using the invalidated token.
-  - Recovery now pauses stale reconnection attempts, automatically acquires fresh credentials via the refresh token with exponential backoff, and cleanly cancels background retry tasks when Home Assistant prompts for reauthentication.
-- **STANDALONE CLI DIAGNOSTICS & TEST UTILITY CONSOLIDATION**:
-  - Core client and protocol modules have been decoupled from Home Assistant test stubs, allowing standalone troubleshooting tools (`scripts/test_client.py` and `scripts/diag.sh`) to run out-of-the-box in bare Python environments.
-  - Added `scripts/diag.sh`: a zero-setup one-liner runner that automatically fetches prerequisites and runs full diagnostics for quick GitHub issue reporting.
-- **ENRICHED PROTOCOL ARCHITECTURE & COMPREHENSIVE HARDWARE MAPPINGS**:
-  - Enriched technical architecture documentation with detailed SoC and chipset profiles (Novatek, MediaTek, Realtek), internal service routing, and SSL cipher suites.
-  - Added user testing guides for verifying TV capabilities alongside the official VIDAA iOS and Android apps.
+  - Automatically populates `secondary_mac_address` in config entries and setup flows, allowing Wake-on-LAN packets to target both interfaces seamlessly.
+- **Cold Boot & Mains Power Cut Resilience**:
+  - Tested and hardened token invalidation recovery when TVs undergo abrupt mains power cuts (Mosquitto RC 134 rejection), ensuring clean transitions to `unavailable` and automated repair prompt creation.
+- **Standalone CLI Diagnostics & Zero-Setup Runner**:
+  - Decoupled core client modules from Home Assistant test stubs, allowing standalone troubleshooting tools (`scripts/test_client.py` and `scripts/diag.sh`) to run in bare Python environments.
+  - Added real-time `/remoteapp/#` wildcard packet sniffing (`sniff` command) for OEM debugging.
+- **Test Suite Modularization & 2026.11 Naming Alignment**:
+  - Modularized platform test files into dedicated modules (`test_media_player_actions.py`, `test_media_player_sources.py`).
+  - Strict compliance with Home Assistant 2026.11 entity naming standards (`_attr_has_entity_name = True`, leaving entity names clean and relying on device/area context).
+
+---
+
+### 💬 Feedback & Bug Reports
+Please report any issues or feedback on [GitHub Issues](https://github.com/stevene1919/vidaa/issues) or Discussions!
 
 ## [3.5.1] - 2026-11-14
 

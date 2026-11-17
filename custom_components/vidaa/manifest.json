@@ -20,6 +20,6 @@
       "st": "urn:schemas-upnp-org:device:MediaRenderer:1"
     }
   ],
-  "version": "3.6.0"
+  "version": "3.6.0-beta.1"
 }
 

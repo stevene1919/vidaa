@@ -78,6 +78,22 @@ When an automation or manual service call fails, Home Assistant displays an erro
   * In TV Settings, disable **Auto Standby with No Signal**.
   * Keep Home Assistant's client certificates properly configured in `/config/ssl/` as documented in [`certificates.md`](certificates.md) to enable automatic mutual TLS authentication.
 
+* **Automated Alerts via Authentication Problem Sensor:**
+  * When stored tokens are wiped or invalidated by the TV broker, the diagnostic entity `binary_sensor.<tv_name>_authentication_problem` turns `on` and Home Assistant displays a persistent Repairs notification. You can automate instant notifications using:
+    ```yaml
+    alias: "Notify when VIDAA TV requires re-authentication"
+    trigger:
+      - trigger: state
+        entity_id: binary_sensor.hisense_tv_authentication_problem
+        to: "on"
+        for: "00:01:00"
+    action:
+      - action: notify.notify
+        data:
+          title: "Hisense TV Needs Re-Pairing"
+          message: "The TV broker invalidated stored tokens. Open Home Assistant Repairs to re-pair."
+    ```
+
 ### 3. Broker Rejection or "Not Authorized" Error (`rc: 5` / `rc: 135`)
 An MQTT return code of `rc: 5` (MQTT 3.1.1) or `rc: 135` (MQTT 5.0) indicates that the mutual TLS handshake completed successfully, but the TV's internal broker explicitly rejected the generated client credentials. This is caused by one of two issues:
 

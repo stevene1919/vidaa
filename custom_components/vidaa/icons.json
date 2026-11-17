@@ -10,6 +10,13 @@
           "on": "mdi:television",
           "off": "mdi:television-off"
         }
+      },
+      "auth_problem": {
+        "default": "mdi:shield-check",
+        "state": {
+          "on": "mdi:shield-alert",
+          "off": "mdi:shield-check"
+        }
       }
     },
     "button": {

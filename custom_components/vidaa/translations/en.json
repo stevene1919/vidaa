@@ -166,6 +166,9 @@
       },
       "hotel_mode": {
         "name": "Hotel mode"
+      },
+      "auth_problem": {
+        "name": "Authentication problem"
       }
     },
     "button": {

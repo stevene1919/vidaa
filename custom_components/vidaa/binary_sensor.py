@@ -35,6 +35,7 @@ async def async_setup_entry(
             VidaaMqttConnectedBinarySensor(client, entry),
             VidaaInUseBinarySensor(client, entry),
             VidaaHotelModeBinarySensor(client, entry),
+            VidaaAuthProblemBinarySensor(client, entry),
         ]
     )
 
@@ -158,7 +159,46 @@ class VidaaHotelModeBinarySensor(VidaaEntity, BinarySensorEntity):
             self.schedule_update_ha_state()
 
 
+class VidaaAuthProblemBinarySensor(VidaaEntity, BinarySensorEntity):
+    """Binary sensor indicating whether the TV has rejected stored credentials and re-pairing is required."""
+
+    _attr_translation_key = "auth_problem"
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(
+        self,
+        client: VidaaClient,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the auth problem binary sensor."""
+        super().__init__(client=client, entry=entry)
+        self._attr_unique_id = f"{self._entry_id}_auth_problem"
+
+    @property
+    def is_on(self) -> bool:
+        """Return True when TV has rejected authentication and reauth is required."""
+        return bool(getattr(self._client, "auth_failed", False))
+
+    async def async_added_to_hass(self) -> None:
+        """Register callbacks when added."""
+        self._client.register_auth_failed_callback(self._handle_update)
+        self._client.register_connected_callback(self._handle_update)
+        self._client.register_disconnected_callback(self._handle_update)
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Unregister callbacks."""
+        self._client.unregister_auth_failed_callback(self._handle_update)
+        self._client.unregister_connected_callback(self._handle_update)
+        self._client.unregister_disconnected_callback(self._handle_update)
+
+    def _handle_update(self, *args: Any) -> None:
+        if getattr(self, "hass", None) is not None:
+            self.schedule_update_ha_state()
+
+
 # Backwards-compatible aliases during migration
 HisenseVidaaMqttConnectedBinarySensor = VidaaMqttConnectedBinarySensor
 HisenseVidaaInUseBinarySensor = VidaaInUseBinarySensor
 HisenseVidaaHotelModeBinarySensor = VidaaHotelModeBinarySensor
+HisenseVidaaAuthProblemBinarySensor = VidaaAuthProblemBinarySensor

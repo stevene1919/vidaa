@@ -427,6 +427,7 @@ if "homeassistant" not in sys.modules:
         CONNECTIVITY = "connectivity"
         RUNNING = "running"
         POWER = "power"
+        PROBLEM = "problem"
 
     binary_sensor.BinarySensorEntity = BinarySensorEntity
     binary_sensor.BinarySensorDeviceClass = BinarySensorDeviceClass

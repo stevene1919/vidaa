@@ -7,8 +7,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.vidaa.binary_sensor import (
+    HisenseVidaaAuthProblemBinarySensor,
     HisenseVidaaInUseBinarySensor,
     HisenseVidaaMqttConnectedBinarySensor,
+    async_setup_entry as async_setup_binary_sensors,
 )
 from custom_components.vidaa.button import (
     HisenseVidaaForceReconnectButton,
@@ -146,9 +148,29 @@ async def test_sensor_entities(mock_client, mock_entry):
 
 
 def test_binary_sensor_entities(mock_client, mock_entry):
-    """Test MQTT connected binary sensor entity."""
+    """Test MQTT connected and auth problem binary sensor entities."""
     bs_mqtt = HisenseVidaaMqttConnectedBinarySensor(mock_client, mock_entry)
     assert bs_mqtt.is_on is True
+
+    # Test Auth Problem binary sensor
+    mock_client.auth_failed = False
+    bs_auth = HisenseVidaaAuthProblemBinarySensor(mock_client, mock_entry)
+    assert bs_auth.is_on is False
+    assert bs_auth.unique_id == "test_entry_id_auth_problem"
+    assert bs_auth.available is True
+
+    mock_client.auth_failed = True
+    assert bs_auth.is_on is True
+    # Remains available so user and automations can see the problem status
+    assert bs_auth.available is True
+
+    # Test platform setup adds 4 binary sensors
+    hass = MagicMock()
+    added_sensors = []
+    import asyncio
+
+    asyncio.run(async_setup_binary_sensors(hass, mock_entry, lambda entities: added_sensors.extend(entities)))
+    assert len(added_sensors) == 4
 
 
 @pytest.mark.anyio

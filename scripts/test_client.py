@@ -595,11 +595,21 @@ async def do_sniff(
     ca_cert: str | None = None,
     verify_ssl: bool = False,
     brand: str | None = None,
+    auth_profile: str = "auto",
 ) -> None:
     ip = creds.get("ip_address")
     print(f"\n[SNIFF] Connecting to TV at {ip} and subscribing to topic filter '{topic}'...")
 
-    client = create_client_from_creds(creds, certfile, keyfile, ca_cert=ca_cert, verify_ssl=verify_ssl, brand=brand)
+    selected_profile = creds.get("auth_profile") or auth_profile
+    client = create_client_from_creds(
+        creds,
+        certfile,
+        keyfile,
+        ca_cert=ca_cert,
+        verify_ssl=verify_ssl,
+        auth_profile=selected_profile,
+        brand=brand,
+    )
 
     def on_raw(t: str, p: str) -> None:
         now = datetime.now().strftime("%H:%M:%S.%f")[:-3]
@@ -1101,6 +1111,7 @@ def main() -> None:
                 ca_cert=args.ca_cert,
                 verify_ssl=args.verify_ssl,
                 brand=brand,
+                auth_profile=args.profile,
             )
         )
 
@@ -1227,6 +1238,7 @@ def main() -> None:
                 ca_cert=args.ca_cert,
                 verify_ssl=args.verify_ssl,
                 brand=brand,
+                auth_profile=args.profile,
             )
         )
 

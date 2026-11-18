@@ -47,7 +47,6 @@
         "title": "Recursos e opções do dispositivo",
         "description": "Personalize recursos para sua VIDAA Smart TV.",
         "data": {
-          "enable_remote": "Habilitar entidade de controle remoto dedicada",
           "enable_wol": "Habilitar inicialização via Wake-on-LAN",
           "include_apps_in_sources": "Incluir aplicativos Smart TV na lista de fontes do reprodutor de mídia",
           "enable_media_controls": "Habilitar controles de mídia (reproduzir/pausar, parar, pular)",
@@ -108,7 +107,6 @@
         "title": "Entidades e controle remoto",
         "description": "Configure seletores de entidades, calibração de imagem, predefinições de som e temporizações.",
         "data": {
-          "enable_remote": "Habilitar entidade de controle remoto dedicada",
           "enable_picture_controls": "Habilitar seletor de modo de imagem e controles deslizantes de calibração (Luz de fundo, Brilho, Contraste)",
           "enable_sound_controls": "Habilitar seletor de predefinições do equalizador de modo de som",
           "enable_audio_only": "Habilitar interruptor Apenas Áudio (Tela desligada)",

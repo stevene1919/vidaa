@@ -11,17 +11,14 @@ from homeassistant.components.remote import RemoteEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .client import VidaaClient
 from .const import (
-    CONF_ENABLE_REMOTE,
     CONF_ENABLE_WOL,
     CONF_KEY_DELAY,
     CONF_KEY_REPEAT,
     CONF_SECONDARY_MAC_ADDRESS,
-    DEFAULT_ENABLE_REMOTE,
     DEFAULT_ENABLE_WOL,
     DEFAULT_KEY_DELAY,
     DEFAULT_KEY_REPEAT,
@@ -254,13 +251,4 @@ async def async_setup_entry(
 ) -> None:
     """Set up the VIDAA remote entity."""
     client: VidaaClient = config_entry.runtime_data.client
-
-    # Clean up the remote from the entity registry if the feature was disabled
-    entity_reg = er.async_get(hass)
-    unique_id = f"{config_entry.entry_id}_remote"
-    if not config_entry.options.get(CONF_ENABLE_REMOTE, DEFAULT_ENABLE_REMOTE):
-        if entity_id := entity_reg.async_get_entity_id("remote", DOMAIN, unique_id):
-            entity_reg.async_remove(entity_id)
-        return
-
     async_add_entities([VidaaRemote(client=client, entry=config_entry)])

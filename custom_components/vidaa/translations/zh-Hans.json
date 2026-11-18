@@ -47,7 +47,6 @@
         "title": "设备功能与选项",
         "description": "自定义您的海信 VIDAA 电视功能。",
         "data": {
-          "enable_remote": "启用独立的遥控器 (Remote) 实体",
           "enable_wol": "启用局域网唤醒 (WoL) 开机",
           "include_apps_in_sources": "在播放器输入源列表中包含智能电视应用",
           "enable_media_controls": "启用媒体播放控制 (播放/暂停、停止、跳过)",
@@ -109,7 +108,6 @@
         "title": "实体与遥控控制",
         "description": "配置实体开关、图像校准、声音预设以及遥控按键延迟。",
         "data": {
-          "enable_remote": "启用独立的遥控器 (Remote) 实体",
           "enable_picture_controls": "启用图像模式选择与校准滑块 (背光、亮度、对比度)",
           "enable_sound_controls": "启用声音模式均衡器预设选择器",
           "enable_audio_only": "启用“仅音频/关闭屏幕”切换开关",

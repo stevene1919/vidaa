@@ -87,7 +87,6 @@ To customize integration behavior for an existing TV, navigate to **Settings →
 
 | Parameter                     | Type                      | Default | Description                                                                                                |
 |:----------------------------- |:------------------------- |:------- |:---------------------------------------------------------------------------------------------------------- |
-| **`enable_remote`**           | `boolean`                 | `true`  | When enabled, registers a `remote.<tv>` entity for sending discrete remote keys and sequences.             |
 | **`enable_picture_controls`** | `boolean`                 | `true`  | Exposes `select.<tv>_picture_mode` and calibration number entities (Backlight, Brightness, Contrast).      |
 | **`enable_sound_controls`**   | `boolean`                 | `true`  | Exposes `select.<tv>_sound_mode` for switching audio modes (Standard, Theater, Music, Speech, Late Night). |
 | **`enable_audio_only`**       | `boolean`                 | `true`  | Exposes `switch.<tv>_audio_only` to turn off the TV display backlight while keeping audio playing.         |

@@ -42,7 +42,6 @@ from .const import (
     CONF_CERTFILE,
     CONF_CLIENT_ID,
     CONF_ENABLE_PICTURE_CONTROLS,
-    CONF_ENABLE_REMOTE,
     CONF_IP_ADDRESS,
     CONF_KEYFILE,
     CONF_MAC_ADDRESS,
@@ -59,7 +58,6 @@ from .const import (
     DEFAULT_BRAND,
     DEFAULT_BRAND_OPTION,
     DEFAULT_ENABLE_PICTURE_CONTROLS,
-    DEFAULT_ENABLE_REMOTE,
     DEFAULT_USE_SSL,
     DOMAIN,
     LEGACY_DOMAIN,
@@ -451,6 +449,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
     # Start running background task for MQTT client
     platforms_to_setup = [
         "media_player",
+        "remote",
         "sensor",
         "binary_sensor",
         "button",
@@ -473,14 +472,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
             for domain in (DOMAIN, LEGACY_DOMAIN):
                 if entity_id := entity_reg.async_get_entity_id("number", domain, unique_id):
                     entity_reg.async_remove(entity_id)
-
-    if entry.options.get(CONF_ENABLE_REMOTE, DEFAULT_ENABLE_REMOTE):
-        platforms_to_setup.append("remote")
-    else:
-        unique_id = f"{entry.entry_id}_remote"
-        for domain in (DOMAIN, LEGACY_DOMAIN):
-            if entity_id := entity_reg.async_get_entity_id("remote", domain, unique_id):
-                entity_reg.async_remove(entity_id)
 
     # Prune retired notify entity if present in entity registry
     unique_id = f"{entry.entry_id}_notify"

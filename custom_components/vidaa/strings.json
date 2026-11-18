@@ -47,7 +47,6 @@
         "title": "Device Features & Options",
         "description": "Customize features for your VIDAA Smart TV.",
         "data": {
-          "enable_remote": "Enable dedicated Remote entity",
           "enable_wol": "Enable Wake-on-LAN (WoL)",
           "include_apps_in_sources": "Include streaming apps in source list",
           "enable_media_controls": "Enable media playback controls",
@@ -118,7 +117,6 @@
         "title": "Entities & Remote Controls",
         "description": "Configure entity toggles, picture calibration, sound presets, and remote key timings.",
         "data": {
-          "enable_remote": "Enable dedicated Remote entity",
           "enable_picture_controls": "Enable Picture Mode & Calibration Controls",
           "enable_sound_controls": "Enable Sound Mode Selector",
           "enable_audio_only": "Enable Audio-Only (Screen Off) switch",
@@ -126,7 +124,6 @@
           "key_repeat": "Remote Key Repeat Count"
         },
         "data_description": {
-          "enable_remote": "Creates a dedicated remote entity (remote.tv) for sending button commands, navigation keys, and sequences in automations and dashboards.",
           "enable_picture_controls": "Creates picture mode selector and backlight, brightness, and contrast slider entities. Disabling removes these entities from Home Assistant.",
           "enable_sound_controls": "Creates an equalizer sound preset selector entity (Standard, Theatre, Music, Speech, Late Night, Sports).",
           "enable_audio_only": "Creates a switch entity to turn off the display panel while keeping audio streaming active (ideal for music, radio, and podcasts).",

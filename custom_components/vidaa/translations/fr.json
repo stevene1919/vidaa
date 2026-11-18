@@ -47,7 +47,6 @@
         "title": "Fonctionnalités et options de l'appareil",
         "description": "Personnalisez les fonctionnalités pour votre VIDAA Smart TV.",
         "data": {
-          "enable_remote": "Activer l'entité Télécommande dédiée",
           "enable_wol": "Activer l'allumage par Wake-on-LAN",
           "include_apps_in_sources": "Inclure les applications Smart TV dans la liste des sources du lecteur multimédia",
           "enable_media_controls": "Activer les commandes de lecture multimédia (lecture/pause, arrêt, piste suivante/précédente)",
@@ -108,7 +107,6 @@
         "title": "Entités et télécommande",
         "description": "Configurez les entités, le calibrage d'image, les présets audio et les délais de télécommande.",
         "data": {
-          "enable_remote": "Activer l'entité Télécommande dédiée",
           "enable_picture_controls": "Activer le sélecteur de mode d'image et les curseurs de calibrage (Rétroéclairage, Luminosité, Contraste)",
           "enable_sound_controls": "Activer le sélecteur de préréglages d'égaliseur de mode sonore",
           "enable_audio_only": "Activer l'interrupteur Audio uniquement (Écran éteint)",

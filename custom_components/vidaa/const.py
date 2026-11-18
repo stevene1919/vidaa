@@ -25,7 +25,7 @@ CONF_BRAND = "brand"
 CONF_SW_VERSION = "sw_version"
 CONF_SECONDARY_MAC_ADDRESS = "secondary_mac_address"
 
-CONF_ENABLE_REMOTE = "enable_remote"
+CONF_ENABLE_REMOTE = "enable_remote"  # Deprecated: remote platform is now always enabled
 CONF_ENABLE_WOL = "enable_wol"
 CONF_INCLUDE_APPS_IN_SOURCES = "include_apps_in_sources"
 CONF_SOURCES = "sources"

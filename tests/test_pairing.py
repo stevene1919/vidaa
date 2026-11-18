@@ -232,7 +232,7 @@ async def test_static_pin_submit_completes_flow(monkeypatch, no_network_start_au
     result = await flow.async_step_auth(user_input={"pin_code": "0656"})
     assert result["step_id"] == "options"
 
-    entry = await flow.async_step_options(user_input={"enable_remote": True})
+    entry = await flow.async_step_options(user_input={"enable_wol": True})
     assert entry["type"] == "create_entry"
 
 

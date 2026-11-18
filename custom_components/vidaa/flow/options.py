@@ -21,7 +21,6 @@ from ..const import (
     CONF_ENABLE_CEC_NAMES,
     CONF_ENABLE_MEDIA_CONTROLS,
     CONF_ENABLE_PICTURE_CONTROLS,
-    CONF_ENABLE_REMOTE,
     CONF_ENABLE_SOUND_CONTROLS,
     CONF_ENABLE_WOL,
     CONF_INCLUDE_APPS_IN_SOURCES,
@@ -39,7 +38,6 @@ from ..const import (
     DEFAULT_ENABLE_CEC_NAMES,
     DEFAULT_ENABLE_MEDIA_CONTROLS,
     DEFAULT_ENABLE_PICTURE_CONTROLS,
-    DEFAULT_ENABLE_REMOTE,
     DEFAULT_ENABLE_SOUND_CONTROLS,
     DEFAULT_ENABLE_WOL,
     DEFAULT_INCLUDE_APPS_IN_SOURCES,
@@ -242,10 +240,6 @@ class VidaaOptionsFlowHandler(config_entries.OptionsFlow):
             step_id="features_remote",
             data_schema=vol.Schema(
                 {
-                    vol.Optional(
-                        CONF_ENABLE_REMOTE,
-                        default=options.get(CONF_ENABLE_REMOTE, DEFAULT_ENABLE_REMOTE),
-                    ): bool,
                     vol.Optional(
                         CONF_ENABLE_PICTURE_CONTROLS,
                         default=options.get(

@@ -20,7 +20,6 @@ from custom_components.vidaa.const import (
     CONF_BRAND,
     CONF_CLIENT_ID,
     CONF_ENABLE_PICTURE_CONTROLS,
-    CONF_ENABLE_REMOTE,
     CONF_IP_ADDRESS,
     CONF_MAC_ADDRESS,
     CONF_USE_SSL,
@@ -225,7 +224,7 @@ async def test_entry_lifecycle_setup_and_unload(mock_entry, mock_client, monkeyp
     assert result is True
 
     # Forward entry setups should have received 7 platforms (excluding number)
-    expected_platforms = ["media_player", "sensor", "binary_sensor", "button", "switch", "select", "remote"]
+    expected_platforms = ["media_player", "remote", "sensor", "binary_sensor", "button", "switch", "select"]
     hass.config_entries.async_forward_entry_setups.assert_awaited_once_with(mock_entry, expected_platforms)
     assert mock_entry.runtime_data.platforms == expected_platforms
 
@@ -304,7 +303,7 @@ async def test_update_listener_options_filtering(mock_entry, mock_client, monkey
     hass.config_entries.async_forward_entry_setups = AsyncMock(return_value=True)
     hass.config_entries.async_reload = AsyncMock()
 
-    mock_entry.options = {"enable_remote": True}
+    mock_entry.options = {"enable_wol": True}
     await async_setup_entry(hass, mock_entry)
 
     # 1. Trigger update_listener with unchanged options (e.g. entry.data updated with refreshed tokens)
@@ -312,7 +311,7 @@ async def test_update_listener_options_filtering(mock_entry, mock_client, monkey
     hass.config_entries.async_reload.assert_not_called()
 
     # 2. Trigger update_listener with changed options
-    mock_entry.options = {"enable_remote": False}
+    mock_entry.options = {"enable_wol": False}
     await update_listener(hass, mock_entry)
     hass.config_entries.async_reload.assert_awaited_once_with(mock_entry.entry_id)
 
@@ -527,9 +526,8 @@ async def test_setup_entry_cleans_up_disabled_platforms():
         CONF_ACCESS_TOKEN: "valid_token",
         CONF_BRAND: "his",
     }
-    # User disabled remote and picture controls
+    # User disabled picture controls
     entry.options = {
-        CONF_ENABLE_REMOTE: False,
         CONF_ENABLE_PICTURE_CONTROLS: False,
     }
 
@@ -552,8 +550,7 @@ async def test_setup_entry_cleans_up_disabled_platforms():
         res = await async_setup_entry(hass, entry)
         assert res is True
 
-    # Remote, notify, and 3 picture controls must be removed
-    assert "remote.test_cleanup_entry_remote" in removed_entities
+    # Notify and 3 picture controls must be removed
     assert "notify.test_cleanup_entry_notify" in removed_entities
     assert "number.test_cleanup_entry_backlight" in removed_entities
     assert "number.test_cleanup_entry_brightness" in removed_entities

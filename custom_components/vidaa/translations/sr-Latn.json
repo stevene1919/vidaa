@@ -47,7 +47,6 @@
         "title": "Funkcije i opcije uređaja",
         "description": "Prilagodite funkcije za svoj VIDAA televizor.",
         "data": {
-          "enable_remote": "Omogući poseban entitet daljinskog upravljača (Remote)",
           "enable_wol": "Omogući uključivanje putem Wake-on-LAN-a",
           "include_apps_in_sources": "Uključi Smart TV aplikacije u listu izvora medijskog plejera",
           "enable_media_controls": "Omogući kontrole za upravljanje medijima (pusti/pauziraj, zaustavi, preskoči)",
@@ -108,7 +107,6 @@
         "title": "Entiteti i daljinski upravljači",
         "description": "Konfigurišite prekidače entiteta, kalibraciju slike, unapred podešene režime zvuka i tajminge tastera daljinskog upravljača.",
         "data": {
-          "enable_remote": "Omogući poseban entitet daljinskog upravljača (Remote)",
           "enable_picture_controls": "Omogući izbor režima slike i klizače za kalibraciju (pozadinsko osvetljenje, svetlina, kontrast)",
           "enable_sound_controls": "Omogući izbor unapred podešenih režima ekvilajzera za zvuk",
           "enable_audio_only": "Omogući prekidač za režim 'Samo audio' (isključen ekran)",

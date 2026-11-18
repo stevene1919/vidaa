@@ -110,7 +110,6 @@ async def test_options_step_creates_entry():
 
     result = await flow.async_step_options(
         user_input={
-            "enable_remote": True,
             "enable_wol": True,
             "include_apps_in_sources": True,
             "enable_picture_controls": False,
@@ -127,7 +126,6 @@ async def test_options_step_creates_entry():
     assert result["data"][CONF_MANUFACTURER] == "Hisense"
     assert result["data"][CONF_BRAND] == "his"
     assert result["data"][CONF_SW_VERSION] == "V1.0"
-    assert result["options"]["enable_remote"] is True
     assert result["options"]["enable_picture_controls"] is False
     assert result["options"]["enable_sound_controls"] is False
     assert result["options"]["enable_audio_only"] is False

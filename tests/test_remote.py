@@ -8,7 +8,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.vidaa.const import (
-    CONF_ENABLE_REMOTE,
     DOMAIN,
     LEGACY_DOMAIN,
 )
@@ -161,19 +160,14 @@ def test_remote_off_ish_statetypes_stay_off(mock_client, mock_entry):
 
 
 @pytest.mark.anyio
-async def test_remote_platform_purges_registry_when_disabled(mock_client, mock_entry, monkeypatch):
-    """[F10-leg4] remote registry entry is purged when the feature is disabled."""
+async def test_remote_platform_always_sets_up_entity(mock_client, mock_entry):
+    """Remote platform always registers entity regardless of options."""
     hass = MagicMock(spec=HomeAssistant)
-    hass.data = {DOMAIN: {mock_entry.entry_id: {"client": mock_client}}}
-    mock_reg = MagicMock()
-    mock_reg.async_get_entity_id.return_value = "remote.living_room_tv"
-    monkeypatch.setattr("homeassistant.helpers.entity_registry.async_get", lambda h: mock_reg)
-    mock_entry.options = {CONF_ENABLE_REMOTE: False}
-
+    mock_entry.runtime_data = MagicMock(client=mock_client)
     entities = []
     await async_setup_remote(hass, mock_entry, lambda e: entities.extend(e))
-    mock_reg.async_remove.assert_called_once_with("remote.living_room_tv")
-    assert entities == []
+    assert len(entities) == 1
+    assert entities[0].unique_id == f"{mock_entry.entry_id}_remote"
 
 
 @pytest.mark.anyio

@@ -47,7 +47,6 @@
         "title": "Gerätefunktionen & Optionen",
         "description": "Passe die Funktionen für deinen VIDAA Smart TV an.",
         "data": {
-          "enable_remote": "Dedizierte Fernbedienungs-Entität aktivieren",
           "enable_wol": "Einschalten über Wake-on-LAN aktivieren",
           "include_apps_in_sources": "Smart-TV-Apps in die Quellenliste des Medienplayers aufnehmen",
           "enable_media_controls": "Mediensteuerungen aktivieren (Wiedergabe/Pause, Stopp, Überspringen)",
@@ -108,7 +107,6 @@
         "title": "Entitäten & Fernbedienung",
         "description": "Konfiguriere Entitätsschalter, Bildkalibrierung, Ton-Presets und Tastenverzögerungen.",
         "data": {
-          "enable_remote": "Dedizierte Fernbedienungs-Entität aktivieren",
           "enable_picture_controls": "Bildmodus-Auswahl und Kalibrierungs-Schieberegler aktivieren (Hintergrundbeleuchtung, Helligkeit, Kontrast)",
           "enable_sound_controls": "Tonmodus-Equalizer-Preset-Auswahl aktivieren",
           "enable_audio_only": "Nur-Audio-Schalter (Bildschirm aus) aktivieren",

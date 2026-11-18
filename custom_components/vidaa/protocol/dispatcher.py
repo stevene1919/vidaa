@@ -145,9 +145,31 @@ def dispatch_incoming_mqtt_message(client: VidaaClient, topic: str, payload: str
     ):
         try:
             data = json.loads(payload)
+            if (
+                topic != f"{client.topics.mobile}platform_service/data/getvolume"
+                and getattr(client, "is_on", False) is False
+            ):
+                _LOGGER.debug(
+                    "[%s] Unsolicited volume broadcast received while TV marked off; transitioning to on",
+                    ip,
+                )
+                synth_state: dict[str, Any] = {"statetype": "fake_sleep_1"}
+                if getattr(client, "current_source", None):
+                    synth_state["sourcename"] = client.current_source
+                client._dispatch_state_update(synth_state)
             client._dispatch_volume_update(data)
         except Exception as e:
             _LOGGER.debug("[%s] Error parsing volume payload: %s", ip, e)
+        return
+
+    if topic in (
+        f"{client.topics.broadcast}platform_service/actions/tvwake",
+        f"{client.topics.broadcast}platform_service/actions/tvon",
+    ):
+        synth_state = {"statetype": "fake_sleep_1"}
+        if getattr(client, "current_source", None):
+            synth_state["sourcename"] = client.current_source
+        client._dispatch_state_update(synth_state)
         return
 
     if topic == f"{client.topics.broadcast}platform_service/actions/tvsleep":

@@ -283,3 +283,72 @@ def test_dispatcher_unrelated_broadcast_does_not_disturb_power_state() -> None:
     )
     assert client.hotel_mode is True
     assert dispatched_states == []
+
+
+def test_dispatcher_volumechange_broadcast_wakes_standby_tv() -> None:
+    """Unsolicited volumechange broadcast transitions standby TV to on."""
+    client = _create_test_client()
+    client.state = "off"
+    assert client.is_on is False
+
+    dispatched_states = []
+    dispatched_volumes = []
+    client._dispatch_state_update = lambda state: (
+        dispatched_states.append(state),
+        setattr(client, "state", "on"),
+    )
+    client._dispatch_volume_update = lambda vol: dispatched_volumes.append(vol)
+
+    dispatch_incoming_mqtt_message(
+        client,
+        f"{client.topics.broadcast}platform_service/actions/volumechange",
+        '{"volume_type": 0, "volume_value": 15}',
+    )
+
+    assert len(dispatched_states) == 1
+    assert dispatched_states[0]["statetype"] == "fake_sleep_1"
+    assert len(dispatched_volumes) == 1
+    assert dispatched_volumes[0] == {"volume_type": 0, "volume_value": 15}
+
+
+def test_dispatcher_getvolume_query_reply_does_not_wake_standby_tv() -> None:
+    """Targeted reply to getvolume query must not wake TV while in standby."""
+    client = _create_test_client()
+    client.state = "off"
+    assert client.is_on is False
+
+    dispatched_states = []
+    dispatched_volumes = []
+    client._dispatch_state_update = lambda state: dispatched_states.append(state)
+    client._dispatch_volume_update = lambda vol: dispatched_volumes.append(vol)
+
+    dispatch_incoming_mqtt_message(
+        client,
+        f"{client.topics.mobile}platform_service/data/getvolume",
+        '{"volume_type": 0, "volume_value": 15}',
+    )
+
+    assert dispatched_states == []
+    assert len(dispatched_volumes) == 1
+    assert dispatched_volumes[0] == {"volume_type": 0, "volume_value": 15}
+
+
+def test_dispatcher_tvwake_broadcast_dispatches_fake_sleep_1() -> None:
+    """tvwake/tvon broadcast announcement is treated as wake event fake_sleep_1."""
+    client = _create_test_client()
+    dispatched_states = []
+    client._dispatch_state_update = lambda state: dispatched_states.append(state)
+
+    dispatch_incoming_mqtt_message(
+        client,
+        f"{client.topics.broadcast}platform_service/actions/tvwake",
+        "",
+    )
+    assert dispatched_states == [{"statetype": "fake_sleep_1"}]
+
+    dispatch_incoming_mqtt_message(
+        client,
+        f"{client.topics.broadcast}platform_service/actions/tvon",
+        "",
+    )
+    assert dispatched_states == [{"statetype": "fake_sleep_1"}, {"statetype": "fake_sleep_1"}]

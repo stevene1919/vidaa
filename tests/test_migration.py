@@ -86,8 +86,41 @@ async def test_async_migrate_entry_v1_to_v2():
         hass.config_entries.async_update_entry.assert_called_once_with(
             mock_entry,
             version=2,
-            minor_version=1,
+            minor_version=2,
         )
+
+
+@pytest.mark.anyio
+async def test_async_migrate_entry_v2_1_to_v2_2_legacy_ssl():
+    """Test migrating v2.1 legacy entry with use_ssl=False to v2.2 with use_ssl=True."""
+    hass = MagicMock(spec=HomeAssistant)
+    hass.config_entries = MagicMock()
+
+    mock_entry = MagicMock(spec=ConfigEntry)
+    mock_entry.entry_id = "entry_legacy_ssl_123"
+    mock_entry.title = "Older Hisense TV"
+    mock_entry.version = 2
+    mock_entry.minor_version = 1
+    mock_entry.domain = DOMAIN
+    mock_entry.data = {
+        "ip_address": "192.168.50.12",
+        "auth_profile": "legacy",
+        "use_ssl": False,
+    }
+    mock_entry.options = {}
+
+    result = await async_migrate_entry(hass, mock_entry)
+    assert result is True
+
+    hass.config_entries.async_update_entry.assert_called_once_with(
+        mock_entry,
+        data={
+            "ip_address": "192.168.50.12",
+            "auth_profile": "legacy",
+            "use_ssl": True,
+        },
+        minor_version=2,
+    )
 
 
 @pytest.mark.anyio
@@ -210,7 +243,7 @@ async def test_async_setup_auto_migrates_legacy_entries():
         hass.config_entries.async_update_entry.assert_called_once_with(
             legacy_entry,
             version=2,
-            minor_version=1,
+            minor_version=2,
         )
 
 

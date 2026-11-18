@@ -35,6 +35,8 @@ def standard_tv_topics(broadcast_basepath: str, mobile_basepath: str) -> list[tu
         (broadcast_basepath + "platform_service/actions/volumechange", 0),
         (broadcast_basepath + "ui_service/volume", 0),
         (broadcast_basepath + "platform_service/actions/tvsleep", 0),
+        (broadcast_basepath + "platform_service/actions/tvwake", 0),
+        (broadcast_basepath + "platform_service/actions/tvon", 0),
         (broadcast_basepath + "ui_service/data/hotelmodechange", 0),
         # The client's own mobile push tree: mirrors the pairing session so mid-session
         # pushes (authentication challenges, token issuance, code close/toast) are

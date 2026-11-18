@@ -52,7 +52,7 @@ data:
   delay: 0.2
 ```
 
-#### 1.1 Supported Key Names & Aliases
+#### 2.1 Supported Key Names & Aliases
 
 The integration supports both friendly lowercase aliases and native hardware `KEY_*` constants across `vidaa.send_key`, `vidaa.send_key_sequence`, and the native `remote.send_command` platform:
 
@@ -375,7 +375,7 @@ action:
       option: "Late Night"
 ```
 
-### Recipe 5A: Custom Turn-On Trigger via `vidaa.turn_on` (IR Blaster / Smart Plug)
+### Recipe 4: Custom Turn-On Trigger via `vidaa.turn_on` (IR Blaster / Smart Plug)
 Home Assistant's native `PluggableAction` system allows intercepting the standard `media_player.turn_on` command. Whenever you click "Turn On" on a dashboard card, or voice assistants (Google Assistant, Apple HomeKit, Alexa) request power on, Home Assistant routes the command directly to this automation:
 
 ```yaml
@@ -394,7 +394,7 @@ action:
       command: "KEY_POWER"  # Or base64 PRONTO code (e.g. b64:JgBGAJSUEzcTNxM3...)
 ```
 
-### Recipe 5B: Smart Wake with Automatic IR Blaster Fallback
+### Recipe 5: Smart Wake with Automatic IR Blaster Fallback
 This script gives you the best of both worlds: it attempts a silent, native Wake-on-LAN and MQTT wake first. If the TV does not wake within 15 seconds (e.g. after a power cut, cold standby, or if Wi-Fi packets were dropped), it automatically falls back to blasting the IR power code:
 
 ```yaml

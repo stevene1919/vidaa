@@ -113,3 +113,16 @@ async def test_switch_action_exceptions(mock_client, mock_entry):
     with pytest.raises(HomeAssistantError) as exc_info:
         await sw_audio.async_turn_on()
     assert exc_info.value.translation_key == "auth_required"
+
+    # 4. When TV is off, turn_on/turn_off raises device_off
+    mock_client.auth_failed = False
+    mock_client.connected = True
+    mock_client.is_on = False
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await sw_audio.async_turn_on()
+    assert exc_info.value.translation_key == "device_off"
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await sw_audio.async_turn_off()
+    assert exc_info.value.translation_key == "device_off"

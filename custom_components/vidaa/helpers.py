@@ -13,11 +13,12 @@ from .const import DOMAIN
 
 
 @callback
-def check_client_command_readiness(client: Any) -> None:
+def check_client_command_readiness(client: Any, *, require_on: bool = False) -> None:
     """Validate client readiness before executing an action.
 
     Raises HomeAssistantError with translation_key='auth_required' if authentication failed.
     Raises HomeAssistantError with translation_key='not_connected' if client is disconnected.
+    Raises HomeAssistantError with translation_key='device_off' if require_on is True and TV is off.
     """
     if getattr(client, "auth_failed", False) is True:
         raise HomeAssistantError(
@@ -30,6 +31,12 @@ def check_client_command_readiness(client: Any) -> None:
             "TV offline: Device unreachable.",
             translation_domain=DOMAIN,
             translation_key="not_connected",
+        )
+    if require_on and getattr(client, "is_on", True) is False:
+        raise HomeAssistantError(
+            "Cannot perform action: TV is currently turned off.",
+            translation_domain=DOMAIN,
+            translation_key="device_off",
         )
 
 

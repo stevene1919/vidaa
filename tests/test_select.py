@@ -187,3 +187,16 @@ async def test_select_action_exceptions_and_no_optimistic_update(mock_client, mo
     with pytest.raises(HomeAssistantError) as exc_info:
         await pic_sel.async_select_option("Dynamic")
     assert exc_info.value.translation_key == "auth_required"
+
+    # 4. When TV is off, selecting an option raises device_off
+    mock_client.auth_failed = False
+    mock_client.connected = True
+    mock_client.is_on = False
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await pic_sel.async_select_option("Dynamic")
+    assert exc_info.value.translation_key == "device_off"
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await snd_sel.async_select_option("Music")
+    assert exc_info.value.translation_key == "device_off"

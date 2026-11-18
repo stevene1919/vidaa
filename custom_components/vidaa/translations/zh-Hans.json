@@ -336,6 +336,9 @@
     },
     "turn_on_failed": {
       "message": "Wake-on-LAN failed: TV did not wake up."
+    },
+    "device_off": {
+      "message": "无法执行操作：电视当前已关机。"
     }
   },
   "selector": {

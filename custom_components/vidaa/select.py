@@ -95,7 +95,7 @@ class VidaaPictureModeSelect(VidaaEntity, SelectEntity):
 
     async def async_select_option(self, option: str) -> None:
         """Change picture mode option."""
-        check_client_command_readiness(self._client)
+        check_client_command_readiness(self._client, require_on=True)
         res = await self._client.async_set_picture_mode(option)
         if res is False:
             raise HomeAssistantError(
@@ -164,7 +164,7 @@ class VidaaSoundModeSelect(VidaaEntity, SelectEntity):
 
     async def async_select_option(self, option: str) -> None:
         """Change sound mode option."""
-        check_client_command_readiness(self._client)
+        check_client_command_readiness(self._client, require_on=True)
         res = await self._client.async_set_sound_mode(option)
         if res is False:
             raise HomeAssistantError(

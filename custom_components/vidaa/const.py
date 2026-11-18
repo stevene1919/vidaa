@@ -293,3 +293,18 @@ BRAND_CODE_MAP: dict[str, str] = {
     "tpo": "tpo",
     "toptro": "tpo",
 }
+
+POWER_KEYS: frozenset[str] = frozenset(
+    {
+        "power",
+        "power_off",
+        "pwr",
+        "standby",
+        "off",
+        "on",
+        "key_power",
+        "key_wakeup",
+        "key_poweron",
+        "wakeup",
+    }
+)

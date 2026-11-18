@@ -26,6 +26,7 @@ from .const import (
     DEFAULT_KEY_DELAY,
     DEFAULT_KEY_REPEAT,
     DOMAIN,
+    POWER_KEYS,
 )
 from .entity import VidaaEntity
 from .helpers import check_client_command_readiness
@@ -140,12 +141,14 @@ class VidaaRemote(VidaaEntity, RemoteEntity):
                 translation_domain=DOMAIN,
                 translation_key="auth_required",
             )
-        if getattr(self._client, "connected", True) is False and self._client.is_on:
+        if getattr(self._client, "connected", True) is False and getattr(self._client, "is_on", True):
             raise HomeAssistantError(
                 "TV offline: Device unreachable.",
                 translation_domain=DOMAIN,
                 translation_key="not_connected",
             )
+        if not getattr(self._client, "is_on", True):
+            return
         success = await self._client.async_turn_off()
         if success is False:
             raise HomeAssistantError(
@@ -158,7 +161,8 @@ class VidaaRemote(VidaaEntity, RemoteEntity):
 
     async def async_send_command(self, command: Iterable[str], **kwargs: Any) -> None:
         """Send a list of commands to the TV."""
-        check_client_command_readiness(self._client)
+        has_power_key = any(str(c).strip().lower() in POWER_KEYS for c in command)
+        check_client_command_readiness(self._client, require_on=not has_power_key)
         try:
             default_delay = float(self._options.get(CONF_KEY_DELAY, DEFAULT_KEY_DELAY))
         except (ValueError, TypeError):

@@ -362,6 +362,9 @@
     },
     "turn_on_failed": {
       "message": "Wake-on-LAN failed: TV did not wake up."
+    },
+    "device_off": {
+      "message": "Nije moguće izvršiti radnju: televizor je trenutno isključen."
     }
   },
   "selector": {

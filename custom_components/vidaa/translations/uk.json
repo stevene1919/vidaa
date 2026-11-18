@@ -336,6 +336,9 @@
     },
     "turn_on_failed": {
       "message": "Wake-on-LAN failed: TV did not wake up."
+    },
+    "device_off": {
+      "message": "Неможливо виконати дію: телевізор наразі вимкнено."
     }
   },
   "selector": {

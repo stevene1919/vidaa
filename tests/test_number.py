@@ -150,3 +150,12 @@ async def test_number_action_exceptions_and_no_optimistic_update(mock_client, mo
     with pytest.raises(HomeAssistantError) as exc_info:
         await bl.async_set_native_value(30)
     assert exc_info.value.translation_key == "auth_required"
+
+    # 4. When TV is off, setting value raises device_off
+    mock_client.auth_failed = False
+    mock_client.connected = True
+    mock_client.is_on = False
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await bl.async_set_native_value(30)
+    assert exc_info.value.translation_key == "device_off"

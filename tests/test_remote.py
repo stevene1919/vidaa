@@ -232,3 +232,26 @@ async def test_remote_turn_on_failed_wol(mock_client, mock_entry):
     with pytest.raises(HomeAssistantError) as exc_info:
         await rem.async_turn_on()
     assert exc_info.value.translation_key == "turn_on_failed"
+
+
+@pytest.mark.anyio
+async def test_remote_action_exceptions_when_tv_off(mock_client, mock_entry):
+    """Test remote raises device_off for non-power keys when TV is off, allows power keys, and turn_off no-ops."""
+    rem = VidaaRemote(client=mock_client, entry=mock_entry)
+    mock_client.connected = True
+    mock_client.is_on = False
+    mock_client.async_send_command = AsyncMock(return_value=True)
+
+    # 1. Turn off is a safe no-op when already off
+    await rem.async_turn_off()
+    mock_client.async_send_key.assert_not_called()
+
+    # 2. Non-power command raises device_off
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await rem.async_send_command(["KEY_VOLUMEUP"])
+    assert exc_info.value.translation_key == "device_off"
+
+    # 3. Power command is permitted even when off
+    await rem.async_send_command(["KEY_POWER"])
+    mock_client.async_send_command.assert_called_with("KEY_POWER")
+

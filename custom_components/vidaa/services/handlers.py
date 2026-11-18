@@ -25,6 +25,7 @@ from ..const import (
     ATTR_TEXT,
     ATTR_URL,
     DOMAIN,
+    POWER_KEYS,
 )
 from .target import _resolve_service_targets, parse_key_sequence
 
@@ -37,6 +38,7 @@ async def handle_send_key(hass: HomeAssistant, call: ServiceCall) -> dict[str, A
     repeat = call.data.get(ATTR_REPEAT, 1)
     delay = call.data.get(ATTR_DELAY, 0.2)
     target_clients = _resolve_service_targets(hass, call)
+    is_power_key = str(key).strip().lower() in POWER_KEYS
 
     for client in target_clients:
         if getattr(client, "auth_failed", False) is True:
@@ -51,6 +53,12 @@ async def handle_send_key(hass: HomeAssistant, call: ServiceCall) -> dict[str, A
                 translation_domain=DOMAIN,
                 translation_key="send_key_failed",
                 translation_placeholders={"key": str(key), "error": "TV is disconnected"},
+            )
+        if not is_power_key and getattr(client, "is_on", True) is False:
+            raise HomeAssistantError(
+                "Cannot perform action: TV is currently turned off.",
+                translation_domain=DOMAIN,
+                translation_key="device_off",
             )
         for i in range(repeat):
             if i > 0 and delay > 0:
@@ -102,6 +110,12 @@ async def handle_send_key_sequence(hass: HomeAssistant, call: ServiceCall) -> di
                 translation_domain=DOMAIN,
                 translation_key="send_key_sequence_failed",
                 translation_placeholders={"key": str(sequence[0]), "error": "TV is disconnected"},
+            )
+        if getattr(client, "is_on", True) is False:
+            raise HomeAssistantError(
+                "Cannot perform action: TV is currently turned off.",
+                translation_domain=DOMAIN,
+                translation_key="device_off",
             )
         for i, key in enumerate(sequence):
             if i > 0 and delay > 0:
@@ -155,6 +169,12 @@ async def handle_change_channel(hass: HomeAssistant, call: ServiceCall) -> dict[
                 translation_domain=DOMAIN,
                 translation_key="change_channel_digit_failed",
                 translation_placeholders={"digit": str(digits[0]), "error": "TV is disconnected"},
+            )
+        if getattr(client, "is_on", True) is False:
+            raise HomeAssistantError(
+                "Cannot perform action: TV is currently turned off.",
+                translation_domain=DOMAIN,
+                translation_key="device_off",
             )
         for i, digit in enumerate(digits):
             if i > 0 and delay > 0:
@@ -227,12 +247,27 @@ async def handle_launch_app(hass: HomeAssistant, call: ServiceCall) -> dict[str,
         app_name = str(call.data.get(ATTR_APP_NAME, app_name))
         app_url = str(call.data.get(ATTR_URL, app_url))
 
+        if getattr(client, "is_on", True) is False:
+            _LOGGER.debug(
+                "[%s] TV is off; powering on before launching app '%s'",
+                getattr(client, "ip", "unknown"),
+                app_name,
+            )
+            await client.async_turn_on()
+            await asyncio.sleep(0.5)
+
         if getattr(client, "connected", True) is False:
             raise HomeAssistantError(
                 f"Failed to launch app {app_name}: TV is disconnected",
                 translation_domain=DOMAIN,
                 translation_key="launch_app_failed",
                 translation_placeholders={"app_name": str(app_name), "error": "TV is disconnected"},
+            )
+        if getattr(client, "is_on", True) is False:
+            raise HomeAssistantError(
+                "Cannot perform action: TV is currently turned off.",
+                translation_domain=DOMAIN,
+                translation_key="device_off",
             )
 
         try:
@@ -286,6 +321,12 @@ async def handle_set_picture_setting(hass: HomeAssistant, call: ServiceCall) -> 
                 translation_key="set_picture_setting_failed",
                 translation_placeholders={"menu_id": str(menu_id), "error": "TV is disconnected"},
             )
+        if getattr(client, "is_on", True) is False:
+            raise HomeAssistantError(
+                "Cannot perform action: TV is currently turned off.",
+                translation_domain=DOMAIN,
+                translation_key="device_off",
+            )
         try:
             res = await client.async_set_picture_setting(menu_id, menu_val)
             if res is False:
@@ -324,6 +365,12 @@ async def handle_set_sound_setting(hass: HomeAssistant, call: ServiceCall) -> di
                 translation_key="set_sound_setting_failed",
                 translation_placeholders={"menu_id": str(menu_id), "error": "TV is disconnected"},
             )
+        if getattr(client, "is_on", True) is False:
+            raise HomeAssistantError(
+                "Cannot perform action: TV is currently turned off.",
+                translation_domain=DOMAIN,
+                translation_key="device_off",
+            )
         try:
             res = await client.async_set_sound_setting(menu_id, menu_val)
             if res is False:
@@ -361,6 +408,12 @@ async def handle_send_text_input(hass: HomeAssistant, call: ServiceCall) -> dict
                 translation_domain=DOMAIN,
                 translation_key="send_text_input_failed",
                 translation_placeholders={"error": "TV is disconnected"},
+            )
+        if getattr(client, "is_on", True) is False:
+            raise HomeAssistantError(
+                "Cannot perform action: TV is currently turned off.",
+                translation_domain=DOMAIN,
+                translation_key="device_off",
             )
         try:
             res = await client.async_send_text_input(text, action)

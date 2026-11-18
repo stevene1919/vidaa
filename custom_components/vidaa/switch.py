@@ -92,7 +92,7 @@ class VidaaAudioOnlySwitch(VidaaEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn off the screen while keeping audio active."""
-        check_client_command_readiness(self._client)
+        check_client_command_readiness(self._client, require_on=True)
         # Guarantee screen is awake first, then toggle off
         await self._client.async_send_key(WAKE_KEY)
         await asyncio.sleep(KEY_GAP_SECONDS)
@@ -109,7 +109,7 @@ class VidaaAudioOnlySwitch(VidaaEntity, SwitchEntity):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Wake the screen back up."""
-        check_client_command_readiness(self._client)
+        check_client_command_readiness(self._client, require_on=True)
         res = await self._client.async_send_key(WAKE_KEY)
         if res is False:
             raise HomeAssistantError(

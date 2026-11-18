@@ -379,6 +379,9 @@
     },
     "unhandled_trigger_type": {
       "message": "Trigger type {trigger_type} is not handled."
+    },
+    "device_off": {
+      "message": "Cannot perform action: TV is currently turned off."
     }
   },
   "selector": {

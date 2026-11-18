@@ -99,3 +99,11 @@ async def test_button_action_exceptions(mock_client, mock_entry):
     with pytest.raises(HomeAssistantError) as exc_info:
         await b_probe.async_press()
     assert exc_info.value.translation_key == "auth_required"
+
+    # 4. Probe capabilities button raises device_off when TV is off
+    mock_client.auth_failed = False
+    mock_client.connected = True
+    mock_client.is_on = False
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await b_probe.async_press()
+    assert exc_info.value.translation_key == "device_off"

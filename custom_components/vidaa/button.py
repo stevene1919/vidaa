@@ -159,7 +159,7 @@ class VidaaProbeCapabilitiesButton(VidaaBaseButton):
 
     async def async_press(self) -> None:
         """Handle button press to probe capabilities."""
-        check_client_command_readiness(self._client)
+        check_client_command_readiness(self._client, require_on=True)
 
         _LOGGER.info("[%s] Probing TV picture and sound menu capabilities over MQTT...", self._client.ip)
         await self._client.async_get_picture_settings()

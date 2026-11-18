@@ -325,3 +325,50 @@ async def test_media_player_turn_on_failed_wol(mock_client, mock_entry):
     with pytest.raises(HomeAssistantError) as exc_info:
         await mp.async_turn_on()
     assert exc_info.value.translation_key == "turn_on_failed"
+
+
+@pytest.mark.anyio
+async def test_media_player_actions_raise_when_tv_off(mock_client, mock_entry):
+    """Test media player actions raise device_off when TV is in standby/off."""
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    mock_client.connected = True
+    mock_client.is_on = False
+
+    # 1. async_turn_off is a safe no-op when already off
+    await mp.async_turn_off()
+    mock_client.async_send_key.assert_not_called()
+
+    # 2. Volume actions raise device_off
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await mp.async_set_volume_level(0.5)
+    assert exc_info.value.translation_key == "device_off"
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await mp.async_volume_up()
+    assert exc_info.value.translation_key == "device_off"
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await mp.async_volume_down()
+    assert exc_info.value.translation_key == "device_off"
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await mp.async_mute_volume(True)
+    assert exc_info.value.translation_key == "device_off"
+
+    # 3. Transport controls raise device_off
+    for action in (
+        mp.async_media_play,
+        mp.async_media_pause,
+        mp.async_media_stop,
+        mp.async_media_next_track,
+        mp.async_media_previous_track,
+    ):
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await action()
+        assert exc_info.value.translation_key == "device_off"
+
+    # 4. Sound mode selection raises device_off
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await mp.async_select_sound_mode("Theater")
+    assert exc_info.value.translation_key == "device_off"
+

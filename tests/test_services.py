@@ -682,3 +682,103 @@ async def test_service_action_exceptions_on_disconnected_target():
         await handlers[SERVICE_SEND_KEY](call_key)
     assert exc_info.value.translation_key == "send_key_failed"
     assert "TV is disconnected" in str(exc_info.value)
+
+
+@pytest.mark.anyio
+async def test_service_action_exceptions_when_tv_off():
+    """Verify services raise device_off when targeted TV is off, allow power key, and launch_app auto-wakes."""
+    hass, client_living, _client_kitchen = _two_tv_hass()
+    client_living.ip = "10.0.0.1"
+    client_living.connected = True
+    client_living.is_on = False
+    client_living.async_send_command = AsyncMock(return_value=True)
+    client_living.async_turn_on = AsyncMock(return_value=True)
+    client_living.async_launch_app = AsyncMock(return_value=True)
+    handlers = await _register_handlers(hass)
+
+    # 1. Non-power key raises device_off
+    call_key = ServiceCall(
+        domain=DOMAIN,
+        service=SERVICE_SEND_KEY,
+        data={ATTR_KEY: "KEY_VOLUMEUP", "ip_address": "10.0.0.1"},
+    )
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await handlers[SERVICE_SEND_KEY](call_key)
+    assert exc_info.value.translation_key == "device_off"
+
+    # 2. Power key is permitted when off
+    call_power = ServiceCall(
+        domain=DOMAIN,
+        service=SERVICE_SEND_KEY,
+        data={ATTR_KEY: "KEY_POWER", "ip_address": "10.0.0.1"},
+    )
+    res_power = await handlers[SERVICE_SEND_KEY](call_power)
+    assert res_power["key"] == "KEY_POWER"
+
+    # 3. Key sequence raises device_off
+    call_seq = ServiceCall(
+        domain=DOMAIN,
+        service=SERVICE_SEND_KEY_SEQUENCE,
+        data={ATTR_SEQUENCE: ["up", "ok"], "ip_address": "10.0.0.1"},
+    )
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await handlers[SERVICE_SEND_KEY_SEQUENCE](call_seq)
+    assert exc_info.value.translation_key == "device_off"
+
+    # 4. Change channel raises device_off
+    call_ch = ServiceCall(
+        domain=DOMAIN,
+        service=SERVICE_CHANGE_CHANNEL,
+        data={ATTR_CHANNEL: "123", "ip_address": "10.0.0.1"},
+    )
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await handlers[SERVICE_CHANGE_CHANNEL](call_ch)
+    assert exc_info.value.translation_key == "device_off"
+
+    # 5. Picture setting raises device_off
+    call_pic = ServiceCall(
+        domain=DOMAIN,
+        service=SERVICE_SET_PICTURE_SETTING,
+        data={ATTR_MENU_ID: 1, ATTR_MENU_VALUE: "Standard", "ip_address": "10.0.0.1"},
+    )
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await handlers[SERVICE_SET_PICTURE_SETTING](call_pic)
+    assert exc_info.value.translation_key == "device_off"
+
+    # 6. Sound setting raises device_off
+    call_snd = ServiceCall(
+        domain=DOMAIN,
+        service=SERVICE_SET_SOUND_SETTING,
+        data={ATTR_MENU_ID: 1, ATTR_MENU_VALUE: "Standard", "ip_address": "10.0.0.1"},
+    )
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await handlers[SERVICE_SET_SOUND_SETTING](call_snd)
+    assert exc_info.value.translation_key == "device_off"
+
+    # 7. Text input raises device_off
+    call_txt = ServiceCall(
+        domain=DOMAIN,
+        service=SERVICE_SEND_TEXT_INPUT,
+        data={ATTR_TEXT: "hello", "ip_address": "10.0.0.1"},
+    )
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await handlers[SERVICE_SEND_TEXT_INPUT](call_txt)
+    assert exc_info.value.translation_key == "device_off"
+
+    # 8. Launch app wakes TV first
+    async def _wake_tv(*args, **kwargs):
+        client_living.is_on = True
+        return True
+
+    client_living.async_turn_on = AsyncMock(side_effect=_wake_tv)
+    call_app = ServiceCall(
+        domain=DOMAIN,
+        service=SERVICE_LAUNCH_APP,
+        data={ATTR_APP: "YouTube", "ip_address": "10.0.0.1"},
+    )
+    client_living.is_on = False
+    res_app = await handlers[SERVICE_LAUNCH_APP](call_app)
+    assert res_app["app"] == "YouTube"
+    client_living.async_turn_on.assert_called_once()
+    client_living.async_launch_app.assert_called_once()
+

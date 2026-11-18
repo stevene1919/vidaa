@@ -101,7 +101,7 @@ class VidaaBacklightNumber(VidaaBaseNumber):
 
     async def async_set_native_value(self, value: float) -> None:
         """Set new backlight level."""
-        check_client_command_readiness(self._client)
+        check_client_command_readiness(self._client, require_on=True)
         res = await self._client.async_set_backlight(int(value))
         if res is False:
             raise HomeAssistantError(
@@ -144,7 +144,7 @@ class VidaaBrightnessNumber(VidaaBaseNumber):
 
     async def async_set_native_value(self, value: float) -> None:
         """Set new brightness level."""
-        check_client_command_readiness(self._client)
+        check_client_command_readiness(self._client, require_on=True)
         res = await self._client.async_set_brightness(int(value))
         if res is False:
             raise HomeAssistantError(
@@ -187,7 +187,7 @@ class VidaaContrastNumber(VidaaBaseNumber):
 
     async def async_set_native_value(self, value: float) -> None:
         """Set new contrast level."""
-        check_client_command_readiness(self._client)
+        check_client_command_readiness(self._client, require_on=True)
         res = await self._client.async_set_contrast(int(value))
         if res is False:
             raise HomeAssistantError(

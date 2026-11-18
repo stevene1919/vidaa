@@ -362,6 +362,9 @@
     },
     "turn_on_failed": {
       "message": "Wake-on-LAN failed: TV did not wake up."
+    },
+    "device_off": {
+      "message": "Não é possível executar a ação: a TV está desligada no momento."
     }
   },
   "selector": {

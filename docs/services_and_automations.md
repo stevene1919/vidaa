@@ -375,19 +375,56 @@ action:
       option: "Late Night"
 ```
 
-### Recipe 5: Custom Turn-On Trigger (Smart Plug / Relay / IR Blaster)
+### Recipe 5A: Custom Turn-On Trigger via `vidaa.turn_on` (IR Blaster / Smart Plug)
+Home Assistant's native `PluggableAction` system allows intercepting the standard `media_player.turn_on` command. Whenever you click "Turn On" on a dashboard card, or voice assistants (Google Assistant, Apple HomeKit, Alexa) request power on, Home Assistant routes the command directly to this automation:
+
 ```yaml
-alias: "Power: Custom TV Turn-On Action"
-description: "Intercepts media_player.turn_on to switch on an external smart plug before sending network wake."
+alias: "Power: Turn On TV via IR Blaster"
+description: "Intercepts media_player.turn_on to blast an IR power code via Broadlink, ESPHome, or SmartIR."
 trigger:
   - platform: device
     domain: vidaa
-    device_id: <DEVICE_ID>
+    device_id: <YOUR_VIDAA_DEVICE_ID>
     type: vidaa.turn_on
 action:
-  - action: switch.turn_on
+  - action: remote.send_command
     target:
-      entity_id: switch.living_room_tv_smart_plug
+      entity_id: remote.bedroom_ir_blaster  # Or remote.broadlink_rm4_pro
+    data:
+      command: "KEY_POWER"  # Or base64 PRONTO code (e.g. b64:JgBGAJSUEzcTNxM3...)
+```
+
+### Recipe 5B: Smart Wake with Automatic IR Blaster Fallback
+This script gives you the best of both worlds: it attempts a silent, native Wake-on-LAN and MQTT wake first. If the TV does not wake within 15 seconds (e.g. after a power cut, cold standby, or if Wi-Fi packets were dropped), it automatically falls back to blasting the IR power code:
+
+```yaml
+alias: "Power: Smart TV Turn-On with IR Fallback"
+description: "Attempts native Wake-on-LAN first; automatically fires IR blaster if TV is still off after 15 seconds."
+sequence:
+  # 1. Dispatch native network wake (WoL magic packet + MQTT check)
+  - action: media_player.turn_on
+    target:
+      entity_id: media_player.living_room_tv
+
+  # 2. Wait up to 15 seconds for the TV to boot and establish connection
+  - wait_for_trigger:
+      - platform: state
+        entity_id: media_player.living_room_tv
+        to: "on"
+    timeout: "00:00:15"
+    continue_on_timeout: true
+
+  # 3. Fallback: If the TV is still OFF after 15 seconds, fire the IR blaster!
+  - if:
+      - condition: state
+        entity_id: media_player.living_room_tv
+        state: "off"
+    then:
+      - action: remote.send_command
+        target:
+          entity_id: remote.bedroom_ir_blaster
+        data:
+          command: "KEY_POWER"
 ```
 
 ### Recipe 6: Direct Live TV Channel Tuning by Name or Number

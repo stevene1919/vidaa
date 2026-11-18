@@ -119,11 +119,14 @@ Extensive testing confirms that while modern models (such as VIDAA U6+ `58A53FXV
 1. **Unpowered PHY in Deep Sleep**: To meet strict statutory standby power limits, certain budget mainboards cut all DC power rails to the physical Ethernet transceiver and Wi-Fi module when entering deep sleep.
 2. **Firmware WoL Toggle Flaws**: On certain older firmware builds, the "Wake on LAN" menu toggle is purely cosmetic.
 
-### 💡 Fallback for Unsupported Models:
-If your specific hardware model completely shuts off its network chip in deep sleep:
+### 💡 Fallback for Unsupported Models (or After Power Outages):
+If your specific hardware model completely shuts off its network chip in deep sleep, or following an AC mains power cut:
 1. **Keep Fast Power On = ON**: The TV stays in shallow Network Standby (~1.5W–7.5W) where local MQTT wakes it natively.
 2. **Wired Ethernet**: Use a physical RJ45 Ethernet cable instead of Wi-Fi.
-3. **HDMI-CEC / IR Blaster**: Wake a connected HDMI-CEC device (Chromecast, Apple TV) or use an IR transmitter as an emergency cold-boot fallback.
+3. **IR Blaster / Smart Plug Turn-On Trigger**: Use the native `vidaa.turn_on` device automation trigger (Recipe 5A) to automatically fire an IR command or toggle a smart plug whenever the Media Player is turned on.
+4. **Smart Retry with IR Fallback**: Use Recipe 5B to attempt silent Wake-on-LAN first and automatically blast an IR power code only if the TV is still off after 15 seconds.
+
+See [Custom Services & Example Automations](services_and_automations.md#recipe-5a-custom-turn-on-trigger-via-vidaaturn_on-ir-blaster--smart-plug) for ready-to-use YAML configuration recipes.
 
 > [!NOTE]
 > **Daily Automations vs. Cold-Boot Recovery (e.g. Power Outages)**:

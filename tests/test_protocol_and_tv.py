@@ -422,3 +422,27 @@ async def test_async_turn_on_tv_reconnect_sends_key_power_when_still_in_standby(
     assert client.is_on is True
     client.send_wake_on_lan.assert_called_once()
     client.async_send_key.assert_awaited_once_with("KEY_POWER")
+
+
+@pytest.mark.anyio
+async def test_async_turn_on_tv_defaults_to_client_mac_and_secondary_mac_when_targets_omitted() -> None:
+    """Verify async_turn_on_tv broadcasts to client.mac and client.secondary_mac when mac_targets is None."""
+    from custom_components.vidaa.tv.actions_power import async_turn_on_tv
+
+    client = VidaaClient(
+        ip="192.168.50.12",
+        mac="e8:51:77:ec:98:1c",
+        secondary_mac="e4:3b:c9:57:f1:4f",
+        client_id="cid",
+    )
+    client.connected = True
+    client.is_on = True
+    client.send_wake_on_lan = MagicMock(return_value=True)
+
+    await async_turn_on_tv(client, mac_targets=None)
+
+    client.send_wake_on_lan.assert_called_once_with(
+        ["e8:51:77:ec:98:1c", "e4:3b:c9:57:f1:4f"],
+        ip="192.168.50.12",
+    )
+

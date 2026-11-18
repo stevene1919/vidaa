@@ -372,3 +372,21 @@ async def test_media_player_actions_raise_when_tv_off(mock_client, mock_entry):
         await mp.async_select_sound_mode("Theater")
     assert exc_info.value.translation_key == "device_off"
 
+
+@pytest.mark.anyio
+async def test_media_player_turn_on_targets_both_primary_and_secondary_mac(mock_client, mock_entry):
+    """Test async_turn_on collects both primary MAC and secondary MAC for WoL broadcast."""
+    mock_entry.data["mac_address"] = "e8:51:77:ec:98:1c"
+    mock_entry.data["secondary_mac_address"] = "e4:3b:c9:57:f1:4f"
+    mock_entry.options["enable_wol"] = True
+
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    mp.hass = MagicMock(spec=HomeAssistant)
+
+    mock_client.async_turn_on = AsyncMock(return_value=True)
+
+    await mp.async_turn_on()
+
+    mock_client.async_turn_on.assert_awaited_once_with(["e8:51:77:ec:98:1c", "e4:3b:c9:57:f1:4f"])
+
+

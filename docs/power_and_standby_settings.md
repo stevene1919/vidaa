@@ -93,6 +93,17 @@ The `vidaa` integration enables Wake-on-LAN by default (`enable_wol: true`). It 
    - When **Wake on Cast is disabled**, after ~15–20 minutes of inactivity, the TV cuts power to the main SoC and application processor, dropping power draw to ≤0.5W.
    - **Wake Mechanism**: The Wi-Fi SoC (or wired Ethernet PHY) remains powered in low-power 802.11 DTIM sleep, actively maintaining beacon synchronization with your wireless router or access point. Home Assistant broadcasts standard UDP Wake-on-LAN magic packets (`wakeonlan`) to trigger the TV's power management circuit to boot.
 
+> [!IMPORTANT]
+> **Testing Wake-on-LAN? You Must Wait ~15 Minutes After Powering Off!**
+> 
+> If you turn off your TV and immediately send a Wake-on-LAN packet, **it will do nothing**. 
+> 
+> Here is why:
+> * **First 15 Minutes (Fast Boot Standby, ~7.5W)**: The TV is only in shallow screen-off sleep. The network chip is not in low-power sleep mode and **completely ignores Wake-on-LAN magic packets**. During this 15-minute window, the TV only wakes via software MQTT (`KEY_POWER`) or the physical remote.
+> * **After ~15–20 Minutes (Deep Sleep, 0.0W)**: The TV finally powers down the main processor into true deep sleep. **Only then** does the network card enter low-power listening mode where Wake-on-LAN packets will actually wake it up.
+> 
+> If you are testing Wake-on-LAN, turn the TV off, wait 20 minutes until the TV enters deep sleep, and *then* test your WoL command.
+
 ---
 
 ### ⚠️ Model & Firmware Variations Across Generations

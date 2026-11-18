@@ -58,6 +58,10 @@ When an automation or manual service call fails, Home Assistant displays an erro
   * Note: Hisense and VIDAA devices often drop ICMP ping requests by default. Reachability must be verified via TCP port `36669` or UPnP HTTP port `38400` (e.g. `curl -I http://<tv_ip>:38400/MediaServer/rendererdevicedesc.xml`), not standard `ping`.
   * See [`network_requirements.md`](network_requirements.md) for complete port and firewall specifications.
 
+### 3. Wake-on-LAN Does Nothing When Tested Immediately After Powering Off
+* **Explanation**: You cannot test Wake-on-LAN immediately after turning off the TV. For the first ~15 minutes after power-off, the TV remains in transitional Fast Boot standby (~7.5W). In this state, the network card is not in low-power L2 sleep mode and **completely ignores Wake-on-LAN magic packets**. During this 15-minute window, the TV only wakes via software MQTT (`KEY_POWER`) or the remote.
+* **Solution**: Wait **15 to 20 minutes** after turning the TV off. Once the TV drops into true regulatory deep sleep (0.0W on a smart plug), the network chip enters low-power listening mode and will respond to Wake-on-LAN magic packets.
+
 ---
 
 ## 🔐 Pairing & Authentication Issues

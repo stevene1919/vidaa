@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.helpers import selector
+from homeassistant.helpers.device_registry import format_mac
 
 from ..const import (
     AUTH_PROFILE_SELECTOR,
@@ -26,6 +28,7 @@ from ..const import (
     CONF_KEY_DELAY,
     CONF_KEY_REPEAT,
     CONF_KEYFILE,
+    CONF_MAC_ADDRESS,
     CONF_PLAYBACK_DEBOUNCE,
     CONF_SECONDARY_MAC_ADDRESS,
     CONF_SOURCES,
@@ -67,11 +70,46 @@ class VidaaOptionsFlowHandler(config_entries.OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         """Power, Wake-on-LAN and network options."""
-        if user_input is not None:
-            updated_options = {**self.config_entry.options, **user_input}
-            return self.async_create_entry(title="", data=updated_options)
-
+        errors: dict[str, str] = {}
         options = self.config_entry.options
+        data = self.config_entry.data
+
+        primary_mac = data.get(CONF_MAC_ADDRESS) or ""
+
+        if user_input is not None:
+            raw_sec_mac = (user_input.get(CONF_SECONDARY_MAC_ADDRESS) or "").strip()
+            if raw_sec_mac:
+                cleaned_mac = format_mac(raw_sec_mac)
+                if not re.match(r"^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$", cleaned_mac):
+                    errors[CONF_SECONDARY_MAC_ADDRESS] = "invalid_mac"
+                else:
+                    user_input[CONF_SECONDARY_MAC_ADDRESS] = cleaned_mac.lower()
+            else:
+                user_input[CONF_SECONDARY_MAC_ADDRESS] = ""
+
+            if not errors:
+                updated_options = {**self.config_entry.options, **user_input}
+                return self.async_create_entry(title="", data=updated_options)
+
+        current_sec_mac = options.get(CONF_SECONDARY_MAC_ADDRESS)
+        if not current_sec_mac:
+            current_sec_mac = data.get(CONF_SECONDARY_MAC_ADDRESS)
+
+        if not current_sec_mac:
+            client = (
+                getattr(self.config_entry.runtime_data, "client", None)
+                if hasattr(self.config_entry, "runtime_data")
+                else None
+            )
+            if client:
+                mac_wifi = getattr(client, "mac_wifi", None)
+                mac_eth = getattr(client, "mac_ethernet", None)
+                if mac_wifi and mac_eth and mac_wifi != mac_eth:
+                    current_sec_mac = mac_eth if primary_mac == mac_wifi else mac_wifi
+                elif mac_wifi and mac_wifi != primary_mac:
+                    current_sec_mac = mac_wifi
+                elif mac_eth and mac_eth != primary_mac:
+                    current_sec_mac = mac_eth
 
         return self.async_show_form(
             step_id="power_network",
@@ -83,15 +121,12 @@ class VidaaOptionsFlowHandler(config_entries.OptionsFlow):
                     ): bool,
                     vol.Optional(
                         CONF_SECONDARY_MAC_ADDRESS,
-                        default=options.get(CONF_SECONDARY_MAC_ADDRESS)
-                        or (
-                            getattr(self._entry, "data", {}).get(CONF_SECONDARY_MAC_ADDRESS, "")
-                            if hasattr(self, "_entry") and self._entry
-                            else ""
-                        ),
+                        default=current_sec_mac or "",
                     ): str,
                 }
             ),
+            description_placeholders={"primary_mac": primary_mac or "Unknown"},
+            errors=errors,
         )
 
     async def async_step_playback_sources(

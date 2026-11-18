@@ -320,6 +320,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
     client = VidaaClient(
         ip=data[CONF_IP_ADDRESS],
         mac=mac,
+        secondary_mac=sec_mac,
         client_id=data.get(CONF_CLIENT_ID),
         username=data.get(CONF_USERNAME),
         password=data.get(CONF_PASSWORD),

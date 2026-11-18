@@ -85,7 +85,7 @@
       },
       "power_network": {
         "title": "Opzioni alimentazione e rete",
-        "description": "Configura Wake-on-LAN, interfacce di rete secondarie e rinnovo token in standby.",
+        "description": "Configura Wake-on-LAN e l'interfaccia di rete secondaria (Wi-Fi o Ethernet). MAC principale attivo: {primary_mac}.",
         "data": {
           "enable_wol": "Abilita accensione tramite Wake-on-LAN",
           "secondary_mac_address": "Indirizzo MAC secondario (Wi-Fi o Ethernet)"
@@ -130,7 +130,8 @@
     },
     "error": {
       "certs_not_found": "File del certificato o della chiave privata non trovato nel percorso specificato. Verifica posizione del file e permessi.",
-      "invalid_ssl_cert": "Convalida del certificato SSL o della chiave privata non riuscita. Verifica che i file siano in formato PEM non crittografato o PKCS#12 valido e corrispondano tra loro."
+      "invalid_ssl_cert": "Convalida del certificato SSL o della chiave privata non riuscita. Verifica che i file siano in formato PEM non crittografato o PKCS#12 valido e corrispondano tra loro.",
+      "invalid_mac": "Indirizzo MAC non valido. Deve essere un indirizzo esadecimale a 12 cifre (es. AA:BB:CC:DD:EE:FF)."
     }
   },
   "entity": {

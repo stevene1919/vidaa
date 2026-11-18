@@ -83,8 +83,14 @@ def turn_on_tv(
     mac_targets: list[str] | None = None,
 ) -> None:
     """Powers on or wakes the TV safely and idempotently."""
-    if mac_targets:
-        client.send_wake_on_lan(mac_targets, ip=getattr(client, "ip", None))
+    targets = list(mac_targets) if mac_targets else []
+    if not targets:
+        if getattr(client, "mac", None):
+            targets.append(client.mac)
+        if getattr(client, "secondary_mac", None) and client.secondary_mac not in targets:
+            targets.append(client.secondary_mac)
+    if targets:
+        client.send_wake_on_lan(targets, ip=getattr(client, "ip", None))
 
     if client.connected:
         if not client.is_on and getattr(client, "has_active_signal", False) is not True:
@@ -140,10 +146,16 @@ async def async_turn_on_tv(
 ) -> bool:
     """Powers on or wakes the TV safely and idempotently asynchronously."""
     wol_sent = False
-    if mac_targets:
+    targets = list(mac_targets) if mac_targets else []
+    if not targets:
+        if getattr(client, "mac", None):
+            targets.append(client.mac)
+        if getattr(client, "secondary_mac", None) and client.secondary_mac not in targets:
+            targets.append(client.secondary_mac)
+    if targets:
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
-            None, functools.partial(client.send_wake_on_lan, mac_targets, ip=getattr(client, "ip", None))
+            None, functools.partial(client.send_wake_on_lan, targets, ip=getattr(client, "ip", None))
         )
         wol_sent = True
 

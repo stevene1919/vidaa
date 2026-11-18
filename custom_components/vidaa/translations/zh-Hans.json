@@ -85,7 +85,7 @@
       },
       "power_network": {
         "title": "电源与网络选项",
-        "description": "配置局域网唤醒 (Wake-on-LAN)、辅助网络接口以及待机状态下的令牌自动续订。",
+        "description": "配置局域网唤醒 (WoL) 与辅助网络接口 (Wi-Fi 或以太网)。当前主 MAC: {primary_mac}。",
         "data": {
           "enable_wol": "启用局域网唤醒 (WoL) 开机",
           "secondary_mac_address": "辅助 MAC 地址 (Wi-Fi 或以太网)"
@@ -131,7 +131,8 @@
     },
     "error": {
       "certs_not_found": "在指定路径未找到证书或密钥文件。请检查文件位置和权限。",
-      "invalid_ssl_cert": "SSL 证书或私钥验证失败。"
+      "invalid_ssl_cert": "SSL 证书或私钥验证失败。",
+      "invalid_mac": "无效的 MAC 地址。必须是 12 位十六进制地址 (例如 AA:BB:CC:DD:EE:FF)。"
     }
   },
   "entity": {

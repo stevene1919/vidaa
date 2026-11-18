@@ -48,12 +48,12 @@
         "description": "Customize features for your VIDAA Smart TV.",
         "data": {
           "enable_remote": "Enable dedicated Remote entity",
-          "enable_wol": "Enable Wake-on-LAN power on",
-          "include_apps_in_sources": "Include Smart TV Apps in Media Player source list",
-          "enable_media_controls": "Enable media transport controls (play/pause, stop, skip)",
-          "enable_picture_controls": "Enable Picture Mode and calibration sliders (Backlight, Brightness, Contrast)",
-          "enable_sound_controls": "Enable Sound Mode equalizer selector",
-          "enable_audio_only": "Enable Audio-Only (Screen Off) display switch"
+          "enable_wol": "Enable Wake-on-LAN (WoL)",
+          "include_apps_in_sources": "Include streaming apps in source list",
+          "enable_media_controls": "Enable media playback controls",
+          "enable_picture_controls": "Enable Picture Mode & Calibration Controls",
+          "enable_sound_controls": "Enable Sound Mode Selector",
+          "enable_audio_only": "Enable Audio-Only (Screen Off) switch"
         }
       }
     },
@@ -86,23 +86,31 @@
       },
       "power_network": {
         "title": "Power & Network Options",
-        "description": "Configure Wake-on-LAN, secondary network interfaces, and standby token renewal.",
+        "description": "Configure Wake-on-LAN power on and secondary network interface (Wi-Fi or Ethernet). Active Primary MAC: {primary_mac}.",
         "data": {
-          "enable_wol": "Enable Wake-on-LAN power on",
+          "enable_wol": "Enable Wake-on-LAN (WoL)",
           "secondary_mac_address": "Secondary MAC Address (Wi-Fi or Ethernet)"
+        },
+        "data_description": {
+          "enable_wol": "Broadcasts magic packets to wake the TV from deep sleep or standby when network interfaces power down.",
+          "secondary_mac_address": "Enter the TV's second physical network interface MAC (e.g. Ethernet MAC if connected via Wi-Fi, or vice-versa). WoL magic packets will be broadcast simultaneously to both MAC addresses."
         }
       },
       "playback_sources": {
         "title": "Playback & Sources",
         "description": "Configure input sources, app list, and media playback controls.",
         "data": {
-          "include_apps_in_sources": "Include Smart TV Apps in Media Player source list",
-          "sources": "Enabled sources and applications (empty for all)",
-          "enable_media_controls": "Enable media transport controls (play/pause, stop, skip)",
-          "enable_cec_names": "Show connected HDMI-CEC device names in sources (e.g. 'HDMI 2 (PlayStation 5)')",
+          "include_apps_in_sources": "Include streaming apps in source list",
+          "sources": "Enabled Sources & Applications",
+          "enable_media_controls": "Enable media playback controls",
+          "enable_cec_names": "Show connected HDMI-CEC device names",
           "playback_debounce": "Playback state settle window / debounce (seconds)"
         },
         "data_description": {
+          "include_apps_in_sources": "Displays installed streaming apps (Netflix, YouTube, Prime Video, etc.) alongside physical HDMI inputs in the Media Player source dropdown.",
+          "sources": "Select which inputs and apps appear in the source selector. Leave empty or select all to display every detected source.",
+          "enable_media_controls": "Exposes media transport controls (Play, Pause, Stop, Previous, Next) on the Media Player card for supported apps and media playback.",
+          "enable_cec_names": "Replaces generic input labels like 'HDMI 2' with active device names reported over HDMI-CEC (e.g. 'PlayStation 5', 'Apple TV').",
           "playback_debounce": "Duration in seconds to filter out rapid transient state flickers when streaming apps launch or buffer."
         }
       },
@@ -111,28 +119,42 @@
         "description": "Configure entity toggles, picture calibration, sound presets, and remote key timings.",
         "data": {
           "enable_remote": "Enable dedicated Remote entity",
-          "enable_picture_controls": "Enable Picture Mode select and calibration sliders (Backlight, Brightness, Contrast)",
-          "enable_sound_controls": "Enable Sound Mode equalizer preset selector",
-          "enable_audio_only": "Enable Audio-Only (Screen Off) display toggle switch",
-          "key_delay": "Default Key Delay (seconds)",
-          "key_repeat": "Default Key Repeat Count"
+          "enable_picture_controls": "Enable Picture Mode & Calibration Controls",
+          "enable_sound_controls": "Enable Sound Mode Selector",
+          "enable_audio_only": "Enable Audio-Only (Screen Off) switch",
+          "key_delay": "Remote Key Press Delay (seconds)",
+          "key_repeat": "Remote Key Repeat Count"
+        },
+        "data_description": {
+          "enable_remote": "Creates a dedicated remote entity (remote.<tv>) for sending button commands, navigation keys, and sequences in automations and dashboards.",
+          "enable_picture_controls": "Creates picture mode selector and backlight, brightness, and contrast slider entities. Disabling removes these entities from Home Assistant.",
+          "enable_sound_controls": "Creates an equalizer sound preset selector entity (Standard, Theatre, Music, Speech, Late Night, Sports).",
+          "enable_audio_only": "Creates a switch entity to turn off the display panel while keeping audio streaming active (ideal for music, radio, and podcasts).",
+          "key_delay": "Delay between sequential keystrokes when sending remote button sequences or automated commands.",
+          "key_repeat": "Number of times a keystroke is transmitted per command when no explicit repeat count is specified."
         }
       },
       "security": {
         "title": "Connection & Security",
         "description": "Select TV OEM brand, authentication profile, encryption, and optional client certificates.",
         "data": {
-          "auth_profile": "Authentication / Certificate Profile",
-          "brand": "TV OEM Brand",
+          "auth_profile": "Authentication & Certificate Profile",
+          "brand": "TV Manufacturer / Brand",
           "use_ssl": "Use Encrypted SSL/TLS Connection",
           "certfile": "Certificate File Path (.crt / .pem / .p12)",
           "keyfile": "Private Key File Path (.key / .pem)"
+        },
+        "data_description": {
+          "auth_profile": "Select the encryption and pairing protocol. 'Auto Detect' automatically negotiates based on TV model and firmware version.",
+          "brand": "Select the TV manufacturer brand to load OEM-specific MQTT topics and client IDs. Use 'Auto Detect' unless pairing fails.",
+          "use_ssl": "Enables TLS/SSL encryption on port 36669. Required for all modern VIDAA TVs (VIDAA U4+). Only disable for older pre-2022 firmware on port 3160."
         }
       }
     },
     "error": {
       "certs_not_found": "Certificate or private key file was not found at the specified path. Please check the file location and permissions.",
-      "invalid_ssl_cert": "SSL certificate or private key failed validation. Verify that the files are in valid unencrypted PEM or supported PKCS#12 format and match each other."
+      "invalid_ssl_cert": "SSL certificate or private key failed validation. Verify that the files are in valid unencrypted PEM or supported PKCS#12 format and match each other.",
+      "invalid_mac": "Invalid MAC address. Must be a 12-digit hexadecimal address (e.g. AA:BB:CC:DD:EE:FF)."
     }
   },
   "entity": {

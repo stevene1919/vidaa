@@ -85,7 +85,7 @@
       },
       "power_network": {
         "title": "Opcije napajanja i mreže",
-        "description": "Konfigurišite Wake-on-LAN, sekundarne mrežne interfejse i obnovu tokena u režimu mirovanja.",
+        "description": "Konfigurišite Wake-on-LAN i sekundarni mrežni interfejs (Wi-Fi ili Ethernet). Aktivni primarni MAC: {primary_mac}.",
         "data": {
           "enable_wol": "Omogući uključivanje putem Wake-on-LAN-a",
           "secondary_mac_address": "Sekundarna MAC adresa (Wi-Fi ili Ethernet)"
@@ -130,7 +130,8 @@
     },
     "error": {
       "certs_not_found": "Sertifikat ili datoteka privatnog ključa nisu pronađeni na navedenoj putanji. Proverite lokaciju datoteke i dozvole.",
-      "invalid_ssl_cert": "Validacija SSL sertifikata ili privatnog ključa nije uspela. Proverite da li su datoteke u ispravnom nešifrovanom PEM ili podržanom PKCS#12 formatu i da li odgovaraju jedna drugoj."
+      "invalid_ssl_cert": "Validacija SSL sertifikata ili privatnog ključa nije uspela. Proverite da li su datoteke u ispravnom nešifrovanom PEM ili podržanom PKCS#12 formatu i da li odgovaraju jedna drugoj.",
+      "invalid_mac": "Nevažeća MAC adresa. Mora biti heksadecimalna adresa od 12 cifara (npr. AA:BB:CC:DD:EE:FF)."
     }
   },
   "entity": {

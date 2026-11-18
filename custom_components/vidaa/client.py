@@ -70,6 +70,7 @@ class VidaaClient(
         self,
         ip: str,
         mac: str | None = None,
+        secondary_mac: str | None = None,
         client_id: str | None = None,
         username: str | None = None,
         password: str | None = None,
@@ -93,6 +94,7 @@ class VidaaClient(
         """Initialize the client."""
         self.ip = ip
         self.mac = mac
+        self.secondary_mac = secondary_mac
         self.brand = "his" if (not brand or brand == "auto") else brand
         self.client_id = client_id or ""
         self.username = username or ""

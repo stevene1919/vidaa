@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -445,4 +446,66 @@ async def test_async_turn_on_tv_defaults_to_client_mac_and_secondary_mac_when_ta
         ["e8:51:77:ec:98:1c", "e4:3b:c9:57:f1:4f"],
         ip="192.168.50.12",
     )
+
+
+@pytest.mark.anyio
+async def test_async_turn_on_tv_returns_false_and_preserves_off_state_on_timeout() -> None:
+    """When TV does not connect after Wake-on-LAN within timeout, return False and keep is_on=False."""
+    from custom_components.vidaa.tv.actions_power import async_turn_on_tv
+
+    client = VidaaClient(
+        ip="192.168.50.12",
+        mac="e8:51:77:ec:98:1c",
+        client_id="cid",
+    )
+    client.connected = False
+    client.is_on = False
+    client.send_wake_on_lan = MagicMock(return_value=True)
+    client.async_ensure_connected = AsyncMock(return_value=False)
+
+    res = await async_turn_on_tv(client, mac_targets=["e8:51:77:ec:98:1c"], timeout=0.1)
+
+    assert res is False
+    assert client.is_on is False
+    assert client.connected is False
+    client.send_wake_on_lan.assert_called_once()
+
+
+@pytest.mark.anyio
+async def test_client_async_wait_until_awake_resolves_and_times_out() -> None:
+    """Verify async_wait_until_awake reacts to wake event and handles timeouts cleanly."""
+    client = VidaaClient(ip="192.168.50.12", client_id="cid")
+    client.connected = False
+    client.is_on = False
+
+    # 1. Times out when disconnected
+    res = await client.async_wait_until_awake(timeout=0.05)
+    assert res is False
+
+    # 2. Resolves immediately when already awake
+    client.connected = True
+    client.is_on = True
+    assert await client.async_wait_until_awake(timeout=0.1) is True
+
+    # 3. Resolves when transitioned to awake via wake event
+    client.is_on = False
+    client.connected = True
+    assert client._wake_event.is_set() is False
+
+    async def _wake_later() -> None:
+        await asyncio.sleep(0.02)
+        client.is_on = True
+
+    _task = asyncio.create_task(_wake_later())
+    assert await client.async_wait_until_awake(timeout=0.5) is True
+    await _task
+
+
+@pytest.mark.anyio
+async def test_client_nudge_reconnect_signals_event() -> None:
+    """Verify nudge_reconnect signals the reconnect event to wake the supervisor loop."""
+    client = VidaaClient(ip="192.168.50.12", client_id="cid")
+    assert client._reconnect_event.is_set() is False
+    client.nudge_reconnect()
+    assert client._reconnect_event.is_set() is True
 

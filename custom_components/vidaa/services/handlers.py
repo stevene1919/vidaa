@@ -24,6 +24,7 @@ from ..const import (
     ATTR_SEQUENCE,
     ATTR_TEXT,
     ATTR_URL,
+    DEFAULT_WOL_TIMEOUT,
     DOMAIN,
     POWER_KEYS,
 )
@@ -254,6 +255,19 @@ async def handle_launch_app(hass: HomeAssistant, call: ServiceCall) -> dict[str,
                 app_name,
             )
             await client.async_turn_on()
+            wait_fn = getattr(client, "async_wait_until_awake", None)
+            if wait_fn is not None and callable(wait_fn):
+                res = wait_fn(timeout=DEFAULT_WOL_TIMEOUT)
+                if asyncio.iscoroutine(res) or isinstance(res, asyncio.Future):
+                    awake = await res
+                else:
+                    awake = bool(res)
+                if not awake:
+                    raise HomeAssistantError(
+                        f"Failed to launch app {app_name}: TV did not wake up",
+                        translation_domain=DOMAIN,
+                        translation_key="turn_on_failed",
+                    )
             await asyncio.sleep(0.5)
 
         if getattr(client, "connected", True) is False:

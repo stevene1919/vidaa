@@ -1102,6 +1102,7 @@ def mock_client():
     client.async_query_initial_state = AsyncMock()
     client.async_turn_on = AsyncMock()
     client.async_turn_off = AsyncMock()
+    client.async_wait_until_awake = AsyncMock(return_value=True)
     client.async_set_volume = AsyncMock()
     client.async_send_key = AsyncMock()
     client.async_send_command = AsyncMock(return_value=True)

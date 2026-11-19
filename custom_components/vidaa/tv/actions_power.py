@@ -9,6 +9,8 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
+from ..const import DEFAULT_WOL_TIMEOUT
+
 if TYPE_CHECKING:
     from ..client import VidaaClient
 
@@ -99,6 +101,7 @@ def turn_on_tv(
                 getattr(client, "ip", "unknown"),
             )
             client.send_key("KEY_POWER")
+            client.is_on = True
         else:
             client.is_on = True
             _LOGGER.debug(
@@ -137,15 +140,16 @@ def turn_on_tv(
                 e,
             )
 
-    client.is_on = True
+    if client.connected and client.is_on:
+        return
 
 
 async def async_turn_on_tv(
     client: VidaaClient,
     mac_targets: list[str] | None = None,
+    timeout: float = DEFAULT_WOL_TIMEOUT,
 ) -> bool:
     """Powers on or wakes the TV safely and idempotently asynchronously."""
-    wol_sent = False
     targets = list(mac_targets) if mac_targets else []
     if not targets:
         if getattr(client, "mac", None):
@@ -157,7 +161,6 @@ async def async_turn_on_tv(
         await loop.run_in_executor(
             None, functools.partial(client.send_wake_on_lan, targets, ip=getattr(client, "ip", None))
         )
-        wol_sent = True
 
     if client.connected:
         if not client.is_on and getattr(client, "has_active_signal", False) is not True:
@@ -167,9 +170,6 @@ async def async_turn_on_tv(
             )
             res = await client.async_send_key("KEY_POWER")
             if res is not False:
-                client.is_on = True
-                return True
-            if wol_sent:
                 client.is_on = True
                 return True
             return False
@@ -185,43 +185,42 @@ async def async_turn_on_tv(
         "[%s] TV MQTT not connected. Attempting reconnect to check power state",
         getattr(client, "ip", "unknown"),
     )
+    if hasattr(client, "nudge_reconnect"):
+        client.nudge_reconnect()
     try:
-        if await client.async_ensure_connected():
-            for _ in range(50):
-                if client.connected:
-                    # Wait for the TV's initial state broadcast (ui_service/state, gettvinfo)
-                    # before deciding whether KEY_POWER is needed, preventing a race where
-                    # a TV waking from deep sleep via WoL is toggled right back off.
-                    await asyncio.sleep(1.0)
-                    if not client.is_on and getattr(client, "has_active_signal", False) is not True:
-                        _LOGGER.debug(
-                            "[%s] TV reconnected in standby/fake_sleep. Sending KEY_POWER to wake screen",
-                            getattr(client, "ip", "unknown"),
-                        )
-                        res = await client.async_send_key("KEY_POWER")
-                        if res is not False:
-                            client.is_on = True
-                            return True
-                    else:
-                        _LOGGER.debug(
-                            "[%s] TV reconnected and is already awake. Skipping KEY_POWER to prevent powering down",
-                            getattr(client, "ip", "unknown"),
-                        )
-                        client.is_on = True
-                        return True
-                    break
-                await asyncio.sleep(0.1)
+        if hasattr(client, "async_ensure_connected"):
+            await client.async_ensure_connected()
     except Exception as e:
-        _LOGGER.error(
-            "[%s] Failed to reconnect and send KEY_POWER: %s",
-            getattr(client, "ip", "unknown"),
-            e,
-        )
+        _LOGGER.debug("[%s] Reconnect check during turn on: %s", getattr(client, "ip", "unknown"), e)
 
-    if wol_sent:
-        client.is_on = True
-        return True
-    return False
+    max_wait = max(1.0, timeout)
+    deadline = time.time() + max_wait
+    while time.time() < deadline:
+        if client.connected:
+            # Wait for the TV's initial state broadcast (ui_service/state, gettvinfo)
+            # before deciding whether KEY_POWER is needed, preventing a race where
+            # a TV waking from deep sleep via WoL is toggled right back off.
+            await asyncio.sleep(1.0)
+            if not client.is_on and getattr(client, "has_active_signal", False) is not True:
+                _LOGGER.debug(
+                    "[%s] TV reconnected in standby/fake_sleep. Sending KEY_POWER to wake screen",
+                    getattr(client, "ip", "unknown"),
+                )
+                res = await client.async_send_key("KEY_POWER")
+                if res is not False:
+                    client.is_on = True
+                    return True
+            else:
+                _LOGGER.debug(
+                    "[%s] TV reconnected and is already awake. Skipping KEY_POWER to prevent powering down",
+                    getattr(client, "ip", "unknown"),
+                )
+                client.is_on = True
+                return True
+            break
+        await asyncio.sleep(0.1)
+
+    return bool(client.connected and client.is_on)
 
 
 def turn_off_tv(client: VidaaClient) -> None:
@@ -257,9 +256,11 @@ class TvPowerActionsMixin:
         """Powers on or wakes the TV safely and idempotently."""
         turn_on_tv(self, mac_targets=mac_targets)  # type: ignore[arg-type]
 
-    async def async_turn_on(self, mac_targets: list[str] | None = None) -> bool:
+    async def async_turn_on(
+        self, mac_targets: list[str] | None = None, timeout: float = DEFAULT_WOL_TIMEOUT
+    ) -> bool:
         """Powers on or wakes the TV safely and idempotently asynchronously."""
-        return await async_turn_on_tv(self, mac_targets=mac_targets)  # type: ignore[arg-type]
+        return await async_turn_on_tv(self, mac_targets=mac_targets, timeout=timeout)  # type: ignore[arg-type]
 
     def turn_off(self) -> None:
         """Powers off the TV safely."""

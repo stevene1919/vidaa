@@ -390,3 +390,35 @@ async def test_media_player_turn_on_targets_both_primary_and_secondary_mac(mock_
     mock_client.async_turn_on.assert_awaited_once_with(["e8:51:77:ec:98:1c", "e4:3b:c9:57:f1:4f"])
 
 
+@pytest.mark.anyio
+async def test_media_player_select_source_auto_wakes_and_handles_wake_failure(mock_client, mock_entry):
+    """Test async_select_source attempts turn_on when TV is off, and raises turn_on_failed if wake times out."""
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    mp.hass = MagicMock(spec=HomeAssistant)
+    mock_client.connected = False
+    mock_client.is_on = False
+    mock_client.async_turn_on = AsyncMock(return_value=True)
+    mock_client.async_wait_until_awake = AsyncMock(return_value=False)
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await mp.async_select_source("HDMI 1")
+    assert exc_info.value.translation_key == "turn_on_failed"
+    mock_client.async_turn_on.assert_awaited_once()
+
+
+@pytest.mark.anyio
+async def test_media_player_play_media_auto_wakes_and_handles_wake_failure(mock_client, mock_entry):
+    """Test async_play_media attempts turn_on when TV is off, and raises turn_on_failed if wake times out."""
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    mp.hass = MagicMock(spec=HomeAssistant)
+    mock_client.connected = False
+    mock_client.is_on = False
+    mock_client.async_turn_on = AsyncMock(return_value=True)
+    mock_client.async_wait_until_awake = AsyncMock(return_value=False)
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await mp.async_play_media("app", "Netflix")
+    assert exc_info.value.translation_key == "turn_on_failed"
+    mock_client.async_turn_on.assert_awaited_once()
+
+

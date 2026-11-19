@@ -326,3 +326,5 @@ class TvStateMixin:
     def is_on(self, value: bool) -> None:
         """Sets the power state."""
         self.state = "on" if value else "off"
+        if hasattr(self, "_update_wake_event"):
+            self._update_wake_event()

@@ -92,6 +92,8 @@ class ConnectionManagerMixin:
         self.connected = True
         self.auth_failed = False
         _LOGGER.info("[%s] Connected to TV MQTT broker", self.ip)
+        if hasattr(self, "_update_wake_event"):
+            self._update_wake_event()
         self._dispatch_connected()
         if not standard:
             return
@@ -111,6 +113,8 @@ class ConnectionManagerMixin:
         was_connected = self.connected
         self.connected = False
         self._last_initial_query_time = 0.0
+        if hasattr(self, "_update_wake_event"):
+            self._update_wake_event()
 
         debounce_handle = getattr(self, "_disconnect_debounce_handle", None)
         if debounce_handle is not None:
@@ -233,8 +237,14 @@ class ConnectionManagerMixin:
                     self._handle_disconnected()
                 if not reconnect:
                     return
-                await asyncio.sleep(delay)
-                delay = min(delay * 2, RECONNECT_MAX_DELAY)
+                try:
+                    if getattr(self, "_reconnect_event", None) is None:
+                        self._reconnect_event = asyncio.Event()
+                    await asyncio.wait_for(self._reconnect_event.wait(), timeout=delay)
+                    delay = RECONNECT_MIN_DELAY
+                    self._reconnect_event.clear()
+                except TimeoutError:
+                    delay = min(delay * 2, RECONNECT_MAX_DELAY)
         finally:
             if getattr(self, "_mqtt_task", None) is asyncio.current_task():
                 self._mqtt_task = None
@@ -328,6 +338,22 @@ class ConnectionManagerMixin:
             await self._async_stop_session()
             raise
 
+    def nudge_reconnect(self: VidaaClient) -> None:
+        """Nudge the background MQTT supervisor to attempt immediate reconnection."""
+        event = getattr(self, "_reconnect_event", None)
+        if event is not None:
+            loop = getattr(self, "_loop", None)
+            try:
+                running = asyncio.get_running_loop()
+            except RuntimeError:
+                running = None
+            if running is not None and (loop is None or running is loop):
+                event.set()
+            elif loop is not None and loop.is_running():
+                loop.call_soon_threadsafe(event.set)
+            else:
+                event.set()
+
     async def async_ensure_connected(self: VidaaClient, min_interval: float = 5.0) -> bool:
         """Ensures the MQTT session is running, rate-limiting reconnect attempts."""
         sync_fn = self.__dict__.get("ensure_connected")
@@ -339,6 +365,11 @@ class ConnectionManagerMixin:
 
         if self.connected and self.mqtt_client:
             return True
+
+        if getattr(self, "_mqtt_task", None) is not None and not self._mqtt_task.done():
+            self.nudge_reconnect()
+            return True
+
         now = time.time()
         if now - self._last_reconnect_time < min_interval:
             _LOGGER.debug(

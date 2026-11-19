@@ -13,6 +13,7 @@ from ..const import (
     CONF_ENABLE_WOL,
     CONF_SECONDARY_MAC_ADDRESS,
     DEFAULT_ENABLE_WOL,
+    DEFAULT_WOL_TIMEOUT,
     DOMAIN,
 )
 from ..helpers import check_client_command_readiness
@@ -210,6 +211,19 @@ class MediaPlayerControlsMixin:
                 media_id,
             )
             await self.async_turn_on()
+            wait_fn = getattr(self._client, "async_wait_until_awake", None)
+            if wait_fn is not None and callable(wait_fn):
+                res = wait_fn(timeout=DEFAULT_WOL_TIMEOUT)
+                if asyncio.iscoroutine(res) or isinstance(res, asyncio.Future):
+                    awake = await res
+                else:
+                    awake = bool(res)
+                if not awake:
+                    raise HomeAssistantError(
+                        f"Failed to power on TV before playing media '{media_id}': TV did not wake up",
+                        translation_domain=DOMAIN,
+                        translation_key="turn_on_failed",
+                    )
             await asyncio.sleep(0.5)
 
         check_client_command_readiness(self._client)
@@ -232,6 +246,19 @@ class MediaPlayerControlsMixin:
                 source,
             )
             await self.async_turn_on()
+            wait_fn = getattr(self._client, "async_wait_until_awake", None)
+            if wait_fn is not None and callable(wait_fn):
+                res = wait_fn(timeout=DEFAULT_WOL_TIMEOUT)
+                if asyncio.iscoroutine(res) or isinstance(res, asyncio.Future):
+                    awake = await res
+                else:
+                    awake = bool(res)
+                if not awake:
+                    raise HomeAssistantError(
+                        f"Failed to power on TV before selecting source '{source}': TV did not wake up",
+                        translation_domain=DOMAIN,
+                        translation_key="turn_on_failed",
+                    )
             await asyncio.sleep(0.5)
 
         check_client_command_readiness(self._client)

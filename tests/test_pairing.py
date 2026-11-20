@@ -63,6 +63,10 @@ def no_network_start_auth(monkeypatch):
         "custom_components.vidaa.client.VidaaClient.get_device_fingerprint",
         MagicMock(return_value={}),
     )
+    monkeypatch.setattr(
+        "custom_components.vidaa.client.VidaaClient.async_get_device_fingerprint",
+        AsyncMock(return_value={}),
+    )
 
 
 # ---------------------------------------------------------------------------

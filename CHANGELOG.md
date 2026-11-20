@@ -2,43 +2,96 @@
 
 All notable changes to the VIDAA Smart TV integration will be documented in this file.
 
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+<!--
+NOTE FOR AI AGENTS & CONTRIBUTORS:
+Each release section in this file is automatically extracted by `.github/workflows/release.yml`
+to generate GitHub Release notes and the HACS changelog view.
+You MUST adhere strictly to the following semantic structure for any new release:
+
+## [X.Y.Z] - YYYY-MM-DD
+
+### ☕ Support the Project
+[Ko-fi badge & link]
+
+---
+
+[Friendly greeting & 1-2 sentence release summary]
+
+---
+
+### 🌟 What's New & Highlights
+- **[Friendly Feature / Fix Title]**:
+  - Clear, accessible explanation of user impact and benefits (no internal code/class jargon).
+  - Relevant GitHub issue links (e.g. [#123](https://github.com/stevene1919/vidaa/issues/123)).
+
+---
+
+<details>
+<summary>🛠️ <b>Full Technical Details & Refactoring</b> (Click to expand)</summary>
+
+- Deep architectural, protocol, and code-level refactoring bullets.
+
+</details>
+
+---
+
+### 💬 Feedback & Bug Reports
+Please report any issues or feedback on [GitHub Issues](https://github.com/stevene1919/vidaa/issues) or Discussions!
+-->
+
 ## [3.6.0] - 2026-11-21
 
 ### ☕ Support the Project
 
-If this integration makes controlling your smart home entertainment a breeze, consider supporting continued open-source development:
+If this integration makes controlling your smart home entertainment a breeze, consider supporting continued open-source development and reverse-engineering:
 
 [![Support on Ko-fi](https://img.shields.io/badge/Support%20on-Ko--fi-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/stevene_)
 
 ---
 
-### 🌟 What's New & Highlights
+Hey everyone! 👋 
 
-- **Always-On Standard Remote Platform**:
-  - The `remote` entity is now an always-loaded standard core platform alongside `media_player`. The redundant `enable_remote` configuration toggle has been retired, making navigation keys and sequence actions available out of the box without extra setup.
-- **Instant Reactive Wake & Auto-Wake Readiness**:
-  - **Zero-Delay Wake Detection**: Waking your TV now resolves instantly using reactive event listeners (`async_wait_until_awake`) triggered directly by connection and telemetry events, replacing arbitrary polling loops.
-  - **Smarter Auto-Wake on Playback & App Launch**: Selecting an input source, launching an app, or playing media while the TV is asleep automatically wakes the TV and waits until it is fully awake before dispatching commands.
-  - **Early Reconnect Nudging**: Dispatching a wake signal immediately wakes the connection supervisor from backoff sleep, connecting to the TV the moment its network interface initializes.
-- **Passive Boot Telemetry & Older Hisense Compatibility**:
-  - **Sub-Second Boot Telemetry**: Leverages passive `volumechange` and `tvwake` MQTT broadcasts to detect TV wakeups in under 500ms after boot, even before user interactions occur ([#71](https://github.com/stevene1919/vidaa/issues/71)).
-  - **Older Hisense TV Compatibility**: Older models using static credentials (such as the Hisense B7100 series) now connect securely over TLS without needing custom certificate files ([#71](https://github.com/stevene1919/vidaa/issues/71)).
-- **Cleaner Dashboard & Control Experience**:
-  - **Unified Power Button**: Restored a single, clean power button (`mdi:power-standby`) on cards, eliminating separate Power On and Power Off buttons ([#55](https://github.com/stevene1919/vidaa/issues/55)).
-  - **No More "Ghost" Toggles or Power Desyncs**: Dashboard switches, buttons, and media player states will no longer flip optimistically or bounce when the TV is sleeping or turned off at the wall. If Wake-on-LAN times out or the TV is offline, Home Assistant cleanly preserves the off state and surfaces actionable feedback rather than assuming the TV turned on.
-  - **Fixed Remote Key Presses**: Fixed an issue where repeating keys or rapid button clicks on the remote entity could fail ([#70](https://github.com/stevene1919/vidaa/issues/70)).
-  - **Streamlined Attributes**: Hotel Mode is now cleanly exposed as an attribute on your TV's media player entity, avoiding clutter from unnecessary standalone binary sensors.
-- **Helpful Alerts & Native Repairs**:
-  - **Action Exceptions**: If your TV is turned off, unplugged, or disconnected and an action or automation runs, Home Assistant clearly surfaces the error (e.g. *"TV offline: Device unreachable"*) instead of failing silently.
-  - **Start Re-authentication Button**: If your TV ever loses its pairing after an ungraceful power outage or firmware update, this button creates an item under **Settings → System → Repairs** and sends you a notification with a direct link to finish pairing.
-  - **Force Reconnect Button**: Instantly retries the connection without waiting for backoff timers, surfacing actionable errors if the TV is unreachable.
-- **Smarter Dual-Interface Wake-on-LAN**:
-  - Wake-on-LAN is now enabled by default. If your TV uses Wi-Fi but also has a network cable plugged in, Home Assistant automatically extracts both addresses from UPnP descriptors and broadcasts WoL packets to both interfaces simultaneously.
-  - Always-on background standby token renewal is enabled by default to prevent session loss during extended standby.
+This release brings a huge round of quality-of-life improvements, faster wake-up times, and rock-solid state synchronization. Here is a breakdown of the key highlights in **v3.6.0**:
 
 ---
 
-### 🛠️ Technical Details & Refactoring
+### 🎮 The Remote Entity is Now Always Ready
+You no longer need to dig through options to enable the remote entity. Starting in `v3.6.0`, the **`remote`** platform is an always-enabled core component alongside `media_player`. Navigation arrows, volume stepping, custom key sequences, and Lovelace remote cards work straight out of the box with zero extra setup.
+
+---
+
+### ⚡ Instant Reactive Wake & Auto-Wake Readiness
+* **Zero Waiting When Turning On**: Waking the TV now uses instant reactive event listeners. As soon as the TV's network and internal broker wake up, Home Assistant connects immediately—no more waiting around for arbitrary polling intervals.
+* **Auto-Wake on Playback & App Launch**: If your TV is sleeping and you select an HDMI input, launch YouTube/Netflix, or play media, Home Assistant automatically wakes the TV and waits until it is fully ready before launching your app or switching inputs.
+* **No More "Ghost" Power States**: If your TV is turned off at the wall, unplugged, or Wake-on-LAN times out, dashboard switches and power buttons will no longer bounce back and forth or falsely show as "on". Home Assistant stays strictly synchronized with your real hardware state.
+
+---
+
+### 📡 Sub-Second Boot Detection & Older TV Compatibility
+* **Sub-Second Wake Telemetry**: Big shoutout to the community on [#71](https://github.com/stevene1919/vidaa/issues/71)! Through physical hardware testing, we confirmed that VIDAA TVs broadcast a silent status heartbeat the moment they finish booting. We now listen for this telemetry to detect when your TV wakes up in under 500ms.
+* **Better Older TV Support**: Older Hisense models (such as the B7100 series) using static authentication profiles now connect cleanly over TLS without requiring custom certificate files.
+
+---
+
+### 📺 A Cleaner, Simpler Dashboard
+* **Unified Power Button**: We eliminated the split Power On / Power Off buttons on cards ([#55](https://github.com/stevene1919/vidaa/issues/55)). You now have a single, clean power button that behaves just like your physical remote.
+* **Rapid Remote Clicks**: Fixed an issue where repeating keys or rapid button clicks in quick succession could fail ([#70](https://github.com/stevene1919/vidaa/issues/70)).
+* **Less Entity Clutter**: Hotel Mode is now cleanly exposed as an attribute on your media player (`state_attr('media_player.hisense_tv', 'hotel_mode')`), keeping your entity list tidy.
+
+---
+
+### 🩺 Clear Alerts & One-Click Re-Pairing
+* **No More Silent Failures**: If an automation or dashboard button triggers while the TV is offline or unplugged, Home Assistant now surfaces a clear, actionable notification (e.g. *"TV offline: Device unreachable"*) instead of failing silently.
+* **Start Re-authentication Button**: If an unexpected power outage ever wipes your TV's stored pairing tokens, clicking the new **Start Re-authentication** button opens a repair item under **Settings → System → Repairs** and sends you a clickable notification to complete the 4-digit PIN setup right away.
+* **Smart Dual-Interface Wake-on-LAN**: If your TV is connected over Wi-Fi but also has an Ethernet cable plugged in, Home Assistant automatically extracts both MAC addresses and wakes both interfaces simultaneously.
+
+---
+
+<details>
+<summary>🛠️ <b>Full Technical Details & Refactoring</b> (Click to expand)</summary>
 
 - **Wake-on-LAN & Auto-Wake Readiness Flow**:
   - Implemented `async_wait_until_awake()` using an `asyncio.Event` triggered immediately by connection and state telemetry (`statetype` or `volumechange`), eliminating arbitrary sleep loops.
@@ -84,6 +137,8 @@ If this integration makes controlling your smart home entertainment a breeze, co
   - Fixed recipe and section numbering across automation documentation.
 - **Comprehensive Test Suite**:
   - 380 modular unit tests passing with 100% coverage across actions, protocol, power transitions, options flow, and lifecycle.
+
+</details>
 
 ---
 

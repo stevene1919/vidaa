@@ -20,11 +20,11 @@ The integration automatically registers entities across 9 Home Assistant platfor
 
 | Platform            | Entity Class                | Description & Features                                                                                                                                                                                |
 |:------------------- |:--------------------------- |:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`media_player`**  | `MediaPlayerDeviceClass.TV` | Power toggle, volume step/set, mute, source input switcher, Smart TV app launcher, media transport controls (Play, Pause, Stop, Next, Previous), active source/app artwork, and display state.        |
+| **`media_player`**  | `MediaPlayerDeviceClass.TV` | Power toggle, volume step/set, mute, source input switcher, Smart TV app launcher, media transport controls (Play, Pause, Stop, Next, Previous), active source/app artwork, display state, and state attributes (`hotel_mode`, `audio_output`, `raw_source`, `connected_device`). |
 | **`remote`**        | `RemoteEntity`              | Discrete key press commands, sequence dispatching (`vidaa.send_key_sequence`), configurable inter-key delays, and repeat counts.                                                              |
 | **`sensor`**        | `SensorEntity`              | Active Source, Active App, Audio Output Mode, Session Status, Auth Profile, and Hardware Clock Drift offset ($> 60\text{s}$ warning threshold).                                                       |
 | **`binary_sensor`** | `BinarySensorEntity`        | Live MQTT Connection state and In Use indicator.                                                                                                                                                      |
-| **`button`**        | `ButtonEntity`              | **Sync TV Clock**, **Force Reconnect**, and **Trigger Re-pairing** diagnostic buttons.                                                                                                                |
+| **`button`**        | `ButtonEntity`              | **Sync TV Clock**, **Force Reconnect**, **Start Re-authentication**, and **Probe Capabilities** diagnostic buttons.                                                                                                                |
 | **`switch`**        | `SwitchEntity`              | **Debug Logging** logger toggle and **Audio Only** screen backlight toggle.                                                                                                                           |
 | **`select`**        | `SelectEntity`              | **Picture Mode** (`Standard`, `Cinema Day`, `Cinema Night`, `Dynamic`, `Sports`, `Game`, `Filmmaker`) and **Sound Mode** switcher (`Standard`, `Theatre`, `Music`, `Speech`, `Late Night`, `Sports`). |
 | **`number`**        | `NumberEntity`              | Calibration sliders for **Backlight**, **Brightness**, and **Contrast** (0–100).                                                                                                                      |
@@ -148,14 +148,27 @@ To facilitate real-time monitoring and troubleshooting directly from the Home As
 | **`sensor.<tv>_active_source`**                | **Active Source**              | Current hardware input source name (`HDMI1`, `HDMI2`, `TV`, `AV`, `App`, `Home Launcher`, `Standby`, `Off`). Attributes: `display_name`, `connected_device`, `available_sources`, `connected_inputs`, `last_known_source`.                                                                                                                                                                          |
 | **`sensor.<tv>_active_app`**                   | **Active App**                 | Currently running Smart TV application name.                                                                                                                                                                                                                                                                                                                                                            |
 
-### 4.3 Control & Utility Switches (`switch`)
+### 4.3 Media Player State Attributes
+
+The primary `media_player.<tv>` entity exposes rich runtime state attributes accessible in templates, automations, and frontend cards:
+
+| Attribute | Type | Description |
+|:--- |:--- |:--- |
+| **`hotel_mode`** | `boolean` | Indicates whether the TV has Hotel Mode active. When enabled by commercial firmware, TV menus, input switching, or volume ranges may be restricted. |
+| **`audio_output`** | `string` | Active audio routing path reported by the TV (`TV Speakers` or `ARC / eARC`). |
+| **`raw_source`** | `string` | Hardware input source identifier (e.g. `HDMI1`, `HDMI2`, `TV`, `AV`). |
+| **`connected_device`** | `string` | Friendly name of connected HDMI-CEC external equipment (e.g. `Chromecast`, `Apple TV`, `PlayStation 5`). |
+| **`custom_labels`** | `dict` | User-configured display name mappings for input ports. |
+| **`source_list`** | `list` | Full array of user-selectable inputs and Smart TV applications. |
+
+### 4.4 Control & Utility Switches (`switch`)
 
 | Entity ID                       | Entity Name       | Description                                                                                                                                                             |
 |:------------------------------- |:----------------- |:----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **`switch.<tv>_debug_logging`** | **Debug Logging** | Dynamically enables or disables verbose `DEBUG` level logging for the `custom_components.vidaa` module in real-time without requiring a Home Assistant restart. |
 | **`switch.<tv>_audio_only`**    | **Audio Only**    | Turns off physical screen panel backlight while keeping audio playback streaming through TV speakers or ARC soundbar.                                                   |
 
-### 4.4 Re-authentication & Troubleshooting Architecture
+### 4.5 Re-authentication & Troubleshooting Architecture
 
 > [!NOTE]
 > **Why clicking "Start Re-authentication" doesn't immediately open a modal dialog:**
@@ -173,7 +186,7 @@ To facilitate real-time monitoring and troubleshooting directly from the Home As
 
 When troubleshooting communication, pairing, or state synchronization issues between Home Assistant and the TV, several debugging facilities are available:
 
-### 4.1 Enabling Debug Logging
+### 5.1 Enabling Debug Logging
 
 There are four convenient methods to enable verbose debug logging for the integration:
 
@@ -216,7 +229,7 @@ data:
 
 ---
 
-### 4.2 Downloading Home Assistant Diagnostics
+### 5.2 Downloading Home Assistant Diagnostics
 
 Home Assistant provides official sanitized diagnostic bundles for bug reports:
 
@@ -236,14 +249,14 @@ Home Assistant provides official sanitized diagnostic bundles for bug reports:
 
 ---
 
-### 4.3 Native Repairs & PIN Re-Pairing Flow
+### 5.3 Native Repairs & PIN Re-Pairing Flow
 
 - **Automated Repairs**: If the TV purges its internal mobile authentication token table or if credentials become invalid, the integration automatically registers a Home Assistant **Repair Issue** alerting you that re-authentication is required.
-- **Manual Trigger**: To proactively renew pairing or re-pair after TV firmware updates, press the **`button.<tv>_trigger_re_pairing`** entity on the TV device page in Home Assistant. This immediately initiates the PIN entry dialog on your television screen and in the Home Assistant UI.
+- **Manual Trigger**: To proactively renew pairing or re-pair after TV firmware updates, press the **Start Re-authentication** entity (`button.<tv>_start_re_authentication` or `button.<tv>_trigger_re_pairing`) on the TV device page in Home Assistant. This immediately initiates the PIN entry dialog on your television screen and in the Home Assistant UI.
 
 ---
 
-### 4.4 Inspecting Logs
+### 5.4 Inspecting Logs
 
 To view live integration logs:
 

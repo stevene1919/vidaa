@@ -60,7 +60,7 @@ This integration operates as a **pure local-push integration** (`should_poll = F
 - **Media Player** (`media_player.<tv_name>`): Power, volume, mute, input source, app launcher, playback state, channel tuning, and sound mode.
 - **Remote** (`remote.<tv_name>`): Send remote keys, directional navigation, volume, numbers, media playback.
 - **Sensors & Binary Sensors** (`sensor.<tv_name>_*`, `binary_sensor.<tv_name>_*`): Clock drift, session status, connectivity, power.
-- **Buttons, Switches, Selects, Numbers**: On-demand clock sync, force reconnect, trigger re-pairing, picture/sound settings adjustment, debug logging toggle.
+- **Buttons, Switches, Selects, Numbers**: On-demand clock sync, force reconnect, start re-authentication, probe capabilities, picture/sound settings adjustment, debug logging toggle.
 
 ### 💡 Real-World Use Cases & Automations
 - **Home Theater Cinema Mode**: Automatically dim ambient lights when video playback starts (`state: playing`) on streaming apps (Netflix, Prime Video).

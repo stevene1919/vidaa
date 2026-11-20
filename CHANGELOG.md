@@ -2,7 +2,7 @@
 
 All notable changes to the VIDAA Smart TV integration will be documented in this file.
 
-## [3.6.0-beta.1] - 2026-11-18
+## [3.6.0] - 2026-11-21
 
 ### ☕ Support the Project
 
@@ -14,55 +14,79 @@ If this integration makes controlling your smart home entertainment a breeze, co
 
 ### 🌟 What's New & Highlights
 
+- **Standard Remote Platform**:
+  - The `remote` entity is now an always-loaded core platform alongside `media_player`. The redundant `enable_remote` configuration toggle has been retired, ensuring fast navigation keys and sequence actions are available out of the box without extra setup.
+- **Instant Reactive Wake & Auto-Wake Readiness**:
+  - **Zero-Delay Wake Detection**: Waking your TV now resolves instantly using reactive event listeners (`async_wait_until_awake`) triggered directly by connection and telemetry events, replacing arbitrary polling loops.
+  - **Smarter Auto-Wake on Playback & App Launch**: Selecting an input source, launching an app, or playing media while the TV is asleep automatically wakes the TV and waits until it is fully awake before dispatching commands.
+  - **No More "Ghost" Power States**: If Wake-on-LAN times out or the TV is unplugged, Home Assistant no longer falsely marks the TV as turned on. Power state stays strictly synchronized with real hardware state.
+  - **Early Reconnect Nudging**: Dispatching a wake signal immediately wakes the connection supervisor from backoff sleep, connecting to the TV the moment its network interface initializes.
+- **Passive Wake Detection & Older Hisense Compatibility**:
+  - **Instant Boot Telemetry**: Leverages passive `volumechange` and `tvwake` MQTT broadcasts to detect TV wakeups in under 500ms after boot, even before user interactions occur ([#71](https://github.com/stevene1919/vidaa/issues/71)).
+  - **Older Hisense TV Compatibility**: Older models using static credentials (such as the Hisense B7100 series) now connect securely over TLS without needing custom certificate files ([#71](https://github.com/stevene1919/vidaa/issues/71)).
 - **A Cleaner Remote & Dashboard Experience**:
   - **Unified Power Button**: We removed the separate Power On and Power Off buttons on cards ([#55](https://github.com/stevene1919/vidaa/issues/55)). You now have a single, clean power button that works just like your physical remote.
   - **No More "Ghost" Toggles**: Dashboard switches and buttons will no longer flip back and forth if your TV is sleeping or turned off at the wall. Home Assistant now checks if the TV is truly awake before changing states on your screen.
   - **Fixed Remote Key Presses**: Fixed an issue where repeating keys or rapid button clicks on the remote entity could fail ([#70](https://github.com/stevene1919/vidaa/issues/70)).
-  - **Older Hisense TV Compatibility**: Older models using static credentials (such as the B7100 series) now connect securely over TLS without needing custom certificate files ([#71](https://github.com/stevene1919/vidaa/issues/71)).
+  - **Streamlined Attributes**: Hotel Mode is now cleanly exposed as an attribute on your TV's media player entity, avoiding clutter from unnecessary standalone binary sensors.
 - **Helpful, Clear Alerts (No More Silent Failures)**:
   - If your TV is turned off, unplugged, or disconnected and an action or automation runs, Home Assistant will now clearly tell you (e.g. *"TV offline: Device unreachable"*) instead of failing silently.
-  - If your TV loses its pairing after a power outage or firmware update, the TV entity will cleanly show as **Unavailable** and an **Authentication Problem** indicator will turn on to let you know right away.
+  - If your TV loses its pairing after an ungraceful power outage or firmware update, the TV entity will cleanly show as **Unavailable** and an **Authentication Problem** indicator will turn on to let you know right away.
 - **Easy Reconnecting & Simple Re-pairing**:
   - **Force Reconnect Button**: If your Wi-Fi dropped out or you restarted your router, clicking **Force Reconnect** immediately retries the connection without waiting around. If the TV is unreachable, it tells you immediately instead of showing a false green checkmark.
   - **Start Re-authentication Button**: If you ever need to re-pair your TV, this button creates an item under **Settings → System → Repairs** and sends you a notification with a direct link to it so you can finish pairing.
 - **Smarter TV Turn-On (Wi-Fi + Network Cable)**:
-  - If your TV uses Wi-Fi but also has a network cable plugged in, Home Assistant now automatically remembers both addresses so "Turn On" signals always wake the TV reliably.
-- **Hotel Mode Detection**:
-  - Added a new indicator that warns you if your TV has "Hotel Mode" enabled, which can block app launching or lock volume controls.
+  - Wake-on-LAN is now enabled by default. If your TV uses Wi-Fi but also has a network cable plugged in, Home Assistant automatically extracts both addresses from UPnP descriptors and broadcasts WoL packets to both interfaces simultaneously.
+  - Always-on background standby token renewal is enabled by default to prevent session loss during extended standby.
 
 ---
 
 ### 🛠️ Technical Details & Refactoring
 
+- **Wake-on-LAN & Auto-Wake Readiness Flow**:
+  - Implemented `async_wait_until_awake()` using an `asyncio.Event` triggered immediately by connection and state telemetry (`statetype` or `volumechange`), eliminating arbitrary sleep loops.
+  - Added `nudge_reconnect()` to wake backoff reconnect sleep early via `self._reconnect_event` without tearing down or churning the supervisor background task.
+  - Removed optimistic `client.is_on = True` assignments on WoL transmission; `async_turn_on_tv` awaits readiness and keeps `is_on = False` if WoL fails or times out.
+  - Updated `async_play_media`, `async_select_source`, and `handle_launch_app` to call `async_turn_on()` and await `async_wait_until_awake()` before command execution when TV is off.
+- **Standardized Remote Platform & Options Cleanup**:
+  - Retired `enable_remote` options and config toggle, standardizing `remote` as an unconditionally loaded platform alongside `media_player`.
+  - Maintained `CONF_ENABLE_REMOTE` as a deprecated constant for backward compatibility.
+  - Cleaned up option schemas, descriptions, tooltips, and localization strings across all 12 supported languages.
+- **Passive Wake Detection & Standby Power Synchronization**:
+  - Subscribed to `volumechange` and `tvwake` topics during boot; TVs broadcast volume telemetry ~500ms after boot, triggering instant wake state transitions from deep standby.
+  - Guarded against initial state race conditions by waiting for state resolution on reconnect before sending power keys.
+  - Guarded against volume, playback controls, and service calls when TV is powered off or offline.
+- **Always-On Standby Token Renewal**:
+  - Enabled standby token renewal by default to maintain background token validity and removed the redundant UI option toggle.
+- **Dual MAC Address Auto-Extraction & Wake-on-LAN**:
+  - Automatically parses both Wi-Fi (`macWifi`) and Ethernet (`macEthernet`) MAC addresses from UPnP descriptors and matches the active ARP interface.
+  - Automatically populates `secondary_mac_address` in config entries and setup flows, broadcasting Wake-on-LAN packets across both interfaces simultaneously.
 - **Single Power Toggle & Media Transport Controls (#55)**:
   - Eliminated split `|` (Power On) and `O` (Power Off) buttons when enabling media controls, restoring a unified power standby button (`mdi:power-standby`) across all Lovelace entity cards and device pages.
   - Retired artificial `assumed_state: True` flag in favor of dynamic `MediaPlayerState.PLAYING` / `STATE_PAUSED` state transitions while media controls are active.
 - **Action Exceptions & Reliable Error Surfacing (`action-exceptions`)**:
   - Custom domain actions (`vidaa.send_key`, `vidaa.launch_app`, `vidaa.open_browser`, `vidaa.send_key_sequence`, `vidaa.set_tv_setting`, and `vidaa.select_audio_output`) and entity platforms now explicitly raise `HomeAssistantError` (`auth_required`, `not_connected`, `turn_on_failed`) instead of silent command delivery failures.
   - Action calls return structured execution telemetry (`{"success": true/false}`) directly to Home Assistant for branching automations.
-- **State Integrity & No Optimistic Desync**:
-  - All TV entity platforms (`media_player`, `remote`, `select`, `number`, `switch`, and `button`) verify live MQTT connection health before sending commands.
-  - Controls fail cleanly with descriptive user-facing alerts and avoid optimistic state changes when the TV is powered off or disconnected.
-- **Remote Entity Typing & Sanitization (#70)**:
-  - Coerced `key_repeat` options to integers and sanitized `num_repeats` handling to prevent typing errors during rapid command sequences.
 - **Legacy Static TLS Without Client Certificates (#71)**:
   - Enabled TLS 1.2 on port 36669 for Legacy Static authentication profiles without requiring client certificates, preventing setup blocks (`certs_not_found`) and connection timeouts on older models (such as Hisense B7100 series).
+- **Streamlined Entity Registry & Hotel Mode**:
+  - Retired standalone `hotel_mode` binary sensor in favor of clean `hotel_mode` extra state attribute on the `media_player` entity. Automatically purges deprecated binary sensor from Home Assistant's entity registry on startup.
 - **Diagnostic Maintenance Suite**:
   - Renamed `trigger_reauth` to **Start re-authentication** (`button.<tv>_start_re_authentication`), added automatic WoL wake pulse before PIN requests, and added clickable persistent notifications directing to Repairs and Integrations.
   - Enhanced **Force reconnect** (`button.<tv>_force_reconnect`) to clear exponential backoff cooldowns, await connection resolution up to 3s, and surface actionable errors instead of false positive completions.
   - Added **Probe capabilities** button (`button.<tv>_probe_capabilities`) to actively query picture and sound menu capabilities over MQTT.
-  - Added **Authentication problem** sensor (`binary_sensor.<tv>_authentication_problem`) and **Hotel mode** sensor (`binary_sensor.<tv>_hotel_mode`).
-- **Dual MAC Address Auto-Extraction & Wake-on-LAN**:
-  - Automatically parses both Wi-Fi (`macWifi`) and Ethernet (`macEthernet`) MAC addresses from UPnP descriptors and matches the active ARP interface.
-  - Automatically populates `secondary_mac_address` in config entries and setup flows, allowing Wake-on-LAN packets to target both interfaces seamlessly.
-- **Cold Boot & Mains Power Cut Resilience**:
-  - Tested and hardened token invalidation recovery when TVs undergo abrupt mains power cuts (Mosquitto RC 134 rejection), ensuring clean transitions to `unavailable` and automated repair prompt creation.
+  - Added **Authentication problem** sensor (`binary_sensor.<tv>_authentication_problem`).
+- **Remote Entity Typing & Sanitization (#70)**:
+  - Coerced `key_repeat` options to integers and sanitized `num_repeats` handling to prevent typing errors during rapid command sequences.
 - **Standalone CLI Diagnostics & Zero-Setup Runner**:
   - Decoupled core client modules from Home Assistant test stubs, allowing standalone troubleshooting tools (`scripts/test_client.py` and `scripts/diag.sh`) to run in bare Python environments.
   - Added real-time `/remoteapp/#` wildcard packet sniffing (`sniff` command) for OEM debugging.
-- **Test Suite Modularization & 2026.11 Naming Alignment**:
-  - Modularized platform test files into dedicated modules (`test_media_player_actions.py`, `test_media_player_sources.py`).
-  - Strict compliance with Home Assistant 2026.11 entity naming standards (`_attr_has_entity_name = True`, leaving entity names clean and relying on device/area context).
+- **Documentation & Recipe Additions**:
+  - Added Recipe 5A (IR blaster turn-on) and Recipe 5B (automated WoL fallback) to `docs/services_and_automations.md`.
+  - Documented ~15-minute transitional standby delay on modern VIDAA U6 models before WoWLAN packet filter becomes active in deep sleep.
+  - Fixed recipe and section numbering across automation documentation.
+- **Comprehensive Test Suite**:
+  - 380 modular unit tests passing with 100% coverage across actions, protocol, power transitions, options flow, and lifecycle.
 
 ---
 

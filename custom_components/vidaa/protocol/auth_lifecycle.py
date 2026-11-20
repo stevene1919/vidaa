@@ -1,4 +1,4 @@
-"""Token lifecycle, background refresh, and connection retry management for Hisense VIDAA TV."""
+"""Token lifecycle, background refresh, and connection retry management for VIDAA Smart TV."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from .auth import is_token_expired
 
 if TYPE_CHECKING:
-    from ..client import HisenseTvClient
+    from ..client import VidaaClient
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class TokenLifecycleManager:
     PROACTIVE_REFRESH_SETTLE_SECONDS = 3.0
     MAX_BROKER_REJECTION_ATTEMPTS = 3
 
-    def __init__(self, client: HisenseTvClient) -> None:
+    def __init__(self, client: VidaaClient) -> None:
         self.client = client
         self.refresh_lock = asyncio.Lock()
         self.refreshing_token: bool = False
@@ -72,9 +72,9 @@ class TokenLifecycleManager:
             asyncio.run(self.async_maybe_refresh_while_awake())
 
     def can_refresh_in_standby(self) -> bool:
-        """Whether a token refresh may run while the TV is in standby (``refresh_in_standby`` option)."""
+        """Whether a token refresh may run while the TV is in standby."""
         client = self.client
-        return bool(getattr(client, "refresh_in_standby", False)) and not is_token_expired(
+        return bool(getattr(client, "refresh_in_standby", True)) and not is_token_expired(
             client.access_token_time,
             client.access_token_duration,
             clock_offset=client.clock_offset,
@@ -95,7 +95,7 @@ class TokenLifecycleManager:
         ):
             return
 
-        backoff = min(600 * (2 ** self.awake_refresh_failures), 6 * 3600)
+        backoff = min(600 * (2**self.awake_refresh_failures), 6 * 3600)
         now = time.time()
         async with self.refresh_lock:
             if (
@@ -127,7 +127,7 @@ class TokenLifecycleManager:
                 "[%s] Token refresh failed while the TV is awake (attempt %d); next retry in %d min",
                 client.ip,
                 self.awake_refresh_failures,
-                min(600 * (2 ** self.awake_refresh_failures), 6 * 3600) // 60,
+                min(600 * (2**self.awake_refresh_failures), 6 * 3600) // 60,
             )
 
     def maybe_refresh_while_awake(self) -> None:
@@ -163,7 +163,10 @@ class TokenLifecycleManager:
                         self.refreshing_token = True
                         self.last_refresh_attempt = current_time
                 if should_refresh:
-                    _LOGGER.info("[%s] Access token is near expiration (<12h remaining). Proactively renewing tokens...", client.ip)
+                    _LOGGER.info(
+                        "[%s] Access token is near expiration (<12h remaining). Proactively renewing tokens...",
+                        client.ip,
+                    )
                     await client.async_refresh_tokens()
         except Exception as e:
             _LOGGER.debug("[%s] Proactive token refresh check error: %s", client.ip, e)
@@ -192,7 +195,7 @@ class TokenLifecycleManager:
             clock_offset=client.clock_offset,
         ):
             current_time = time.time()
-            retry_after = min(60 * (2 ** self.rejected_refresh_failures), 1800)
+            retry_after = min(60 * (2**self.rejected_refresh_failures), 1800)
             should_refresh = False
             async with self.refresh_lock:
                 should_refresh = not self.refreshing_token and (current_time - self.last_refresh_attempt > retry_after)
@@ -205,7 +208,10 @@ class TokenLifecycleManager:
             else:
                 self.client._schedule_rejected_retry(max(5.0, retry_after - (current_time - self.last_refresh_attempt)))
         else:
-            _LOGGER.warning("[%s] MQTT authentication rejected and no valid refresh token available. Reauthentication required.", client.ip)
+            _LOGGER.warning(
+                "[%s] MQTT authentication rejected and no valid refresh token available. Reauthentication required.",
+                client.ip,
+            )
             client._dispatch_auth_failed()
 
     def handle_auth_rejection(self, rc: int) -> None:
@@ -224,11 +230,18 @@ class TokenLifecycleManager:
         _LOGGER.debug("[%s] Next reconnect attempt in %.0f s", self.client.ip, delay)
 
     async def _rejected_retry_runner(self, delay: float) -> None:
-        """Waits delay seconds and triggers reconnection."""
+        """Waits delay seconds and triggers reconnection or token refresh."""
         await asyncio.sleep(delay)
         self.rejected_retry_task = None
         try:
-            await self.client.async_connect_and_run()
+            if self.client.refresh_token and not is_token_expired(
+                self.client.refresh_token_time,
+                self.client.refresh_token_duration,
+                clock_offset=self.client.clock_offset,
+            ):
+                await self.async_handle_auth_rejection(self.last_refresh_connect_rc or 5)
+            else:
+                await self.client.async_connect_and_run()
         except Exception as e:
             _LOGGER.debug("[%s] Scheduled reconnect failed: %s", self.client.ip, e)
 
@@ -236,15 +249,34 @@ class TokenLifecycleManager:
         """Immediate retry trigger for tests or manual invocation."""
         try:
             loop = asyncio.get_running_loop()
-            self._retry_fire_task = loop.create_task(self.client.async_connect_and_run())
+            if self.client.refresh_token and not is_token_expired(
+                self.client.refresh_token_time,
+                self.client.refresh_token_duration,
+                clock_offset=self.client.clock_offset,
+            ):
+                self._retry_fire_task = loop.create_task(
+                    self.async_handle_auth_rejection(self.last_refresh_connect_rc or 5)
+                )
+            else:
+                self._retry_fire_task = loop.create_task(self.client.async_connect_and_run())
         except RuntimeError:
-            asyncio.run(self.client.async_connect_and_run())
+            if self.client.refresh_token and not is_token_expired(
+                self.client.refresh_token_time,
+                self.client.refresh_token_duration,
+                clock_offset=self.client.clock_offset,
+            ):
+                asyncio.run(self.async_handle_auth_rejection(self.last_refresh_connect_rc or 5))
+            else:
+                asyncio.run(self.client.async_connect_and_run())
 
     def cancel_rejected_retry(self) -> None:
-        """Cancels any pending rejection retry task."""
+        """Cancels any pending rejection retry or auth refresh task."""
         if self.rejected_retry_task is not None:
             self.rejected_retry_task.cancel()
             self.rejected_retry_task = None
+        if getattr(self, "auth_refresh_task", None) is not None:
+            self.auth_refresh_task.cancel()
+            self.auth_refresh_task = None
 
     async def async_refresh_token_and_update_creds(self) -> None:
         """Attempts token refresh and dispatches reauth if broker repeatedly rejects."""
@@ -254,6 +286,9 @@ class TokenLifecycleManager:
                 _LOGGER.info("[%s] Token successfully refreshed on connection failure.", client.ip)
                 self.rejected_refresh_failures = 0
                 self.broker_rejection_failures = 0
+                self.cancel_rejected_retry()
+                if not client.connected and client.access_token and client.client_id and client.username:
+                    await client.async_connect_and_run()
             else:
                 self.rejected_refresh_failures += 1
                 if self.last_refresh_connect_rc in (4, 5, 134, 135):
@@ -265,7 +300,7 @@ class TokenLifecycleManager:
                     "[%s] Token refresh after rejected connection failed (attempt %d); next retry in %d min",
                     client.ip,
                     self.rejected_refresh_failures,
-                    min(60 * (2 ** self.rejected_refresh_failures), 1800) // 60,
+                    min(60 * (2**self.rejected_refresh_failures), 1800) // 60,
                 )
                 if self.broker_rejection_failures >= self.MAX_BROKER_REJECTION_ATTEMPTS:
                     _LOGGER.warning(
@@ -276,6 +311,7 @@ class TokenLifecycleManager:
                         self.broker_rejection_failures,
                         self.last_refresh_connect_rc,
                     )
+                    self.cancel_rejected_retry()
                     client._dispatch_auth_failed()
                     return
                 if not client.refresh_token or is_token_expired(
@@ -284,7 +320,15 @@ class TokenLifecycleManager:
                     clock_offset=client.clock_offset,
                 ):
                     _LOGGER.warning("[%s] Refresh token is missing or expired. Reauthentication required.", client.ip)
+                    self.cancel_rejected_retry()
                     client._dispatch_auth_failed()
+                    return
+
+                backoff = float(min(60 * (2**self.rejected_refresh_failures), 1800))
+                if hasattr(self.client, "_schedule_rejected_retry"):
+                    self.client._schedule_rejected_retry(backoff)
+                else:
+                    self.schedule_rejected_retry(backoff)
         except Exception as e:
             _LOGGER.warning("[%s] Background token refresh error: %s", client.ip, e)
             if not client.refresh_token or is_token_expired(
@@ -292,6 +336,7 @@ class TokenLifecycleManager:
                 client.refresh_token_duration,
                 clock_offset=client.clock_offset,
             ):
+                self.cancel_rejected_retry()
                 client._dispatch_auth_failed()
         finally:
             async with self.refresh_lock:

@@ -47,7 +47,6 @@
         "title": "Características y opciones del dispositivo",
         "description": "Personaliza las funciones para tu VIDAA Smart TV.",
         "data": {
-          "enable_remote": "Habilitar entidad de control remoto dedicada",
           "enable_wol": "Habilitar encendido mediante Wake-on-LAN",
           "include_apps_in_sources": "Incluir aplicaciones de Smart TV en la lista de fuentes del reproductor multimedia",
           "enable_media_controls": "Habilitar controles de transporte multimedia (reproducir/pausar, detener, saltar)",
@@ -85,14 +84,10 @@
       },
       "power_network": {
         "title": "Opciones de energía y red",
-        "description": "Configura Wake-on-LAN, interfaces de red secundarias y renovación de token en espera.",
+        "description": "Configurar Wake-on-LAN y la interfaz de red secundaria (Wi-Fi o Ethernet). MAC principal activa: {primary_mac}.",
         "data": {
           "enable_wol": "Habilitar encendido mediante Wake-on-LAN",
-          "secondary_mac_address": "Dirección MAC secundaria (Wi-Fi o Ethernet)",
-          "refresh_in_standby": "Renovar tokens de acceso mientras el televisor está en espera"
-        },
-        "data_description": {
-          "refresh_in_standby": "Actívalo si el televisor mantiene su conexión de red cuando está apagado (p. ej., Inicio rápido / Fast Power On). El token de acceso de 2 días se renovará incluso si el televisor no se enciende, manteniendo el emparejamiento tras los reinicios de Home Assistant. Déjalo desactivado para televisores que se apagan por completo en espera."
+          "secondary_mac_address": "Dirección MAC secundaria (Wi-Fi o Ethernet)"
         }
       },
       "playback_sources": {
@@ -112,7 +107,6 @@
         "title": "Entidades y mando a distancia",
         "description": "Configura selectores de entidades, calibración de imagen, preajustes de sonido y tiempos del mando a distancia.",
         "data": {
-          "enable_remote": "Habilitar entidad de control remoto dedicada",
           "enable_picture_controls": "Habilitar selector de modo de imagen y controles deslizantes de calibración (Luz de fondo, Brillo, Contraste)",
           "enable_sound_controls": "Habilitar selector de preajustes de ecualizador de modo de sonido",
           "enable_audio_only": "Habilitar interruptor Solo Audio (Pantalla apagada)",
@@ -134,7 +128,8 @@
     },
     "error": {
       "certs_not_found": "No se encontró el archivo de certificado o de clave privada en la ruta especificada. Comprueba la ubicación del archivo y los permisos.",
-      "invalid_ssl_cert": "Error de validación del certificado SSL o la clave privada. Comprueba que los archivos estén en formato PEM sin cifrar o PKCS#12 válido y coincidan entre sí."
+      "invalid_ssl_cert": "Error de validación del certificado SSL o la clave privada. Comprueba que los archivos estén en formato PEM sin cifrar o PKCS#12 válido y coincidan entre sí.",
+      "invalid_mac": "Dirección MAC no válida. Debe ser una dirección hexadecimal de 12 dígitos (ej. AA:BB:CC:DD:EE:FF)."
     }
   },
   "entity": {
@@ -174,7 +169,7 @@
         "name": "Sondear capacidades"
       },
       "trigger_reauth": {
-        "name": "Iniciar reemparejamiento"
+        "name": "Iniciar reautenticación"
       }
     },
     "select": {
@@ -360,6 +355,15 @@
     },
     "send_text_input_failed": {
       "message": "Error al enviar la entrada de texto: {error}"
+    },
+    "auth_required": {
+      "message": "Authentication required: Re-pair TV in Settings > Integrations."
+    },
+    "turn_on_failed": {
+      "message": "Wake-on-LAN failed: TV did not wake up."
+    },
+    "device_off": {
+      "message": "No se puede realizar la acción: el televisor está apagado actualmente."
     }
   },
   "selector": {

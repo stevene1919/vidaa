@@ -1,4 +1,4 @@
-"""Connectivity and handshake verification utilities for Hisense VIDAA TV broker."""
+"""Connectivity and handshake verification utilities for VIDAA Smart TV broker."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from .auth import (
 )
 
 if TYPE_CHECKING:
-    from .upnp import HisenseUpnpClient
+    from .upnp import VidaaUpnpClient
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ async def async_ping_tv(
     password: str | None = None,
     mac: str | None = None,
     timeout: float = 3.0,
-    upnp: HisenseUpnpClient | None = None,
+    upnp: VidaaUpnpClient | None = None,
     brand: str = "his",
     use_ssl: bool = True,
 ) -> dict[str, Any]:
@@ -147,11 +147,15 @@ async def async_ping_tv(
     with contextlib.suppress(Exception):
         if upnp is not None:
             results["device_info"] = await upnp.async_get_device_fingerprint(timeout=1.5)
+            await upnp.close()
         else:
-            from .upnp import HisenseUpnpClient
+            from .upnp import VidaaUpnpClient
 
-            upnp_client = HisenseUpnpClient(ip)
-            results["device_info"] = await upnp_client.async_get_device_fingerprint(timeout=1.5)
+            upnp_client = VidaaUpnpClient(ip)
+            try:
+                results["device_info"] = await upnp_client.async_get_device_fingerprint(timeout=1.5)
+            finally:
+                await upnp_client.close()
 
     return results
 

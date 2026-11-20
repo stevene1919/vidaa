@@ -1,4 +1,4 @@
-"""Number platform for Hisense VIDAA TV integration."""
+"""Number platform for VIDAA Smart TV integration."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -18,6 +19,7 @@ from .const import (
     DOMAIN,
 )
 from .entity import VidaaEntity
+from .helpers import check_client_command_readiness
 
 if TYPE_CHECKING:
     from . import VidaaConfigEntry
@@ -99,8 +101,16 @@ class VidaaBacklightNumber(VidaaBaseNumber):
 
     async def async_set_native_value(self, value: float) -> None:
         """Set new backlight level."""
+        check_client_command_readiness(self._client, require_on=True)
+        res = await self._client.async_set_backlight(int(value))
+        if res is False:
+            raise HomeAssistantError(
+                f"Failed to set backlight to {value}: command delivery failed",
+                translation_domain=DOMAIN,
+                translation_key="set_picture_setting_failed",
+                translation_placeholders={"menu_id": "backlight", "error": "command delivery failed"},
+            )
         self._value = value
-        await self._client.async_set_backlight(int(value))
         self.async_write_ha_state()
 
 
@@ -134,8 +144,16 @@ class VidaaBrightnessNumber(VidaaBaseNumber):
 
     async def async_set_native_value(self, value: float) -> None:
         """Set new brightness level."""
+        check_client_command_readiness(self._client, require_on=True)
+        res = await self._client.async_set_brightness(int(value))
+        if res is False:
+            raise HomeAssistantError(
+                f"Failed to set brightness to {value}: command delivery failed",
+                translation_domain=DOMAIN,
+                translation_key="set_picture_setting_failed",
+                translation_placeholders={"menu_id": "brightness", "error": "command delivery failed"},
+            )
         self._value = value
-        await self._client.async_set_brightness(int(value))
         self.async_write_ha_state()
 
 
@@ -169,8 +187,16 @@ class VidaaContrastNumber(VidaaBaseNumber):
 
     async def async_set_native_value(self, value: float) -> None:
         """Set new contrast level."""
+        check_client_command_readiness(self._client, require_on=True)
+        res = await self._client.async_set_contrast(int(value))
+        if res is False:
+            raise HomeAssistantError(
+                f"Failed to set contrast to {value}: command delivery failed",
+                translation_domain=DOMAIN,
+                translation_key="set_picture_setting_failed",
+                translation_placeholders={"menu_id": "contrast", "error": "command delivery failed"},
+            )
         self._value = value
-        await self._client.async_set_contrast(int(value))
         self.async_write_ha_state()
 
 
@@ -189,9 +215,7 @@ async def async_setup_entry(
     """Set up the VIDAA number platform."""
     client: VidaaClient = config_entry.runtime_data.client
 
-    enable_picture = config_entry.options.get(
-        CONF_ENABLE_PICTURE_CONTROLS, DEFAULT_ENABLE_PICTURE_CONTROLS
-    )
+    enable_picture = config_entry.options.get(CONF_ENABLE_PICTURE_CONTROLS, DEFAULT_ENABLE_PICTURE_CONTROLS)
 
     # Clean up disabled/unsupported number entities from entity registry
     entity_reg = er.async_get(hass)

@@ -1,4 +1,4 @@
-"""Base entity for the Hisense VIDAA TV integration."""
+"""Base entity for the VIDAA Smart TV integration."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from .const import (
     CONF_MAC_ADDRESS,
     CONF_MANUFACTURER,
     CONF_MODEL,
+    CONF_SECONDARY_MAC_ADDRESS,
     CONF_SW_VERSION,
     DEFAULT_BRAND,
     DEFAULT_NAME,
@@ -64,9 +65,18 @@ class VidaaEntity(Entity):
             model=model,
             sw_version=sw_version,
         )
-        if self._mac:
-            cleaned_mac = self._mac.replace("-", ":").lower()
-            info["connections"] = {(CONNECTION_NETWORK_MAC, cleaned_mac)}
+        connections: set[tuple[str, str]] = set()
+        for mac_addr in (
+            self._mac,
+            self._entry.options.get(CONF_SECONDARY_MAC_ADDRESS),
+            self._entry.data.get(CONF_SECONDARY_MAC_ADDRESS),
+            getattr(self._client, "mac_wifi", None),
+            getattr(self._client, "mac_ethernet", None),
+        ):
+            if mac_addr:
+                connections.add((CONNECTION_NETWORK_MAC, mac_addr.replace("-", ":").lower()))
+        if connections:
+            info["connections"] = connections
         return info
 
     @property

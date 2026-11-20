@@ -6,7 +6,7 @@ import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.service_info.ssdp import SsdpServiceInfo
 
-from custom_components.vidaa.config_flow import HisenseVidaaConfigFlow
+from custom_components.vidaa.config_flow import VidaaConfigFlow
 from custom_components.vidaa.const import (
     CONF_BRAND,
     CONF_IP_ADDRESS,
@@ -22,7 +22,7 @@ async def test_ssdp_discovery_vidaa_tv(monkeypatch):
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
 
@@ -57,7 +57,7 @@ async def test_ssdp_discovery_vidaa_tv(monkeypatch):
 async def test_ssdp_discovery_non_vidaa_ignored():
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
 
@@ -83,7 +83,7 @@ async def test_ssdp_discovery_non_vidaa_ignored():
 async def test_options_step_creates_entry():
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
 
@@ -110,7 +110,6 @@ async def test_options_step_creates_entry():
 
     result = await flow.async_step_options(
         user_input={
-            "enable_remote": True,
             "enable_wol": True,
             "include_apps_in_sources": True,
             "enable_picture_controls": False,
@@ -127,11 +126,10 @@ async def test_options_step_creates_entry():
     assert result["data"][CONF_MANUFACTURER] == "Hisense"
     assert result["data"][CONF_BRAND] == "his"
     assert result["data"][CONF_SW_VERSION] == "V1.0"
-    assert result["options"]["enable_remote"] is True
     assert result["options"]["enable_picture_controls"] is False
     assert result["options"]["enable_sound_controls"] is False
     assert result["options"]["enable_audio_only"] is False
-    assert (mock_client.async_disconnect.called or mock_client.disconnect.called)
+    assert mock_client.async_disconnect.called or mock_client.disconnect.called
     assert flow.client is None
 
 
@@ -141,7 +139,7 @@ async def test_capability_probing_in_config_flow(monkeypatch):
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
 
@@ -174,7 +172,7 @@ async def test_user_step_auto_certs_missing_routes_to_certs(monkeypatch):
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
 
@@ -183,9 +181,7 @@ async def test_user_step_auto_certs_missing_routes_to_certs(monkeypatch):
         lambda c, k: False,
     )
 
-    result = await flow.async_step_user(
-        user_input={"ip_address": "192.168.50.12", "auth_profile": "auto"}
-    )
+    result = await flow.async_step_user(user_input={"ip_address": "192.168.50.12", "auth_profile": "auto"})
     assert result["type"] == "form"
     assert result["step_id"] == "certs"
 
@@ -196,13 +192,11 @@ async def test_user_step_explicit_model_routes_to_certs():
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
 
-    result = await flow.async_step_user(
-        user_input={"ip_address": "192.168.50.12", "auth_profile": "modern"}
-    )
+    result = await flow.async_step_user(user_input={"ip_address": "192.168.50.12", "auth_profile": "modern"})
     assert result["type"] == "form"
     assert result["step_id"] == "certs"
 
@@ -213,7 +207,7 @@ async def test_certs_step_submission_valid(monkeypatch):
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
     flow.ip_address = "192.168.50.12"
@@ -234,7 +228,7 @@ async def test_certs_step_submission_valid(monkeypatch):
         lambda c, k: (True, None),
     )
     monkeypatch.setattr(
-        "custom_components.vidaa.client.HisenseTvClient.async_start_auth",
+        "custom_components.vidaa.client.VidaaClient.async_start_auth",
         AsyncMock(return_value=None),
     )
 
@@ -257,7 +251,7 @@ async def test_zeroconf_discovery(monkeypatch):
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
     flow.async_set_unique_id = AsyncMock(return_value=None)
@@ -298,11 +292,12 @@ async def test_config_flow_async_remove_cleans_up_client():
     """Test async_remove disconnects running flow client."""
     hass = MagicMock(spec=HomeAssistant)
     import asyncio
+
     hass.async_create_background_task = MagicMock(
         side_effect=lambda coro, *a, **kw: asyncio.get_running_loop().create_task(coro)
     )
 
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     mock_client = MagicMock()
     mock_client.async_disconnect = AsyncMock()
@@ -316,7 +311,7 @@ async def test_config_flow_async_remove_cleans_up_client():
 @pytest.mark.anyio
 async def test_config_flow_async_remove_noop_without_client():
     """Test async_remove executes cleanly when client is None."""
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.client = None
     flow.async_remove()
     assert flow.client is None
@@ -325,7 +320,7 @@ async def test_config_flow_async_remove_noop_without_client():
 @pytest.mark.anyio
 async def test_config_flow_async_remove_without_hass():
     """Test async_remove calls disconnect synchronously if hass is not set."""
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = None
     mock_client = MagicMock()
     mock_client.disconnect = MagicMock()
@@ -333,7 +328,7 @@ async def test_config_flow_async_remove_without_hass():
     flow.client = mock_client
 
     flow.async_remove()
-    assert (mock_client.async_disconnect.called or mock_client.disconnect.called)
+    assert mock_client.async_disconnect.called or mock_client.disconnect.called
     assert flow.client is None
 
 
@@ -343,7 +338,7 @@ async def test_certs_step_submission_invalid_pem(monkeypatch):
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
     flow.ip_address = "192.168.50.12"
@@ -376,7 +371,7 @@ async def test_ssdp_discovery_toshiba_tv(monkeypatch):
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
     flow.async_set_unique_id = AsyncMock(return_value=None)
@@ -429,7 +424,7 @@ async def test_manual_ip_upnp_brand_autodetect(monkeypatch):
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
     flow.async_set_unique_id = AsyncMock(return_value=None)
@@ -462,7 +457,7 @@ async def test_manual_ip_upnp_brand_autodetect(monkeypatch):
         created_clients.append(client)
         return client
 
-    monkeypatch.setattr("custom_components.vidaa.config_flow.HisenseTvClient", mock_client_factory)
+    monkeypatch.setattr("custom_components.vidaa.config_flow.VidaaClient", mock_client_factory)
     monkeypatch.setattr(flow, "_async_resolve_ssl_certs", AsyncMock(return_value=True))
     monkeypatch.setattr(flow, "async_step_auth", AsyncMock(return_value={"type": "form", "step_id": "auth"}))
 
@@ -472,3 +467,144 @@ async def test_manual_ip_upnp_brand_autodetect(monkeypatch):
     assert flow.manufacturer == "Loewe"
     assert len(created_clients) == 1
     assert created_clients[0].brand == "loe"
+
+
+@pytest.mark.anyio
+async def test_ssdp_discovery_multi_tv_offers_new_tv():
+    """Verify SSDP discovery offers a second TV when a different TV is already configured."""
+    hass = MagicMock(spec=HomeAssistant)
+    hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
+
+    flow = VidaaConfigFlow()
+    flow.hass = hass
+    flow.context = {}
+
+    # Simulate existing TV 1 in config entries
+    existing_entry = MagicMock()
+    existing_entry.unique_id = "e8:51:77:ec:98:1c"
+    existing_entry.data = {CONF_IP_ADDRESS: "192.168.50.12", CONF_MAC_ADDRESS: "e8:51:77:ec:98:1c"}
+    flow._async_current_entries = MagicMock(return_value=[existing_entry])
+
+    flow.async_set_unique_id = AsyncMock(return_value=None)
+    flow._abort_if_unique_id_configured = MagicMock()
+
+    # Discovery arrives for TV 2 (different MAC & IP)
+    discovery_info = SsdpServiceInfo(
+        ssdp_usn="uuid:87654321-4321-8765-4321-876543210000::urn:schemas-upnp-org:device:MediaRenderer:1",
+        ssdp_st="urn:schemas-upnp-org:device:MediaRenderer:1",
+        ssdp_location="http://192.168.50.15:38400/MediaServer/rendererdevicedesc.xml",
+        ssdp_headers={"_host": "192.168.50.15"},
+        upnp={
+            "friendlyName": "Bedroom TV",
+            "manufacturer": "Hisense",
+            "modelName": "58A53FXVT",
+            "modelDescription": "vidaa_support=1\nbrand=his\nmacWifi=aa:bb:cc:dd:ee:02\n",
+        },
+    )
+
+    result = await flow.async_step_ssdp(discovery_info)
+    assert result["type"] == "form"
+    assert result["step_id"] == "discovery_confirm"
+    assert flow.ip_address == "192.168.50.15"
+    assert flow.mac_address == "aa:bb:cc:dd:ee:02"
+    flow.async_set_unique_id.assert_awaited_once_with("aa:bb:cc:dd:ee:02")
+    flow._abort_if_unique_id_configured.assert_called_once_with(updates={CONF_IP_ADDRESS: "192.168.50.15"})
+
+
+@pytest.mark.anyio
+async def test_ssdp_discovery_dhcp_renewal_updates_ip_and_aborts():
+    """Verify SSDP discovery of an existing TV that renewed DHCP IP updates the IP and aborts."""
+    from homeassistant.data_entry_flow import AbortFlow
+
+    hass = MagicMock(spec=HomeAssistant)
+    hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
+
+    flow = VidaaConfigFlow()
+    flow.hass = hass
+    flow.context = {}
+
+    flow.async_set_unique_id = AsyncMock(return_value=None)
+    # When unique ID is already configured, HA's _abort_if_unique_id_configured raises AbortFlow("already_configured")
+    flow._abort_if_unique_id_configured = MagicMock(side_effect=AbortFlow("already_configured"))
+
+    discovery_info = SsdpServiceInfo(
+        ssdp_usn="uuid:12345678-1234-5678-1234-567812345678::urn:schemas-upnp-org:device:MediaRenderer:1",
+        ssdp_st="urn:schemas-upnp-org:device:MediaRenderer:1",
+        ssdp_location="http://192.168.50.99:38400/MediaServer/rendererdevicedesc.xml",
+        ssdp_headers={"_host": "192.168.50.99"},
+        upnp={
+            "friendlyName": "Living Room TV",
+            "manufacturer": "Hisense",
+            "modelName": "65U7G",
+            "modelDescription": "vidaa_support=1\nbrand=his\nmacWifi=e8:51:77:ec:98:1c\n",
+        },
+    )
+
+    with pytest.raises(AbortFlow) as exc_info:
+        await flow.async_step_ssdp(discovery_info)
+
+    assert exc_info.value.reason == "already_configured"
+    flow._abort_if_unique_id_configured.assert_called_once_with(updates={CONF_IP_ADDRESS: "192.168.50.99"})
+
+
+@pytest.mark.anyio
+async def test_ssdp_discovery_duplicate_ip_aborts_without_mac():
+    """Verify SSDP discovery aborts when IP matches an existing entry even if MAC is not yet resolved."""
+    hass = MagicMock(spec=HomeAssistant)
+    hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
+
+    flow = VidaaConfigFlow()
+    flow.hass = hass
+    flow.context = {}
+
+    existing_entry = MagicMock()
+    existing_entry.data = {CONF_IP_ADDRESS: "192.168.50.12"}
+    flow._async_current_entries = MagicMock(return_value=[existing_entry])
+    flow.async_set_unique_id = AsyncMock()
+
+    discovery_info = SsdpServiceInfo(
+        ssdp_usn="uuid:dummy::urn:schemas-upnp-org:device:MediaRenderer:1",
+        ssdp_st="urn:schemas-upnp-org:device:MediaRenderer:1",
+        ssdp_location="http://192.168.50.12:38400/MediaServer/rendererdevicedesc.xml",
+        ssdp_headers={"_host": "192.168.50.12"},
+        upnp={
+            "friendlyName": "Living Room TV",
+            "manufacturer": "Hisense",
+            "modelName": "65U7G",
+            "modelDescription": "vidaa_support=1\n",
+        },
+    )
+
+    result = await flow.async_step_ssdp(discovery_info)
+    assert result["type"] == "abort"
+    assert result["reason"] == "already_configured"
+
+
+@pytest.mark.anyio
+async def test_user_step_legacy_profile_without_certs_proceeds(monkeypatch):
+    """Test user flow with legacy profile proceeds without certs (Issue #71)."""
+    hass = MagicMock(spec=HomeAssistant)
+    hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
+    flow = VidaaConfigFlow()
+    flow.hass = hass
+    flow.context = {}
+
+    monkeypatch.setattr(
+        "custom_components.vidaa.flow.user.async_resolve_mac",
+        AsyncMock(return_value="e8:51:77:ec:98:1c"),
+    )
+    monkeypatch.setattr(
+        "custom_components.vidaa.config_flow.VidaaConfigFlow._async_init_client_and_auth",
+        AsyncMock(return_value={"type": "form", "step_id": "options"}),
+    )
+    monkeypatch.setattr(
+        "custom_components.vidaa.config_flow.VidaaConfigFlow._async_resolve_ssl_certs",
+        AsyncMock(return_value=False),
+    )
+
+    result = await flow.async_step_user(user_input={"ip_address": "192.168.1.46", "auth_profile": "legacy"})
+    assert result["type"] == "form"
+    assert result["step_id"] == "options"
+    assert flow.certfile is None
+    assert flow.keyfile is None
+    assert flow.use_ssl is True

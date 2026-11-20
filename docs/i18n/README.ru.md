@@ -27,10 +27,10 @@
 
 Настройка занимает менее 3 минут и состоит из 3 простых шагов:
 
-### 1️⃣ Установка через HACS
-Нажмите кнопку ниже (или найдите **VIDAA Smart TV** в HACS → Интеграции → Скачать):
+### 1️⃣ Установка через Marketplace (HACS)
+Нажмите кнопку ниже (или найдите **VIDAA Smart TV** в Marketplace (HACS) → Интеграции → Скачать):
 
-[![Открыть HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
+[![Открыть Marketplace (HACS)](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
 
 ### 2️⃣ Размещение файла ключа (`client_mobile_android.p12` или `El.p12`)
 Телевизорам VIDAA требуется взаимное шифрование TLS на порту 36669. Скопируйте универсальный файл **`client_mobile_android.p12`** (или `El.p12`) в каталог Home Assistant **`/config/ssl/`**.
@@ -91,5 +91,5 @@
 | 📱 **[Панели Lovelace и карточки](../lovelace_cards.md)** | Карточки пультов ДУ, кнопочные карточки и шаблоны интерфейса. |
 | 🛠️ **[Службы и автоматизации](../services_and_automations.md)** | Примеры YAML для режима кино, переключения входов и последовательностей клавиш. |
 | 🔒 **[Сертификаты SSL](../certificates.md)** | Пути к файлам, собственные PEM-сертификаты и команды OpenSSL. |
-| 🧪 **[CLI-утилиты тестирования и диагностики](../cli_tools.md)** | Автономные инструменты (`scripts/test_client.py`, `scripts/debug_tv.py`). |
+| 🧪 **[CLI-утилиты тестирования и диагностики](../cli_tools.md)** | Автономные инструменты (`scripts/test_client.py`, `scripts/diag.sh`). |
 | 🩺 **[Устранение неполадок](../troubleshooting.md)** | Диагностика и решение ошибок подключения и сопряжения. |

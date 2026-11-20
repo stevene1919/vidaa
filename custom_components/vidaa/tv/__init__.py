@@ -1,4 +1,4 @@
-"""TV domain logic and model subpackage for Hisense VIDAA TV."""
+"""TV domain logic and model subpackage for VIDAA Smart TV."""
 
 from __future__ import annotations
 

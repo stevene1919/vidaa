@@ -47,7 +47,6 @@
         "title": "Gerätefunktionen & Optionen",
         "description": "Passe die Funktionen für deinen VIDAA Smart TV an.",
         "data": {
-          "enable_remote": "Dedizierte Fernbedienungs-Entität aktivieren",
           "enable_wol": "Einschalten über Wake-on-LAN aktivieren",
           "include_apps_in_sources": "Smart-TV-Apps in die Quellenliste des Medienplayers aufnehmen",
           "enable_media_controls": "Mediensteuerungen aktivieren (Wiedergabe/Pause, Stopp, Überspringen)",
@@ -85,14 +84,10 @@
       },
       "power_network": {
         "title": "Energie- & Netzwerkoptionen",
-        "description": "Konfiguriere Wake-on-LAN, sekundäre Netzwerkschnittstellen und Standby-Token-Erneuerung.",
+        "description": "Konfiguriere Wake-on-LAN und sekundäre Netzwerkschnittstelle (WLAN oder Ethernet). Aktive primäre MAC: {primary_mac}.",
         "data": {
           "enable_wol": "Einschalten über Wake-on-LAN aktivieren",
-          "secondary_mac_address": "Sekundäre MAC-Adresse (WLAN oder Ethernet)",
-          "refresh_in_standby": "Zugriffstoken erneuern, während der Fernseher im Standby ist"
-        },
-        "data_description": {
-          "refresh_in_standby": "Aktivieren, wenn der Fernseher im ausgeschalteten Zustand seine Netzwerkverbindung behält (z. B. Schnellstart / Fast Power On). Das 2-Tage-Zugriffstoken wird dann auch erneuert, wenn der Fernseher nicht eingeschaltet wird, sodass die Kopplung Home Assistant-Neustarts übersteht. Deaktiviert lassen bei Fernsehern, die im Standby vollständig herunterfahren."
+          "secondary_mac_address": "Sekundäre MAC-Adresse (WLAN oder Ethernet)"
         }
       },
       "playback_sources": {
@@ -112,7 +107,6 @@
         "title": "Entitäten & Fernbedienung",
         "description": "Konfiguriere Entitätsschalter, Bildkalibrierung, Ton-Presets und Tastenverzögerungen.",
         "data": {
-          "enable_remote": "Dedizierte Fernbedienungs-Entität aktivieren",
           "enable_picture_controls": "Bildmodus-Auswahl und Kalibrierungs-Schieberegler aktivieren (Hintergrundbeleuchtung, Helligkeit, Kontrast)",
           "enable_sound_controls": "Tonmodus-Equalizer-Preset-Auswahl aktivieren",
           "enable_audio_only": "Nur-Audio-Schalter (Bildschirm aus) aktivieren",
@@ -134,7 +128,8 @@
     },
     "error": {
       "certs_not_found": "Zertifikats- oder private Schlüsseldatei wurde am angegebenen Pfad nicht gefunden. Bitte Dateipfad und Berechtigungen prüfen.",
-      "invalid_ssl_cert": "SSL-Zertifikat oder privater Schlüssel ungültig. Bitte prüfen, ob die Dateien im unverschlüsselten PEM- oder unterstützten PKCS#12-Format vorliegen und zusammenpassen."
+      "invalid_ssl_cert": "SSL-Zertifikat oder privater Schlüssel ungültig. Bitte prüfen, ob die Dateien im unverschlüsselten PEM- oder unterstützten PKCS#12-Format vorliegen und zusammenpassen.",
+      "invalid_mac": "Ungültige MAC-Adresse. Muss eine 12-stellige Hexadezimaladresse sein (z. B. AA:BB:CC:DD:EE:FF)."
     }
   },
   "entity": {
@@ -174,7 +169,7 @@
         "name": "Fähigkeiten abfragen"
       },
       "trigger_reauth": {
-        "name": "Erneutes Koppeln auslösen"
+        "name": "Erneute Authentifizierung starten"
       }
     },
     "select": {
@@ -360,6 +355,15 @@
     },
     "send_text_input_failed": {
       "message": "Texteingabe konnte nicht gesendet werden: {error}"
+    },
+    "auth_required": {
+      "message": "Authentication required: Re-pair TV in Settings > Integrations."
+    },
+    "turn_on_failed": {
+      "message": "Wake-on-LAN failed: TV did not wake up."
+    },
+    "device_off": {
+      "message": "Aktion kann nicht ausgeführt werden: Fernseher ist derzeit ausgeschaltet."
     }
   },
   "selector": {

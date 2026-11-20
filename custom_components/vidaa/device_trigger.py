@@ -1,4 +1,4 @@
-"""Provides device automations for control of Hisense VIDAA TV."""
+"""Provides device automations for control of VIDAA Smart TV."""
 
 from __future__ import annotations
 
@@ -36,9 +36,7 @@ TRIGGER_SCHEMA = DEVICE_TRIGGER_BASE_SCHEMA.extend(
 )
 
 
-async def async_validate_trigger_config(
-    hass: HomeAssistant, config: ConfigType
-) -> ConfigType:
+async def async_validate_trigger_config(hass: HomeAssistant, config: ConfigType) -> ConfigType:
     """Validate config."""
     config = TRIGGER_SCHEMA(config)
 
@@ -55,9 +53,7 @@ async def async_validate_trigger_config(
 
         config_entry = None
         if hasattr(dr, "async_get_device_and_config_entry_for_domain"):
-            _, config_entry = dr.async_get_device_and_config_entry_for_domain(
-                hass, device.id, domain=DOMAIN
-            )
+            _, config_entry = dr.async_get_device_and_config_entry_for_domain(hass, device.id, domain=DOMAIN)
         else:
             dev_reg = dr.async_get(hass)
             dev = dev_reg.async_get(device_id) if hasattr(dev_reg, "async_get") else None
@@ -84,9 +80,7 @@ async def async_validate_trigger_config(
     return config
 
 
-async def async_get_triggers(
-    _hass: HomeAssistant, device_id: str
-) -> list[dict[str, str]]:
+async def async_get_triggers(_hass: HomeAssistant, device_id: str) -> list[dict[str, str]]:
     """List device triggers for device."""
     return [async_get_turn_on_trigger(device_id)]
 

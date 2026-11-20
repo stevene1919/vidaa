@@ -20,7 +20,7 @@ VIDAA OS smart TVs enforce mutual TLS (mTLS) or client certificate authenticatio
 
 ## 📁 Recommended Certificate Location
 
-To prevent certificate loss when updating integrations via HACS, certificates should **always** be placed in Home Assistant's dedicated SSL/configuration directories:
+To prevent certificate loss when updating integrations via Marketplace (HACS), certificates should **always** be placed in Home Assistant's dedicated SSL/configuration directories:
 
 1. `/config/ssl/` (Recommended standard HA SSL directory)
 2. `/ssl/`

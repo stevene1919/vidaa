@@ -1,4 +1,4 @@
-"""Switch platform for Hisense VIDAA TV integration."""
+"""Switch platform for VIDAA Smart TV integration."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -19,6 +20,7 @@ from .const import (
     DOMAIN,
 )
 from .entity import VidaaEntity
+from .helpers import check_client_command_readiness
 
 if TYPE_CHECKING:
     from . import VidaaConfigEntry
@@ -90,20 +92,32 @@ class VidaaAudioOnlySwitch(VidaaEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn off the screen while keeping audio active."""
-        if not self._client or not self._client.connected:
-            return
+        check_client_command_readiness(self._client, require_on=True)
         # Guarantee screen is awake first, then toggle off
         await self._client.async_send_key(WAKE_KEY)
         await asyncio.sleep(KEY_GAP_SECONDS)
-        await self._client.async_send_key(AUDIO_ONLY_KEY)
+        res = await self._client.async_send_key(AUDIO_ONLY_KEY)
+        if res is False:
+            raise HomeAssistantError(
+                "Failed to send audio only key: command delivery failed",
+                translation_domain=DOMAIN,
+                translation_key="send_key_failed",
+                translation_placeholders={"key": AUDIO_ONLY_KEY, "error": "command delivery failed"},
+            )
         self._is_on = True
         self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Wake the screen back up."""
-        if not self._client or not self._client.connected:
-            return
-        await self._client.async_send_key(WAKE_KEY)
+        check_client_command_readiness(self._client, require_on=True)
+        res = await self._client.async_send_key(WAKE_KEY)
+        if res is False:
+            raise HomeAssistantError(
+                "Failed to wake screen: command delivery failed",
+                translation_domain=DOMAIN,
+                translation_key="send_key_failed",
+                translation_placeholders={"key": WAKE_KEY, "error": "command delivery failed"},
+            )
         self._is_on = False
         self.async_write_ha_state()
 
@@ -158,24 +172,18 @@ async def async_setup_entry(
     """Set up the VIDAA switch platform."""
     client = config_entry.runtime_data.client
 
-    enable_audio_only = config_entry.options.get(
-        CONF_ENABLE_AUDIO_ONLY, DEFAULT_ENABLE_AUDIO_ONLY
-    )
+    enable_audio_only = config_entry.options.get(CONF_ENABLE_AUDIO_ONLY, DEFAULT_ENABLE_AUDIO_ONLY)
 
     # Clean up audio_only switch from entity registry if disabled
     entity_reg = er.async_get(hass)
     unique_id = f"{config_entry.entry_id}_audio_only"
-    if not enable_audio_only and (
-        entity_id := entity_reg.async_get_entity_id("switch", DOMAIN, unique_id)
-    ):
+    if not enable_audio_only and (entity_id := entity_reg.async_get_entity_id("switch", DOMAIN, unique_id)):
         entity_reg.async_remove(entity_id)
 
     entities: list[SwitchEntity] = [
         VidaaDebugLoggingSwitch(client=client, entry=config_entry),
     ]
     if enable_audio_only:
-        entities.append(
-            VidaaAudioOnlySwitch(client=client, entry=config_entry)
-        )
+        entities.append(VidaaAudioOnlySwitch(client=client, entry=config_entry))
 
     async_add_entities(entities)

@@ -2,7 +2,7 @@
 
 Verifies:
 1. Candidate brand preservation across PIN entry and UPnP device discovery.
-2. Automatic regeneration of credentials on HisenseTvClient when brand changes.
+2. Automatic regeneration of credentials on VidaaClient when brand changes.
 3. Multi-brand certificate filename hinting.
 4. Normalization of 20+ OEM brands and preservation of explicit 3-letter codes.
 5. UPnP descriptor MAC fallbacks ('mac' and 'network_device').
@@ -15,8 +15,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from homeassistant.core import HomeAssistant
 
-from custom_components.vidaa.client import HisenseTvClient
-from custom_components.vidaa.config_flow import HisenseVidaaConfigFlow
+from custom_components.vidaa.client import VidaaClient
+from custom_components.vidaa.config_flow import VidaaConfigFlow
 from custom_components.vidaa.const import BRAND_OPTIONS
 from custom_components.vidaa.protocol.certs import detect_brand_from_cert_paths
 from custom_components.vidaa.protocol.discovery import normalize_brand_code
@@ -26,9 +26,7 @@ from custom_components.vidaa.tv.upnp_desc import parse_upnp_renderer_descriptor
 def test_oem_brands_in_brand_options():
     """Verify that all major OEM brands exist in BRAND_OPTIONS selector."""
     option_values = {opt["value"] for opt in BRAND_OPTIONS}
-    assert {"his", "tos", "loe", "tpv", "shp", "jvc", "sch", "bek", "ves", "bra", "met", "lei"}.issubset(
-        option_values
-    )
+    assert {"his", "tos", "loe", "tpv", "shp", "jvc", "sch", "bek", "ves", "bra", "met", "lei"}.issubset(option_values)
 
 
 def test_brand_normalization_and_code_preservation():
@@ -98,8 +96,8 @@ network_device=AA:BB:CC:DD:EE:FF</modelDescription>
 
 @pytest.mark.anyio
 async def test_client_regenerates_credentials_on_brand_mismatch():
-    """Test HisenseTvClient regenerates credentials and clears tokens when brand mismatches client_id."""
-    client = HisenseTvClient(
+    """Test VidaaClient regenerates credentials and clears tokens when brand mismatches client_id."""
+    client = VidaaClient(
         ip="192.168.50.25",
         mac="e8:51:77:ec:98:1c",
         client_id="E85177EC981C$his$123456_vidaacommon_001",
@@ -121,18 +119,20 @@ async def test_client_regenerates_credentials_on_brand_mismatch():
 async def test_flow_preserves_candidate_brand_when_upnp_lacks_brand(monkeypatch):
     """Test config flow does not overwrite candidate brand with 'his' when UPnP query lacks brand."""
     hass = MagicMock(spec=HomeAssistant)
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.ip_address = "192.168.50.12"
     flow.brand = "tos"  # Resolved during cascade or cert hinting
 
     client = MagicMock()
     client.brand = "tos"
-    client.async_get_device_fingerprint = AsyncMock(return_value={
-        "friendly_name": "Living Room TV",
-        "model_code": "55C350",
-        # Notice: no 'brand' or 'manufacturer' returned by UPnP
-    })
+    client.async_get_device_fingerprint = AsyncMock(
+        return_value={
+            "friendly_name": "Living Room TV",
+            "model_code": "55C350",
+            # Notice: no 'brand' or 'manufacturer' returned by UPnP
+        }
+    )
     flow.client = client
 
     await flow._async_discover_device_name()

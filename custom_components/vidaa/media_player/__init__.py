@@ -1,4 +1,4 @@
-"""Media player platform for Hisense VIDAA TV integration."""
+"""Media player platform for VIDAA Smart TV integration."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from homeassistant.components.media_player import (
     MediaType,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_OFF, STATE_ON
+from homeassistant.const import STATE_OFF, STATE_ON, STATE_PAUSED, STATE_PLAYING
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -84,6 +84,7 @@ class VidaaMediaPlayer(
         self._channel_name = None
         self._channel_num = None
         self._state = STATE_ON if getattr(client, "connected", False) else STATE_OFF
+        self._paused = False
         self._debounce_handle: asyncio.TimerHandle | None = None
 
     async def async_added_to_hass(self) -> None:
@@ -95,6 +96,9 @@ class VidaaMediaPlayer(
         self._client.register_applist_callback(self._handle_applist_update)
         self._client.register_sound_callback(self._handle_sound_update)
         self._client.register_disconnected_callback(self._handle_disconnected)
+        self._client.register_auth_failed_callback(self._handle_auth_failed)
+        if hasattr(self._client, "register_hotel_mode_callback"):
+            self._client.register_hotel_mode_callback(self._handle_state_update)
 
         # Sync state now that callbacks are registered and active.
         # Do not assume "on": the broker is also reachable in standby (fake_sleep).
@@ -109,9 +113,7 @@ class VidaaMediaPlayer(
                 from ..triggers.turn_on import async_get_turn_on_trigger
 
                 self.async_on_remove(
-                    runtime_data.turn_on.async_register(
-                        self.hass, async_get_turn_on_trigger(entry.device_id)
-                    )
+                    runtime_data.turn_on.async_register(self.hass, async_get_turn_on_trigger(entry.device_id))
                 )
 
     async def async_will_remove_from_hass(self) -> None:
@@ -126,6 +128,9 @@ class VidaaMediaPlayer(
         self._client.unregister_applist_callback(self._handle_applist_update)
         self._client.unregister_sound_callback(self._handle_sound_update)
         self._client.unregister_disconnected_callback(self._handle_disconnected)
+        self._client.unregister_auth_failed_callback(self._handle_auth_failed)
+        if hasattr(self._client, "unregister_hotel_mode_callback"):
+            self._client.unregister_hotel_mode_callback(self._handle_state_update)
 
     @property
     def unique_id(self) -> str:
@@ -137,19 +142,21 @@ class VidaaMediaPlayer(
         """Return the current playback state."""
         if not self._client.connected or not self._client.is_on:
             return STATE_OFF
+        enable_controls = self._options.get(CONF_ENABLE_MEDIA_CONTROLS, DEFAULT_ENABLE_MEDIA_CONTROLS)
+        if enable_controls:
+            return STATE_PAUSED if getattr(self, "_paused", False) else STATE_PLAYING
         return STATE_ON
 
     @property
     def assumed_state(self) -> bool:
-        """Return True when TV is on so frontend displays playback and channel controls."""
-        enable_controls = self._options.get(
-            CONF_ENABLE_MEDIA_CONTROLS, DEFAULT_ENABLE_MEDIA_CONTROLS
-        )
-        return bool(enable_controls and self._client and self._client.is_on)
+        """Return False: VIDAA maintains two-way MQTT state telemetry."""
+        return False
 
     @property
     def available(self) -> bool:
         """Return entity availability."""
+        if getattr(self._client, "auth_failed", False) is True:
+            return False
         return bool(self._entry_id and (self._client.access_token or self._mac))
 
     @property
@@ -157,6 +164,7 @@ class VidaaMediaPlayer(
         """Return audio output and active source/tuner context attributes."""
         attributes: dict[str, Any] = {
             "audio_output": "ARC / eARC" if self._volume_type == 1 else "TV Speakers",
+            "hotel_mode": bool(getattr(self._client, "hotel_mode", False)),
         }
         if self._source:
             attributes["raw_source"] = self._source
@@ -308,9 +316,7 @@ class VidaaMediaPlayer(
     def source_list(self) -> list[str]:
         """Return list of available input sources and apps."""
         enable_cec = self._options.get(CONF_ENABLE_CEC_NAMES, DEFAULT_ENABLE_CEC_NAMES)
-        include_apps = self._options.get(
-            CONF_INCLUDE_APPS_IN_SOURCES, DEFAULT_INCLUDE_APPS_IN_SOURCES
-        )
+        include_apps = self._options.get(CONF_INCLUDE_APPS_IN_SOURCES, DEFAULT_INCLUDE_APPS_IN_SOURCES)
         configured_sources = self._options.get(CONF_SOURCES)
         return build_media_player_source_list(
             source_dict=self._source_dict,
@@ -376,9 +382,7 @@ class VidaaMediaPlayer(
         )
         if self.sound_mode_list:
             base |= MediaPlayerEntityFeature.SELECT_SOUND_MODE
-        enable_controls = self._options.get(
-            CONF_ENABLE_MEDIA_CONTROLS, DEFAULT_ENABLE_MEDIA_CONTROLS
-        )
+        enable_controls = self._options.get(CONF_ENABLE_MEDIA_CONTROLS, DEFAULT_ENABLE_MEDIA_CONTROLS)
         if enable_controls:
             base |= (
                 MediaPlayerEntityFeature.PLAY

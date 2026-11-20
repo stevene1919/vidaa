@@ -1,8 +1,12 @@
-"""Auto-discovery handlers and network utilities for Hisense VIDAA smart TVs."""
+"""Auto-discovery handlers and network utilities for VIDAA Smart TVs."""
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
+import socket
+import time
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -53,8 +57,10 @@ __all__ = [
     "BRAND_CODE_MAP",
     "BRAND_MAP",
     "GENERIC_MANUFACTURERS",
+    "UDP_DISCOVERY_PORT",
     "UPNP_PORTS",
     "DiscoveredTvInfo",
+    "async_probe_udp_port",
     "format_drift_human",
     "get_arp_mac",
     "get_device_fingerprint",
@@ -63,9 +69,17 @@ __all__ = [
     "parse_ssdp_discovery",
     "parse_zeroconf_discovery",
     "ping_tv",
+    "probe_udp_port",
     "probe_upnp_services",
     "query_mdns_fingerprint",
     "query_upnp_descriptor",
+]
+
+UDP_DISCOVERY_PORT: int = 36671
+UDP_DISCOVERY_PAYLOADS: list[bytes] = [
+    b'{"request": "discover", "device": "phone", "version": "1.0"}',
+    b"HiSmart:discover",
+    b'{"request": "discover"}',
 ]
 
 
@@ -78,6 +92,7 @@ class DiscoveredTvInfo:
     model: str
     manufacturer: str
     mac_address: str | None = None
+    secondary_mac_address: str | None = None
     unique_id: str | None = None
     is_vidaa: bool = True
     brand: str = "his"
@@ -135,23 +150,41 @@ def parse_ssdp_discovery(
     if not host:
         return None
 
-    mac_address = None
+    mac_wifi = None
+    mac_ethernet = None
+    mac_generic = None
     for line in model_desc.splitlines():
         if "=" in line:
             k, v = line.split("=", 1)
-            k, v = k.strip(), v.strip()
-            if k.lower() in ("macwifi", "macethernet", "mac", "network_device") and v:
-                mac_clean = v.replace(":", "").replace("-", "").replace(".", "").strip()
-                if len(mac_clean) == 12:
-                    mac_address = ":".join(mac_clean[i:i + 2] for i in range(0, 12, 2)).lower()
-                else:
-                    mac_address = v.lower()
-                break
+            k, v = k.strip().lower(), v.strip()
+            if not v:
+                continue
+            mac_clean = v.replace(":", "").replace("-", "").replace(".", "").strip()
+            formatted_mac = (
+                ":".join(mac_clean[i : i + 2] for i in range(0, 12, 2)).lower() if len(mac_clean) == 12 else v.lower()
+            )
+            if k == "macwifi":
+                mac_wifi = formatted_mac
+            elif k == "macethernet":
+                mac_ethernet = formatted_mac
+            elif k in ("mac", "network_device") and not mac_generic:
+                mac_generic = formatted_mac
 
-    if not mac_address:
-        raw_mac = get_arp_mac(host)
-        if raw_mac:
-            mac_address = raw_mac.lower()
+    raw_arp = get_arp_mac(host)
+    arp_mac = raw_arp.lower() if raw_arp else None
+
+    if arp_mac and arp_mac == mac_ethernet:
+        mac_address = mac_ethernet
+        secondary_mac = mac_wifi
+    elif arp_mac and arp_mac == mac_wifi:
+        mac_address = mac_wifi
+        secondary_mac = mac_ethernet
+    else:
+        mac_address = mac_wifi or mac_ethernet or mac_generic or arp_mac
+        secondary_mac = mac_ethernet if mac_address == mac_wifi else (mac_wifi if mac_address == mac_ethernet else None)
+
+    if secondary_mac and secondary_mac == mac_address:
+        secondary_mac = None
 
     detected_model = None
     for line in model_desc.splitlines():
@@ -183,11 +216,7 @@ def parse_ssdp_discovery(
                 break
 
     if manufacturer_clean.lower() in GENERIC_MANUFACTURERS:
-        manufacturer = (
-            BRAND_MAP.get(detected_brand_code or "", "Hisense")
-            if detected_brand_code
-            else "Hisense"
-        )
+        manufacturer = BRAND_MAP.get(detected_brand_code or "", "Hisense") if detected_brand_code else "Hisense"
     elif not detected_brand_code:
         detected_brand_code = normalize_brand_code(manufacturer_clean)
 
@@ -204,6 +233,7 @@ def parse_ssdp_discovery(
         model=model,
         manufacturer=manufacturer or "Hisense",
         mac_address=mac_address,
+        secondary_mac_address=secondary_mac,
         unique_id=unique_id,
         is_vidaa=True,
         brand=brand_code,
@@ -262,3 +292,70 @@ def parse_zeroconf_discovery(
         is_vidaa=True,
         brand=brand_code,
     )
+
+
+def probe_udp_port(ip: str, timeout: float = 1.5, port: int = UDP_DISCOVERY_PORT) -> dict[str, Any] | None:
+    """Send UDP discovery probes to a target IP on port 36671.
+
+    Returns device metadata dictionary if the TV responds, or None.
+    """
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.settimeout(timeout)
+    try:
+        for payload in UDP_DISCOVERY_PAYLOADS:
+            try:
+                sock.sendto(payload, (ip, port))
+            except OSError as err:
+                _LOGGER.debug("Failed sending UDP probe to %s:%s: %s", ip, port, err)
+
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            try:
+                data, addr = sock.recvfrom(4096)
+                if addr[0] != ip or not data:
+                    continue
+                try:
+                    resp = json.loads(data.decode("utf-8", errors="ignore"))
+                except Exception:
+                    resp = {"raw": data.decode("utf-8", errors="ignore")}
+
+                name = (
+                    resp.get("devicename") or resp.get("name") or resp.get("device_name") or resp.get("friendly_name")
+                )
+                model = resp.get("model") or resp.get("model_name")
+                raw_mac = resp.get("mac") or resp.get("macaddress")
+                clean_mac = None
+                if raw_mac:
+                    mac_strip = str(raw_mac).replace(":", "").replace("-", "").replace(".", "").strip()
+                    if len(mac_strip) == 12:
+                        clean_mac = ":".join(mac_strip[i : i + 2] for i in range(0, 12, 2)).lower()
+                    else:
+                        clean_mac = str(raw_mac).lower()
+
+                return {
+                    "ip": ip,
+                    "port": port,
+                    "name": name,
+                    "model": model,
+                    "mac": clean_mac,
+                    "raw": resp,
+                }
+            except TimeoutError:
+                break
+            except Exception as err:
+                _LOGGER.debug("Error receiving UDP probe response from %s:%s: %s", ip, port, err)
+                break
+    finally:
+        sock.close()
+    return None
+
+
+async def async_probe_udp_port(
+    ip: str,
+    timeout: float = 1.5,
+    port: int = UDP_DISCOVERY_PORT,
+    loop: asyncio.AbstractEventLoop | None = None,
+) -> dict[str, Any] | None:
+    """Non-blocking async wrapper around probe_udp_port."""
+    active_loop = loop or asyncio.get_running_loop()
+    return await active_loop.run_in_executor(None, probe_udp_port, ip, timeout, port)

@@ -47,6 +47,10 @@ For models that do support hardware Wake-on-LAN:
 3. **Enable WoL in Integration Options**:
    - In Home Assistant, go to **Settings → Devices & Services → VIDAA Smart TV → Configure** and check **Enable Wake-on-LAN**.
 
+> [!IMPORTANT]
+> **Testing Wake-on-LAN? You Must Wait ~15 Minutes After Powering Off!**
+> If you turn off your TV and immediately send a Wake-on-LAN packet, **it will do nothing**. For the first ~15 minutes after power-off, the TV stays in transitional Fast Boot standby (~7.5W), where the network card is not in low-power L2 sleep mode and **completely ignores Wake-on-LAN packets**. Wait **15 to 20 minutes** until the TV enters true regulatory deep sleep (0.0W on a smart plug) before testing WoL.
+
 ---
 
 ## ⚡ 4. Recommended TV Power & Standby Settings (Prevent Token Loss)

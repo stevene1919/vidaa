@@ -1,4 +1,4 @@
-"""Target resolution, schema selectors, and data validators for Hisense VIDAA TV services."""
+"""Target resolution, schema selectors, and data validators for VIDAA Smart TV services."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ __all__ = [
 
 
 def _extract_entry_client(entry: Any) -> Any:
-    """Extract the HisenseTvClient instance from an entry's runtime data."""
+    """Extract the VidaaClient instance from an entry's runtime data."""
     runtime_data = getattr(entry, "runtime_data", None)
     if isinstance(runtime_data, dict):
         return runtime_data.get("client")
@@ -45,9 +45,7 @@ def _as_id_set(value: Any) -> set[str]:
     return {str(item) for item in value}
 
 
-def _async_target_entry_ids_from_registries(
-    hass: HomeAssistant, call_data: dict[str, Any]
-) -> set[str]:
+def _async_target_entry_ids_from_registries(hass: HomeAssistant, call_data: dict[str, Any]) -> set[str]:
     """Resolve area/floor/label targets to config entry ids via the HA registries."""
     area_ids = _as_id_set(call_data.get("area_id"))
     floor_ids = _as_id_set(call_data.get("floor_id"))
@@ -72,17 +70,14 @@ def _async_target_entry_ids_from_registries(
     for entity in ent_reg.entities.values():
         labels = getattr(entity, "labels", None) or ()
         if (
-            (entity.area_id and entity.area_id in area_ids)
-            or (label_ids and label_ids.intersection(labels))
+            (entity.area_id and entity.area_id in area_ids) or (label_ids and label_ids.intersection(labels))
         ) and entity.config_entry_id:
             entry_ids.add(entity.config_entry_id)
 
     dev_reg = dr.async_get(hass)
     for device in dev_reg.devices.values():
         labels = getattr(device, "labels", None) or ()
-        if (device.area_id and device.area_id in area_ids) or (
-            label_ids and label_ids.intersection(labels)
-        ):
+        if (device.area_id and device.area_id in area_ids) or (label_ids and label_ids.intersection(labels)):
             entry_ids.update(device.config_entries)
 
     return entry_ids
@@ -132,7 +127,7 @@ def _get_target_clients(hass: HomeAssistant, call: ServiceCall) -> list[Any]:
     if entity_ids:
         if isinstance(entity_ids, str):
             entity_ids = [entity_ids]
-        try:
+        with contextlib.suppress(Exception):
             from homeassistant.helpers import entity_registry as er
 
             ent_reg = er.async_get(hass)
@@ -140,14 +135,12 @@ def _get_target_clients(hass: HomeAssistant, call: ServiceCall) -> list[Any]:
                 entry = ent_reg.async_get(eid)
                 if entry and entry.config_entry_id:
                     target_entry_ids.add(entry.config_entry_id)
-        except Exception:
-            pass
 
     device_ids = call.data.get("device_id")
     if device_ids:
         if isinstance(device_ids, str):
             device_ids = [device_ids]
-        try:
+        with contextlib.suppress(Exception):
             from homeassistant.helpers import device_registry as dr
 
             dev_reg = dr.async_get(hass)
@@ -156,14 +149,13 @@ def _get_target_clients(hass: HomeAssistant, call: ServiceCall) -> list[Any]:
                 if device:
                     for ce_id in device.config_entries:
                         target_entry_ids.add(ce_id)
-        except Exception:
-            pass
 
     raw_entity_id = call.data.get("entity_id")
     is_broadcast_all = False
-    if (isinstance(raw_entity_id, str) and raw_entity_id.strip().lower() == "all") or (isinstance(raw_entity_id, (list, tuple, set)) and any(
-        isinstance(item, str) and item.strip().lower() == "all" for item in raw_entity_id
-    )):
+    if (isinstance(raw_entity_id, str) and raw_entity_id.strip().lower() == "all") or (
+        isinstance(raw_entity_id, (list, tuple, set))
+        and any(isinstance(item, str) and item.strip().lower() == "all" for item in raw_entity_id)
+    ):
         is_broadcast_all = True
 
     if is_broadcast_all:
@@ -173,9 +165,7 @@ def _get_target_clients(hass: HomeAssistant, call: ServiceCall) -> list[Any]:
                 clients.append(client)
         return clients
 
-    selector_given = bool(
-        target_entry_ids or target_ip or target_mac or registry_ids_given
-    )
+    selector_given = bool(target_entry_ids or target_ip or target_mac or registry_ids_given)
 
     if selector_given:
         for entry in loaded_entries:
@@ -220,8 +210,14 @@ def _resolve_service_targets(hass: HomeAssistant, call: ServiceCall) -> list[Any
             translation_key="no_target_device",
         )
     if not any(getattr(client, "connected", False) for client in clients):
+        if any(getattr(client, "auth_failed", False) is True for client in clients):
+            raise ServiceValidationError(
+                "Authentication required: Re-pair TV in Settings > Integrations.",
+                translation_domain=DOMAIN,
+                translation_key="auth_required",
+            )
         raise ServiceValidationError(
-            "Cannot send command: TV is currently disconnected.",
+            "TV offline: Device unreachable.",
             translation_domain=DOMAIN,
             translation_key="not_connected",
         )

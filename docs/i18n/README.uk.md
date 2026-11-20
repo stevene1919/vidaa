@@ -27,10 +27,10 @@
 
 Налаштування займає менше 3 хвилин у 3 простих кроки:
 
-### 1️⃣ Встановлення через HACS
-Натисніть кнопку нижче (або знайдіть **VIDAA Smart TV** у HACS → Інтеграції → Завантажити):
+### 1️⃣ Встановлення через Marketplace (HACS)
+Натисніть кнопку нижче (або знайдіть **VIDAA Smart TV** у Marketplace (HACS) → Інтеграції → Завантажити):
 
-[![Відкрити HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
+[![Відкрити Marketplace (HACS)](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
 
 ### 2️⃣ Розміщення файлу ключа (`client_mobile_android.p12` або `El.p12`)
 Телевізорам VIDAA потрібне взаємне шифрування TLS на порту 36669. Скопіюйте універсальний файл **`client_mobile_android.p12`** (або `El.p12`) у каталог Home Assistant **`/config/ssl/`**.
@@ -91,5 +91,5 @@
 | 📱 **[Панелі Lovelace та картки](../lovelace_cards.md)** | Картки пультів, кнопкові картки та шаблони інтерфейсу. |
 | 🛠️ **[Служби та автоматизації](../services_and_automations.md)** | Приклади YAML для режиму кіно, вибору входів і послідовностей команд. |
 | 🔒 **[Сертифікати SSL](../certificates.md)** | Шляхи до файлів, власні PEM-сертифікати та команди OpenSSL. |
-| 🧪 **[CLI-утиліти тестування та діагностики](../cli_tools.md)** | Автономні інструменти (`scripts/test_client.py`, `scripts/debug_tv.py`). |
+| 🧪 **[CLI-утиліти тестування та діагностики](../cli_tools.md)** | Автономні інструменти (`scripts/test_client.py`, `scripts/diag.sh`). |
 | 🩺 **[Виправлення неполадок](../troubleshooting.md)** | Діагностика та вирішення помилок підключення і з'єднання. |

@@ -1,8 +1,9 @@
-"""User step and initial setup mixin for Hisense VIDAA config flow."""
+"""User step and initial setup mixin for VIDAA config flow."""
 
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import sys
 from typing import TYPE_CHECKING, Any
@@ -13,7 +14,7 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import AbortFlow
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from ..client import HisenseTvClient
+from ..client import VidaaClient
 from ..const import (
     AUTH_PROFILE_SELECTOR,
     BRAND_MAP,
@@ -46,20 +47,26 @@ from .helpers import (
 )
 
 if TYPE_CHECKING:
-    from ..config_flow import HisenseVidaaConfigFlow
+    from ..config_flow import VidaaConfigFlow
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def _get_client_class() -> type[HisenseTvClient]:
-    cf = sys.modules.get("custom_components.vidaa.config_flow") or sys.modules.get("custom_components.hisense_vidaa.config_flow")
-    if cf and hasattr(cf, "HisenseTvClient"):
-        return cf.HisenseTvClient
-    return HisenseTvClient
+def _get_client_class() -> type[VidaaClient]:
+    cf = sys.modules.get("custom_components.vidaa.config_flow") or sys.modules.get(
+        "custom_components.hisense_vidaa.config_flow"
+    )
+    if cf and hasattr(cf, "VidaaClient"):
+        return cf.VidaaClient
+    if cf and hasattr(cf, "VidaaClient"):
+        return cf.VidaaClient
+    return VidaaClient
 
 
 def _get_probe_challenge_fn() -> Any:
-    cf = sys.modules.get("custom_components.vidaa.config_flow") or sys.modules.get("custom_components.hisense_vidaa.config_flow")
+    cf = sys.modules.get("custom_components.vidaa.config_flow") or sys.modules.get(
+        "custom_components.hisense_vidaa.config_flow"
+    )
     if cf and hasattr(cf, "async_probe_pairing_challenge"):
         return cf.async_probe_pairing_challenge
     return async_probe_pairing_challenge
@@ -68,7 +75,7 @@ def _get_probe_challenge_fn() -> Any:
 class UserFlowMixin:
     """Mixin for user-initiated setup, authentication, and option steps."""
 
-    async def _async_discover_device_name(self: HisenseVidaaConfigFlow) -> None:
+    async def _async_discover_device_name(self: VidaaConfigFlow) -> None:
         """Discovers friendly device name and model info from UPnP/DLNA."""
         details = await async_discover_device_details(self.hass, self.client, self.ip_address)
         self.discovered_title = details["title"]
@@ -84,19 +91,21 @@ class UserFlowMixin:
             self.brand = self.client.brand
         if details.get("sw_version"):
             self.sw_version = details["sw_version"]
+        if details.get("secondary_mac_address") and not getattr(self, "secondary_mac_address", None):
+            self.secondary_mac_address = details["secondary_mac_address"]
+        if details.get("mac_address") and not self.mac_address:
+            self.mac_address = details["mac_address"]
 
-    async def _async_probe_device_capabilities(self: HisenseVidaaConfigFlow) -> None:
+    async def _async_probe_device_capabilities(self: VidaaConfigFlow) -> None:
         """Probe TV capabilities (picture/sound menus) to set intelligent default options."""
         await async_probe_device_capabilities(self.hass, self.client, self.ip_address)
 
-    async def _async_disconnect_existing_client(self: HisenseVidaaConfigFlow) -> None:
+    async def _async_disconnect_existing_client(self: VidaaConfigFlow) -> None:
         """Disconnect any running client for this IP/MAC to avoid MQTT session collision during pairing."""
         entry_id = self._reauth_entry.entry_id if self._reauth_entry else None
-        await async_disconnect_existing_client(
-            self.hass, self.ip_address, self.mac_address, entry_id=entry_id
-        )
+        await async_disconnect_existing_client(self.hass, self.ip_address, self.mac_address, entry_id=entry_id)
 
-    def _get_client_auth_data(self: HisenseVidaaConfigFlow) -> dict[str, Any]:
+    def _get_client_auth_data(self: VidaaConfigFlow) -> dict[str, Any]:
         """Collect authentication credentials and device attributes dictionary."""
         return collect_client_auth_data(
             ip_address=self.ip_address,
@@ -111,10 +120,11 @@ class UserFlowMixin:
             sw_version=self.sw_version,
             brand=self.brand,
             brand_profile=getattr(self, "brand_profile", None),
+            secondary_mac_address=getattr(self, "secondary_mac_address", None),
         )
 
     async def _async_init_client_and_auth(
-        self: HisenseVidaaConfigFlow,
+        self: VidaaConfigFlow,
         is_reauth: bool = False,
         reauth_reason: str = "reauth_successful",
     ) -> config_entries.ConfigFlowResult:
@@ -133,12 +143,10 @@ class UserFlowMixin:
             and self.ip_address
             and self.hass
         ):
-            try:
+            with contextlib.suppress(Exception):
                 from ..tv.fingerprint import query_upnp_descriptor
 
-                upnp_desc = await self.hass.async_add_executor_job(
-                    query_upnp_descriptor, self.ip_address, 1.5
-                )
+                upnp_desc = await self.hass.async_add_executor_job(query_upnp_descriptor, self.ip_address, 1.5)
                 detected = upnp_desc.get("brand") or upnp_desc.get("manufacturer")
                 if detected:
                     detected_brand = normalize_brand_code(detected)
@@ -147,13 +155,9 @@ class UserFlowMixin:
                         self.manufacturer = BRAND_MAP.get(raw_mfg.strip().lower(), raw_mfg.strip())
                     elif detected_brand in BRAND_MAP:
                         self.manufacturer = BRAND_MAP[detected_brand]
-            except Exception:
-                pass
 
         effective_brand = (
-            detected_brand
-            if self.brand == DEFAULT_BRAND_OPTION
-            else (detected_brand or self.brand)
+            detected_brand if self.brand == DEFAULT_BRAND_OPTION else (detected_brand or self.brand)
         ) or DEFAULT_BRAND
 
         await self._async_disconnect_existing_client()
@@ -197,7 +201,7 @@ class UserFlowMixin:
         return await self.async_step_auth()
 
     async def _async_static_pairing_step(
-        self: HisenseVidaaConfigFlow, is_reauth: bool, reauth_reason: str
+        self: VidaaConfigFlow, is_reauth: bool, reauth_reason: str
     ) -> config_entries.ConfigFlowResult:
         """Probe a static session for a PIN challenge before continuing as before."""
         probe_fn = _get_probe_challenge_fn()
@@ -219,7 +223,7 @@ class UserFlowMixin:
         return await self.async_step_options()
 
     async def async_step_user(
-        self: HisenseVidaaConfigFlow, user_input: dict[str, Any] | None = None
+        self: VidaaConfigFlow, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         """Handle manual user IP configuration step."""
         errors: dict[str, str] = {}
@@ -232,7 +236,20 @@ class UserFlowMixin:
                     self.manufacturer = BRAND_MAP[self.brand]
             self.mac_address = await async_resolve_mac(self.hass, self.ip_address)
 
-            if self.auth_profile in ("auto", "legacy"):
+            if self.auth_profile in ("legacy", "static"):
+                # Legacy static profiles support TLS without client certificates
+                has_certs = await self._async_resolve_ssl_certs()
+                if not has_certs:
+                    self.certfile = None
+                    self.keyfile = None
+                try:
+                    return await self._async_init_client_and_auth()
+                except AbortFlow:
+                    raise
+                except Exception as e:
+                    _LOGGER.warning("[%s] Failed to connect or initiate auth with TV: %s", self.ip_address, e)
+                    errors["base"] = "cannot_connect"
+            elif self.auth_profile == "auto":
                 if await self._async_resolve_ssl_certs():
                     try:
                         return await self._async_init_client_and_auth()
@@ -248,20 +265,18 @@ class UserFlowMixin:
 
         return self.async_show_form(
             step_id="user",
-            data_schema=vol.Schema({
-                vol.Required(CONF_IP_ADDRESS): str,
-                vol.Optional(
-                    CONF_BRAND, default=DEFAULT_BRAND_OPTION
-                ): BRAND_SELECTOR,
-                vol.Optional(
-                    CONF_AUTH_PROFILE, default=DEFAULT_AUTH_PROFILE
-                ): AUTH_PROFILE_SELECTOR,
-            }),
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_IP_ADDRESS): str,
+                    vol.Optional(CONF_BRAND, default=DEFAULT_BRAND_OPTION): BRAND_SELECTOR,
+                    vol.Optional(CONF_AUTH_PROFILE, default=DEFAULT_AUTH_PROFILE): AUTH_PROFILE_SELECTOR,
+                }
+            ),
             errors=errors,
         )
 
     async def async_step_auth(
-        self: HisenseVidaaConfigFlow, user_input: dict[str, Any] | None = None
+        self: VidaaConfigFlow, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         """Handle PIN code entry step."""
         errors: dict[str, str] = {}
@@ -277,9 +292,7 @@ class UserFlowMixin:
                     else {}
                 )
                 data = (
-                    dict(self._reauth_entry.data)
-                    if isinstance(getattr(self._reauth_entry, "data", None), dict)
-                    else {}
+                    dict(self._reauth_entry.data) if isinstance(getattr(self._reauth_entry, "data", None), dict) else {}
                 )
                 self.ip_address = data.get(CONF_IP_ADDRESS)
                 self.mac_address = data.get(CONF_MAC_ADDRESS)
@@ -340,25 +353,23 @@ class UserFlowMixin:
 
         return self.async_show_form(
             step_id="auth",
-            data_schema=vol.Schema({
-                vol.Required("pin_code"): str,
-            }),
+            data_schema=vol.Schema(
+                {
+                    vol.Required("pin_code"): str,
+                }
+            ),
             errors=errors,
         )
 
     async def async_step_options(
-        self: HisenseVidaaConfigFlow, user_input: dict[str, Any] | None = None
+        self: VidaaConfigFlow, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         """Allow configuring initial options during setup."""
         picture_supported = (
-            bool(getattr(self.client, "picture_settings", None))
-            if self.client
-            else DEFAULT_ENABLE_PICTURE_CONTROLS
+            bool(getattr(self.client, "picture_settings", None)) if self.client else DEFAULT_ENABLE_PICTURE_CONTROLS
         )
         sound_supported = (
-            bool(getattr(self.client, "sound_settings", None))
-            if self.client
-            else DEFAULT_ENABLE_SOUND_CONTROLS
+            bool(getattr(self.client, "sound_settings", None)) if self.client else DEFAULT_ENABLE_SOUND_CONTROLS
         )
 
         if user_input is not None and self.client:
@@ -380,7 +391,7 @@ class UserFlowMixin:
         )
 
     @callback
-    def async_remove(self: HisenseVidaaConfigFlow) -> None:
+    def async_remove(self: VidaaConfigFlow) -> None:
         """Clean up running flow client when config flow is aborted or closed."""
         if self.client:
             client = self.client

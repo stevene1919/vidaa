@@ -53,9 +53,7 @@ def test_generate_initial_credentials_preserves_mac_case_in_client_id():
     """The generated client_id must embed the caller's MAC case (not upper-cased)."""
     mac = "9f:b3:a4:e0:4a:d7"
     ts = 1788778246
-    client_id, _username, _password = generate_initial_credentials(
-        mac=mac, timestamp=ts, auth_profile="modern"
-    )
+    client_id, _username, _password = generate_initial_credentials(mac=mac, timestamp=ts, auth_profile="modern")
     expected_md5 = hashlib.md5(f"{CLIENT_ID_PATTERN}${mac}".encode()).hexdigest().upper()
     assert client_id == f"{mac}$his${expected_md5[:6]}_vidaacommon_001"
 
@@ -65,9 +63,7 @@ def test_generate_initial_credentials_standard():
     mac = "E8:51:77:EC:98:1C"
     ts = 1788778246
 
-    client_id, username, password = generate_initial_credentials(
-        mac=mac, timestamp=ts, auth_profile="remotenow"
-    )
+    client_id, username, password = generate_initial_credentials(mac=mac, timestamp=ts, auth_profile="remotenow")
 
     # Validate Client ID format: <MAC>$his$<6-char MD5>_vidaacommon_001
     expected_md5 = hashlib.md5(f"{CLIENT_ID_PATTERN}${mac}".encode()).hexdigest().upper()
@@ -86,9 +82,7 @@ def test_generate_initial_credentials_middle():
     mac = "E8:51:77:EC:98:1C"
     ts = 1788778246
 
-    client_id, username, password = generate_initial_credentials(
-        mac=mac, timestamp=ts, auth_profile="middle"
-    )
+    client_id, username, password = generate_initial_credentials(mac=mac, timestamp=ts, auth_profile="middle")
 
     expected_md5 = hashlib.md5(f"{CLIENT_ID_PATTERN}${mac}".encode()).hexdigest().upper()
     assert client_id == f"{mac}$his${expected_md5[:6]}_vidaacommon_001"
@@ -102,9 +96,7 @@ def test_generate_initial_credentials_middle():
 def test_generate_initial_credentials_legacy():
     """Test static credential generation for legacy pre-dynamic firmware."""
     mac = "E8:51:77:EC:98:1C"
-    client_id, username, password = generate_initial_credentials(
-        mac=mac, auth_profile="legacy"
-    )
+    client_id, username, password = generate_initial_credentials(mac=mac, auth_profile="legacy")
 
     assert username == "hisenseservice"
     assert password == "multimqttservice"
@@ -116,9 +108,7 @@ def test_generate_initial_credentials_modern():
     mac = "E8:51:77:EC:98:1C"
     ts = 1788778246
 
-    client_id, username, password = generate_initial_credentials(
-        mac=mac, timestamp=ts, auth_profile="modern"
-    )
+    client_id, username, password = generate_initial_credentials(mac=mac, timestamp=ts, auth_profile="modern")
 
     expected_md5 = hashlib.md5(f"{CLIENT_ID_PATTERN}${mac}".encode()).hexdigest().upper()
     assert client_id == f"{mac}$his${expected_md5[:6]}_vidaacommon_001"
@@ -198,9 +188,7 @@ def test_extract_pkcs12_and_resolve(tmp_path):
     assert os.path.isfile(key_path)
 
     # Test resolve_certificates finding the .p12 archive
-    resolved_cert, resolved_key = resolve_certificates(
-        auth_profile="modern", search_dirs=[str(tmp_path)]
-    )
+    resolved_cert, resolved_key = resolve_certificates(auth_profile="modern", search_dirs=[str(tmp_path)])
     assert os.path.isfile(resolved_cert)
     assert os.path.isfile(resolved_key)
 
@@ -247,9 +235,7 @@ def test_extract_el_pkcs12_and_resolve(tmp_path):
     el_file = tmp_path / "El.p12"
     el_file.write_bytes(p12_bytes)
 
-    resolved_cert, resolved_key = resolve_certificates(
-        auth_profile="auto", search_dirs=[str(tmp_path)]
-    )
+    resolved_cert, resolved_key = resolve_certificates(auth_profile="auto", search_dirs=[str(tmp_path)])
     assert os.path.isfile(resolved_cert)
     assert os.path.isfile(resolved_key)
     assert "El_cert.pem" in resolved_cert
@@ -312,16 +298,12 @@ def test_get_profile_default_cert_paths(tmp_path):
     """Test get_profile_default_cert_paths for different auth profiles."""
     from custom_components.vidaa.protocol import get_profile_default_cert_paths
 
-    _cert, _key, cert_dir, cert_name, key_name = get_profile_default_cert_paths(
-        "modern", config_dir=str(tmp_path)
-    )
+    _cert, _key, cert_dir, cert_name, key_name = get_profile_default_cert_paths("modern", config_dir=str(tmp_path))
     assert cert_name == "vidaa_2024_cert.pem"
     assert key_name == "vidaa_2024_key.pem"
     assert cert_dir == str(tmp_path / "ssl")
 
-    _cert2, _key2, _dir2, cert_name2, key_name2 = get_profile_default_cert_paths(
-        "remotenow", config_dir=str(tmp_path)
-    )
+    _cert2, _key2, _dir2, cert_name2, key_name2 = get_profile_default_cert_paths("remotenow", config_dir=str(tmp_path))
     assert cert_name2 == "remotenow_2018_cert.pem"
     assert key_name2 == "remotenow_2018_key.pem"
 
@@ -350,9 +332,6 @@ def test_generate_initial_credentials_oem_brands():
     )
     assert "aa:bb:cc:dd:ee:ff$loe$" in client_id
     assert username.startswith("loe$")
-
-
-
 
 
 def test_validate_ssl_certs(tmp_path):
@@ -416,24 +395,24 @@ def test_extract_pkcs12_cached_on_second_call(tmp_path):
 
 
 def test_client_skips_cert_resolution_when_unneeded():
-    """Test HisenseTvClient skips disk cert resolution when SSL is disabled or certs are pre-resolved."""
+    """Test VidaaClient skips disk cert resolution when SSL is disabled or certs are pre-resolved."""
     from unittest.mock import patch
 
-    from custom_components.vidaa.client import HisenseTvClient
+    from custom_components.vidaa.client import VidaaClient
 
     with patch("custom_components.vidaa.client.resolve_certificates") as mock_resolve:
         # Non-SSL client skips resolve_certificates
-        client1 = HisenseTvClient("192.168.1.50", use_ssl=False)
+        client1 = VidaaClient("192.168.1.50", use_ssl=False)
         assert client1.use_ssl is False
         mock_resolve.assert_not_called()
 
         # Legacy auth profile skips resolve_certificates
-        client2 = HisenseTvClient("192.168.1.50", auth_profile="legacy")
+        client2 = VidaaClient("192.168.1.50", auth_profile="legacy")
         assert client2.auth_profile == "legacy"
         mock_resolve.assert_not_called()
 
         # Pre-resolved PEM paths skip resolve_certificates
-        client3 = HisenseTvClient(
+        client3 = VidaaClient(
             "192.168.1.50",
             use_ssl=True,
             certfile="/path/to/cert.pem",
@@ -442,3 +421,30 @@ def test_client_skips_cert_resolution_when_unneeded():
         mock_resolve.assert_not_called()
         assert client3.certfile == "/path/to/cert.pem"
         assert client3.keyfile == "/path/to/key.pem"
+
+
+def test_generate_initial_credentials_unique_per_tv_mac():
+    """Verify distinct TV hardware MACs generate unique MQTT client IDs and topic paths to prevent broker collisions."""
+    from custom_components.vidaa.protocol.crypto import generate_initial_credentials
+    from custom_components.vidaa.protocol.topics import build_topic_paths
+
+    client_id_1, _, _ = generate_initial_credentials(mac="E8:51:77:EC:98:1C", brand="his")
+    client_id_2, _, _ = generate_initial_credentials(mac="E4:3B:C9:57:F1:4F", brand="his")
+    client_id_toshiba, _, _ = generate_initial_credentials(mac="E8:51:77:EC:98:1C", brand="toshiba")
+
+    # Different MACs produce distinct client IDs
+    assert client_id_1 != client_id_2
+    assert "E8:51:77:EC:98:1C" in client_id_1
+    assert "E4:3B:C9:57:F1:4F" in client_id_2
+
+    # Different OEM brands produce distinct client IDs
+    assert client_id_1 != client_id_toshiba
+    assert "$his$" in client_id_1
+    assert "$toshiba$" in client_id_toshiba
+
+    # Unicast topic paths for mobile pushes are fully isolated
+    topics_1 = build_topic_paths(client_id_1)
+    topics_2 = build_topic_paths(client_id_2)
+    assert topics_1.mobile != topics_2.mobile
+    assert topics_1.mobile == f"/remoteapp/mobile/{client_id_1}/"
+    assert topics_2.mobile == f"/remoteapp/mobile/{client_id_2}/"

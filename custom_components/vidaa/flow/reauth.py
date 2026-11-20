@@ -1,12 +1,16 @@
-"""Reauthentication and reconfiguration flow mixin for Hisense VIDAA TV."""
+"""Reauthentication and reconfiguration flow mixin for VIDAA Smart TV."""
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
+import time
 from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
 from homeassistant import config_entries
+from homeassistant.components import persistent_notification
 from homeassistant.data_entry_flow import AbortFlow
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -20,6 +24,7 @@ from ..const import (
     CONF_IP_ADDRESS,
     CONF_KEYFILE,
     CONF_MAC_ADDRESS,
+    CONF_SECONDARY_MAC_ADDRESS,
     CONF_USE_SSL,
     DEFAULT_AUTH_PROFILE,
     DEFAULT_BRAND,
@@ -30,16 +35,19 @@ from ..const import (
 from .helpers import async_resolve_mac
 
 if TYPE_CHECKING:
-    from ..config_flow import HisenseVidaaConfigFlow
+    from ..config_flow import VidaaConfigFlow
 
 _LOGGER = logging.getLogger(__name__)
+
+REAUTH_WAKE_TIMEOUT = 20.0
+REAUTH_BROKER_SETTLE = 3.0
 
 
 class ReauthFlowMixin:
     """Mixin for reauthentication and reconfiguration flow steps."""
 
     async def _async_finish_reauth(
-        self: HisenseVidaaConfigFlow, reason: str = "reauth_successful"
+        self: VidaaConfigFlow, reason: str = "reauth_successful"
     ) -> config_entries.ConfigFlowResult:
         """Update existing config entry with new credentials and reload."""
         if self._reauth_entry:
@@ -72,11 +80,15 @@ class ReauthFlowMixin:
                 DOMAIN,
                 f"auth_token_invalidated_{self._reauth_entry.entry_id}",
             )
+            persistent_notification.async_dismiss(
+                self.hass,
+                f"vidaa_reauth_{self._reauth_entry.entry_id}",
+            )
             await self.hass.config_entries.async_reload(self._reauth_entry.entry_id)
         return self.async_abort(reason=reason)
 
     def _async_mac_is_configured_elsewhere(
-        self: HisenseVidaaConfigFlow,
+        self: VidaaConfigFlow,
     ) -> bool:
         """Check whether the resolved MAC already belongs to another entry.
 
@@ -93,13 +105,9 @@ class ReauthFlowMixin:
                 return True
         return False
 
-    async def async_step_reauth(
-        self: HisenseVidaaConfigFlow, entry_data: dict[str, Any]
-    ) -> config_entries.ConfigFlowResult:
+    async def async_step_reauth(self: VidaaConfigFlow, entry_data: dict[str, Any]) -> config_entries.ConfigFlowResult:
         """Handle reauthorization initiated by Home Assistant."""
-        self._reauth_entry = self.hass.config_entries.async_get_entry(
-            self.context["entry_id"]
-        )
+        self._reauth_entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
         current_options = (
             dict(self._reauth_entry.options)
             if self._reauth_entry and isinstance(getattr(self._reauth_entry, "options", None), dict)
@@ -115,22 +123,60 @@ class ReauthFlowMixin:
         # [F3-leg2]: reauth must keep the transport settings of the entry it is
         # re-authenticating (a legacy/non-TLS entry would otherwise be rewritten
         # as use_ssl=True by _get_client_auth_data on success).
-        self.use_ssl = current_options.get(
-            CONF_USE_SSL, entry_data.get(CONF_USE_SSL, DEFAULT_USE_SSL)
-        )
-        self.brand = current_options.get(
-            CONF_BRAND, entry_data.get(CONF_BRAND, DEFAULT_BRAND)
-        )
-        self.certfile = current_options.get(
-            CONF_CERTFILE, entry_data.get(CONF_CERTFILE)
-        )
-        self.keyfile = current_options.get(
-            CONF_KEYFILE, entry_data.get(CONF_KEYFILE)
-        )
+        self.use_ssl = current_options.get(CONF_USE_SSL, entry_data.get(CONF_USE_SSL, DEFAULT_USE_SSL))
+        self.brand = current_options.get(CONF_BRAND, entry_data.get(CONF_BRAND, DEFAULT_BRAND))
+        self.certfile = current_options.get(CONF_CERTFILE, entry_data.get(CONF_CERTFILE))
+        self.keyfile = current_options.get(CONF_KEYFILE, entry_data.get(CONF_KEYFILE))
         return await self.async_step_reauth_confirm()
 
+    async def _async_port_open(self, ip: str, port: int, timeout: float = 1.0) -> bool:
+        """Check if target TCP port is open and accepting connections."""
+        try:
+            conn = asyncio.open_connection(ip, port)
+            _reader, writer = await asyncio.wait_for(conn, timeout=timeout)
+            writer.close()
+            with contextlib.suppress(Exception):
+                await writer.wait_closed()
+            return True
+        except Exception:
+            return False
+
+    async def _async_wake_tv_for_pairing(self: VidaaConfigFlow) -> bool:
+        """Ensure the TV is awake enough to display a PIN. Returns True when reachable."""
+        if not self.ip_address:
+            return False
+        if await self._async_port_open(self.ip_address, 36669, timeout=1.5):
+            return True
+
+        macs = [
+            m
+            for m in (
+                self.mac_address,
+                self._reauth_entry.options.get(CONF_SECONDARY_MAC_ADDRESS) if self._reauth_entry else None,
+                self._reauth_entry.data.get(CONF_SECONDARY_MAC_ADDRESS) if self._reauth_entry else None,
+            )
+            if m
+        ]
+        if not macs:
+            return False
+
+        _LOGGER.info("[%s] TV not reachable on port 36669; sending Wake-on-LAN before reauth", self.ip_address)
+        from functools import partial
+
+        from ..protocol.wol import send_wake_on_lan
+
+        await self.hass.async_add_executor_job(partial(send_wake_on_lan, list(dict.fromkeys(macs)), ip=self.ip_address))
+
+        deadline = time.monotonic() + REAUTH_WAKE_TIMEOUT
+        while time.monotonic() < deadline:
+            if await self._async_port_open(self.ip_address, 36669, timeout=1.0):
+                await asyncio.sleep(REAUTH_BROKER_SETTLE)
+                return True
+            await asyncio.sleep(1.0)
+        return False
+
     async def async_step_reauth_confirm(
-        self: HisenseVidaaConfigFlow, user_input: dict[str, Any] | None = None
+        self: VidaaConfigFlow, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         """Dialog to confirm reauth and trigger PIN."""
         errors: dict[str, str] = {}
@@ -139,13 +185,21 @@ class ReauthFlowMixin:
             # duplicate MQTT Client ID collisions during the reauth flow.
             await self._async_disconnect_existing_client()
 
+            if not await self._async_wake_tv_for_pairing():
+                errors["base"] = "tv_not_awake"
+                return self.async_show_form(
+                    step_id="reauth_confirm",
+                    description_placeholders={"ip_address": self.ip_address or ""},
+                    errors=errors,
+                )
+
             if self.use_ssl and not (self.certfile and self.keyfile):
                 await self._async_resolve_ssl_certs()
 
             session = async_get_clientsession(self.hass) if self.hass else None
-            from ..client import HisenseTvClient
+            from ..client import VidaaClient
 
-            self.client = HisenseTvClient(
+            self.client = VidaaClient(
                 self.ip_address,
                 self.mac_address,
                 auth_profile=self.auth_profile,
@@ -179,12 +233,10 @@ class ReauthFlowMixin:
         )
 
     async def async_step_reconfigure(
-        self: HisenseVidaaConfigFlow, user_input: dict[str, Any] | None = None
+        self: VidaaConfigFlow, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         """Handle reconfigure initiated from 3-dots menu in HA UI."""
-        self._reauth_entry = self.hass.config_entries.async_get_entry(
-            self.context["entry_id"]
-        )
+        self._reauth_entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
         errors: dict[str, str] = {}
         current_data = (
             dict(self._reauth_entry.data)
@@ -198,7 +250,9 @@ class ReauthFlowMixin:
         )
         self.brand = current_options.get(CONF_BRAND, current_data.get(CONF_BRAND, DEFAULT_BRAND_OPTION))
         default_ip = current_data.get(CONF_IP_ADDRESS, "")
-        default_profile = current_options.get(CONF_AUTH_PROFILE, current_data.get(CONF_AUTH_PROFILE, DEFAULT_AUTH_PROFILE))
+        default_profile = current_options.get(
+            CONF_AUTH_PROFILE, current_data.get(CONF_AUTH_PROFILE, DEFAULT_AUTH_PROFILE)
+        )
         default_brand = self.brand
 
         if user_input is not None:
@@ -215,16 +269,19 @@ class ReauthFlowMixin:
             if self._async_mac_is_configured_elsewhere():
                 return self.async_abort(reason="already_configured")
 
-            if self.auth_profile in ("auto", "legacy"):
+            if self.auth_profile in ("legacy", "static"):
+                has_certs = await self._async_resolve_ssl_certs()
+                if not has_certs:
+                    self.certfile = None
+                    self.keyfile = None
+            elif self.auth_profile == "auto":
                 if not await self._async_resolve_ssl_certs():
                     return await self.async_step_certs()
             else:
                 return await self.async_step_certs()
 
             try:
-                return await self._async_init_client_and_auth(
-                    is_reauth=True, reauth_reason="reconfigure_successful"
-                )
+                return await self._async_init_client_and_auth(is_reauth=True, reauth_reason="reconfigure_successful")
             except AbortFlow:
                 raise
             except Exception as e:
@@ -233,14 +290,12 @@ class ReauthFlowMixin:
 
         return self.async_show_form(
             step_id="reconfigure",
-            data_schema=vol.Schema({
-                vol.Required(CONF_IP_ADDRESS, default=default_ip): str,
-                vol.Optional(
-                    CONF_AUTH_PROFILE, default=default_profile
-                ): AUTH_PROFILE_SELECTOR,
-                vol.Optional(
-                    CONF_BRAND, default=default_brand
-                ): BRAND_SELECTOR,
-            }),
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_IP_ADDRESS, default=default_ip): str,
+                    vol.Optional(CONF_AUTH_PROFILE, default=default_profile): AUTH_PROFILE_SELECTOR,
+                    vol.Optional(CONF_BRAND, default=default_brand): BRAND_SELECTOR,
+                }
+            ),
             errors=errors,
         )

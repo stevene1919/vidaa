@@ -1,4 +1,4 @@
-"""MQTT Authentication, TLS setup, PIN validation, and token refresh logic for Hisense VIDAA TV."""
+"""MQTT Authentication, TLS setup, PIN validation, and token refresh logic for VIDAA Smart TV."""
 
 from __future__ import annotations
 
@@ -352,19 +352,25 @@ async def async_probe_tv_auth_methods(
     results["legacy_static"]["supported"] = ok
 
     # 2. Standard dynamic pairing (brand$<timestamp> / standard salt)
-    cid, u, p = generate_initial_credentials(mac_address=mac, auth_profile="remotenow", brand=brand, timestamp=probe_timestamp)
+    cid, u, p = generate_initial_credentials(
+        mac_address=mac, auth_profile="remotenow", brand=brand, timestamp=probe_timestamp
+    )
     rc, ok = await _probe_single(cid, u, p)
     results["standard_dynamic"]["rc"] = rc
     results["standard_dynamic"]["supported"] = ok
 
     # 3. Middle XOR dynamic pairing (brand$<timestamp ^ XOR> / standard salt)
-    cid, u, p = generate_initial_credentials(mac_address=mac, auth_profile="middle", brand=brand, timestamp=probe_timestamp)
+    cid, u, p = generate_initial_credentials(
+        mac_address=mac, auth_profile="middle", brand=brand, timestamp=probe_timestamp
+    )
     rc, ok = await _probe_single(cid, u, p)
     results["middle_dynamic"]["rc"] = rc
     results["middle_dynamic"]["supported"] = ok
 
     # 4. Modern XOR dynamic pairing (brand$<timestamp ^ XOR> / modern salt)
-    cid, u, p = generate_initial_credentials(mac_address=mac, auth_profile="modern", brand=brand, timestamp=probe_timestamp)
+    cid, u, p = generate_initial_credentials(
+        mac_address=mac, auth_profile="modern", brand=brand, timestamp=probe_timestamp
+    )
     rc, ok = await _probe_single(cid, u, p)
     results["modern_dynamic"]["rc"] = rc
     results["modern_dynamic"]["supported"] = ok

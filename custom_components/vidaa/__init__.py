@@ -1,27 +1,38 @@
-"""Hisense VIDAA TV custom component integration."""
+"""VIDAA Smart TV custom component integration."""
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
 
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers import (
-    config_validation as cv,
-    device_registry as dr,
-    entity_registry as er,
-    issue_registry as ir,
-)
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.event import async_track_time_interval
-from homeassistant.helpers.trigger import PluggableAction
+try:
+    from homeassistant.components import persistent_notification
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
+    from homeassistant.exceptions import ConfigEntryNotReady
+    from homeassistant.helpers import (
+        config_validation as cv,
+        device_registry as dr,
+        entity_registry as er,
+        issue_registry as ir,
+    )
+    from homeassistant.helpers.aiohttp_client import async_get_clientsession
+    from homeassistant.helpers.event import async_track_time_interval
+    from homeassistant.helpers.trigger import PluggableAction
 
-from .client import HisenseTvClient, VidaaClient
+    _HAS_HA = True
+except ImportError:
+    _HAS_HA = False
+    ConfigEntry = Any  # type: ignore[misc,assignment]
+    HomeAssistant = Any  # type: ignore[misc,assignment]
+    ConfigEntryNotReady = Exception  # type: ignore[misc,assignment]
+    PluggableAction = Any  # type: ignore[misc,assignment]
+
+from .client import VidaaClient
 from .const import (
     CONF_ACCESS_TOKEN,
     CONF_ACCESS_TOKEN_DURATION,
@@ -31,25 +42,22 @@ from .const import (
     CONF_CERTFILE,
     CONF_CLIENT_ID,
     CONF_ENABLE_PICTURE_CONTROLS,
-    CONF_ENABLE_REMOTE,
     CONF_IP_ADDRESS,
     CONF_KEYFILE,
     CONF_MAC_ADDRESS,
     CONF_MANUFACTURER,
     CONF_MODEL,
     CONF_PASSWORD,
-    CONF_REFRESH_IN_STANDBY,
     CONF_REFRESH_TOKEN,
     CONF_REFRESH_TOKEN_DURATION,
     CONF_REFRESH_TOKEN_TIME,
+    CONF_SECONDARY_MAC_ADDRESS,
     CONF_SW_VERSION,
     CONF_USE_SSL,
     CONF_USERNAME,
     DEFAULT_BRAND,
     DEFAULT_BRAND_OPTION,
     DEFAULT_ENABLE_PICTURE_CONTROLS,
-    DEFAULT_ENABLE_REMOTE,
-    DEFAULT_REFRESH_IN_STANDBY,
     DEFAULT_USE_SSL,
     DOMAIN,
     LEGACY_DOMAIN,
@@ -70,7 +78,7 @@ PLATFORMS: list[str] = [
     "number",
 ]
 
-CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN) if _HAS_HA else None
 DEFAULT_CLOCK_SYNC_INTERVAL = timedelta(hours=2)
 
 
@@ -111,7 +119,9 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 if hasattr(ent_reg.entities, "get_entries_for_config_entry_id"):
                     entities = list(ent_reg.entities.get_entries_for_config_entry_id(entry.entry_id))
                 elif isinstance(ent_reg.entities, dict):
-                    entities = [e for e in ent_reg.entities.values() if getattr(e, "config_entry_id", None) == entry.entry_id]
+                    entities = [
+                        e for e in ent_reg.entities.values() if getattr(e, "config_entry_id", None) == entry.entry_id
+                    ]
             for reg_entry in entities:
                 if getattr(reg_entry, "platform", None) == LEGACY_DOMAIN:
                     if hasattr(ent_reg, "async_update_entity_platform"):
@@ -147,10 +157,31 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.config_entries.async_update_entry(
             entry,
             version=2,
-            minor_version=1,
+            minor_version=2,
         )
         _LOGGER.info(
-            "Successfully migrated config entry '%s' to version 2.1",
+            "Successfully migrated config entry '%s' to version 2.2",
+            entry.title,
+        )
+
+    if entry.version == 2 and getattr(entry, "minor_version", 1) < 2:
+        new_data = dict(entry.data)
+        if (
+            new_data.get(CONF_AUTH_PROFILE) in ("legacy", "static")
+            and new_data.get(CONF_USE_SSL) is False
+        ):
+            new_data[CONF_USE_SSL] = True
+            _LOGGER.info(
+                "Migrated legacy static config entry '%s' to TLS (use_ssl=True) without client certificates",
+                entry.title,
+            )
+        hass.config_entries.async_update_entry(
+            entry,
+            data=new_data,
+            minor_version=2,
+        )
+        _LOGGER.info(
+            "Successfully migrated config entry '%s' to version 2.2",
             entry.title,
         )
 
@@ -199,18 +230,21 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     # Automatically check for and migrate any remaining legacy entries
     if hasattr(hass, "config_entries") and hasattr(hass.config_entries, "async_entries"):
         for legacy_entry in hass.config_entries.async_entries(LEGACY_DOMAIN):
-            _LOGGER.info("Found legacy %s config entry '%s'; migrating to %s", LEGACY_DOMAIN, legacy_entry.title, DOMAIN)
+            _LOGGER.info(
+                "Found legacy %s config entry '%s'; migrating to %s", LEGACY_DOMAIN, legacy_entry.title, DOMAIN
+            )
             await async_migrate_entry(hass, legacy_entry)
 
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: HisenseVidaaConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> bool:
     """Set up VIDAA Smart TV from a config entry."""
     _check_and_manage_legacy_repair(hass)
 
     version = getattr(entry, "version", None)
-    if isinstance(version, int) and version < 2:
+    minor_version = getattr(entry, "minor_version", 1)
+    if isinstance(version, int) and (version < 2 or (version == 2 and minor_version < 2)):
         await async_migrate_entry(hass, entry)
 
     # [F2-leg2/F2-leg4/F2-leg6]: services are registered by async_setup, but
@@ -222,14 +256,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: HisenseVidaaConfigEntry)
     data = entry.data
     mac = data.get(CONF_MAC_ADDRESS)
     if not mac:
-        try:
+        with contextlib.suppress(Exception):
             from homeassistant.helpers.device_registry import format_mac
 
             from .tv.fingerprint import get_arp_mac
 
-            raw_mac = await hass.async_add_executor_job(
-                get_arp_mac, data[CONF_IP_ADDRESS]
-            )
+            raw_mac = await hass.async_add_executor_job(get_arp_mac, data[CONF_IP_ADDRESS])
             if raw_mac:
                 mac = format_mac(raw_mac)
                 hass.config_entries.async_update_entry(
@@ -237,8 +269,30 @@ async def async_setup_entry(hass: HomeAssistant, entry: HisenseVidaaConfigEntry)
                     data={**entry.data, CONF_MAC_ADDRESS: mac},
                     unique_id=entry.unique_id or mac,
                 )
-        except Exception:
-            pass
+
+    sec_mac = entry.options.get(CONF_SECONDARY_MAC_ADDRESS) or data.get(CONF_SECONDARY_MAC_ADDRESS)
+    if not sec_mac and data.get(CONF_IP_ADDRESS):
+        with contextlib.suppress(Exception):
+            from homeassistant.helpers.device_registry import format_mac
+
+            from .tv.fingerprint import get_device_fingerprint
+
+            fp = await hass.async_add_executor_job(get_device_fingerprint, data[CONF_IP_ADDRESS])
+            mac_wifi = format_mac(fp["mac_wifi"]) if fp.get("mac_wifi") else None
+            mac_eth = format_mac(fp["mac_ethernet"]) if fp.get("mac_ethernet") else None
+            detected_sec = None
+            if mac_wifi and mac_eth and mac_wifi != mac_eth:
+                if mac == mac_wifi:
+                    detected_sec = mac_eth
+                elif mac == mac_eth:
+                    detected_sec = mac_wifi
+                else:
+                    detected_sec = mac_eth
+            if detected_sec:
+                hass.config_entries.async_update_entry(
+                    entry,
+                    data={**entry.data, CONF_SECONDARY_MAC_ADDRESS: detected_sec},
+                )
 
     use_ssl = entry.options.get(CONF_USE_SSL, data.get(CONF_USE_SSL, DEFAULT_USE_SSL))
     certfile = entry.options.get(CONF_CERTFILE, data.get(CONF_CERTFILE))
@@ -247,12 +301,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: HisenseVidaaConfigEntry)
 
     ca_cert = None
     if use_ssl and auth_profile not in ("legacy", "static"):
-        certfile, keyfile = await hass.async_add_executor_job(
-            resolve_certificates, auth_profile, certfile, keyfile
-        )
-        ca_cert = await hass.async_add_executor_job(
-            resolve_ca_certificate, None
-        )
+        certfile, keyfile = await hass.async_add_executor_job(resolve_certificates, auth_profile, certfile, keyfile)
+        ca_cert = await hass.async_add_executor_job(resolve_ca_certificate, None)
+    elif auth_profile in ("legacy", "static"):
+        if certfile and not os.path.isfile(certfile):
+            certfile = None
+        if keyfile and not os.path.isfile(keyfile):
+            keyfile = None
 
     brand_pref = entry.options.get(CONF_BRAND, data.get(CONF_BRAND, DEFAULT_BRAND_OPTION))
     if brand_pref == "auto":
@@ -260,9 +315,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: HisenseVidaaConfigEntry)
     else:
         client_brand = brand_pref
 
-    client = HisenseTvClient(
+    client = VidaaClient(
         ip=data[CONF_IP_ADDRESS],
         mac=mac,
+        secondary_mac=sec_mac,
         client_id=data.get(CONF_CLIENT_ID),
         username=data.get(CONF_USERNAME),
         password=data.get(CONF_PASSWORD),
@@ -273,7 +329,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: HisenseVidaaConfigEntry)
         refresh_token_time=data.get(CONF_REFRESH_TOKEN_TIME),
         refresh_token_duration=data.get(CONF_REFRESH_TOKEN_DURATION),
         auth_profile=auth_profile,
-        refresh_in_standby=entry.options.get(CONF_REFRESH_IN_STANDBY, DEFAULT_REFRESH_IN_STANDBY),
         certfile=certfile,
         keyfile=keyfile,
         ca_cert=ca_cert,
@@ -283,9 +338,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: HisenseVidaaConfigEntry)
     )
     client._loop = hass.loop
 
-    brand_changed = (
-        (brand_pref != "auto" and client.brand != data.get(CONF_BRAND))
-        or (brand_pref == "auto" and client.brand != data.get("resolved_brand"))
+    brand_changed = (brand_pref != "auto" and client.brand != data.get(CONF_BRAND)) or (
+        brand_pref == "auto" and client.brand != data.get("resolved_brand")
     )
     if client.client_id != data.get(CONF_CLIENT_ID) or brand_changed:
         new_data = {
@@ -333,7 +387,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HisenseVidaaConfigEntry)
         ir.async_delete_issue(hass, DOMAIN, f"certificate_missing_{entry.entry_id}")
 
     # Callback to persist token updates in Home Assistant config entry
-    def update_entry_tokens(refreshed_client: HisenseTvClient) -> None:
+    def update_entry_tokens(refreshed_client: VidaaClient) -> None:
         hass.config_entries.async_update_entry(
             entry,
             data={
@@ -349,7 +403,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HisenseVidaaConfigEntry)
 
     client.register_token_refreshed_callback(update_entry_tokens)
 
-    def _handle_auth_failed(failed_client: HisenseTvClient) -> None:
+    def _handle_auth_failed(failed_client: VidaaClient) -> None:
         """Raise a persistent Repairs issue and start the reauth flow."""
         ir.async_create_issue(
             hass,
@@ -364,6 +418,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: HisenseVidaaConfigEntry)
             data={"entry_id": entry.entry_id},
         )
         entry.async_start_reauth(hass)
+        device_name = getattr(failed_client, "name", None) or "VIDAA TV"
+        persistent_notification.async_create(
+            hass,
+            message=(
+                f"Re-authentication required for **{device_name}** (`{failed_client.ip}`).\n\n"
+                f"Open [Settings > System > Repairs](/config/repairs) or "
+                f"[Settings > Devices & Services](/config/integrations) and click **Reconfigure** "
+                f"to display the 4-digit PIN on your TV and complete pairing."
+            ),
+            title=f"{device_name}: Re-authentication Required",
+            notification_id=f"vidaa_reauth_{entry.entry_id}",
+        )
 
     client.register_auth_failed_callback(_handle_auth_failed)
 
@@ -372,6 +438,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HisenseVidaaConfigEntry)
             "[%s] Missing credentials or authentication tokens; starting reauthentication",
             client.ip,
         )
+        client.auth_failed = True
         _handle_auth_failed(client)
     else:
         # Check and refresh tokens
@@ -382,6 +449,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HisenseVidaaConfigEntry)
     # Start running background task for MQTT client
     platforms_to_setup = [
         "media_player",
+        "remote",
         "sensor",
         "binary_sensor",
         "button",
@@ -396,9 +464,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HisenseVidaaConfigEntry)
         for domain in (DOMAIN, LEGACY_DOMAIN):
             if entity_id := entity_reg.async_get_entity_id("sensor", domain, unique_id):
                 entity_reg.async_remove(entity_id)
-    if entry.options.get(
-        CONF_ENABLE_PICTURE_CONTROLS, DEFAULT_ENABLE_PICTURE_CONTROLS
-    ):
+    if entry.options.get(CONF_ENABLE_PICTURE_CONTROLS, DEFAULT_ENABLE_PICTURE_CONTROLS):
         platforms_to_setup.append("number")
     else:
         for suffix in ("backlight", "brightness", "contrast"):
@@ -406,14 +472,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: HisenseVidaaConfigEntry)
             for domain in (DOMAIN, LEGACY_DOMAIN):
                 if entity_id := entity_reg.async_get_entity_id("number", domain, unique_id):
                     entity_reg.async_remove(entity_id)
-
-    if entry.options.get(CONF_ENABLE_REMOTE, DEFAULT_ENABLE_REMOTE):
-        platforms_to_setup.append("remote")
-    else:
-        unique_id = f"{entry.entry_id}_remote"
-        for domain in (DOMAIN, LEGACY_DOMAIN):
-            if entity_id := entity_reg.async_get_entity_id("remote", domain, unique_id):
-                entity_reg.async_remove(entity_id)
 
     # Prune retired notify entity if present in entity registry
     unique_id = f"{entry.entry_id}_notify"
@@ -431,11 +489,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: HisenseVidaaConfigEntry)
     try:
         await client.async_connect_and_run()
     except Exception as err:
-        raise ConfigEntryNotReady(
-            f"Cannot connect to Hisense TV at {client.ip}: {err}"
-        ) from err
+        raise ConfigEntryNotReady(f"Cannot connect to Hisense TV at {client.ip}: {err}") from err
 
-    entry.runtime_data = HisenseVidaaData(
+    entry.runtime_data = VidaaData(
         client=client,
         platforms=platforms_to_setup,
         options=dict(entry.options),
@@ -455,9 +511,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HisenseVidaaConfigEntry)
         except Exception as err:
             _LOGGER.debug("[%s] Periodic clock sync failed: %s", client.ip, err)
 
-    entry.async_on_unload(
-        async_track_time_interval(hass, _async_sync_tv_clock, DEFAULT_CLOCK_SYNC_INTERVAL)
-    )
+    entry.async_on_unload(async_track_time_interval(hass, _async_sync_tv_clock, DEFAULT_CLOCK_SYNC_INTERVAL))
 
     # Wake transition clock synchronization
     last_power_state = [client.is_on]
@@ -483,9 +537,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HisenseVidaaConfigEntry)
             dev_reg = dr.async_get(hass)
             device = None
             if hasattr(dev_reg, "async_get_device_by_identifier"):
-                device = dev_reg.async_get_device_by_identifier(
-                    (DOMAIN, entry.entry_id), entry.entry_id
-                )
+                device = dev_reg.async_get_device_by_identifier((DOMAIN, entry.entry_id), entry.entry_id)
             if not device and hasattr(dev_reg, "async_get_device"):
                 device = dev_reg.async_get_device(identifiers={(DOMAIN, entry.entry_id)})
             if device:
@@ -496,48 +548,90 @@ async def async_setup_entry(hass: HomeAssistant, entry: HisenseVidaaConfigEntry)
                     updates["manufacturer"] = client.manufacturer
                 if client.firmware_version and client.firmware_version != device.sw_version:
                     updates["sw_version"] = client.firmware_version
+                # Merge discovered MAC connections into device registry if live client reported them
+                if client.mac_wifi or client.mac_ethernet:
+                    new_connections = (
+                        set(device.connections)
+                        if isinstance(getattr(device, "connections", None), (set, list, tuple))
+                        else set()
+                    )
+                    for mac_candidate in (client.mac_wifi, client.mac_ethernet):
+                        if mac_candidate:
+                            new_connections.add((dr.CONNECTION_NETWORK_MAC, dr.format_mac(mac_candidate)))
+                    if isinstance(getattr(device, "connections", None), set) and new_connections != device.connections:
+                        updates["merge_connections"] = new_connections
+
                 if updates:
                     dev_reg.async_update_device(device.id, **updates)
-                    new_data = dict(entry.data)
-                    data_changed = False
-                    if "model" in updates and updates["model"] != new_data.get(CONF_MODEL):
-                        new_data[CONF_MODEL] = updates["model"]
-                        data_changed = True
-                    if "manufacturer" in updates and updates["manufacturer"] != new_data.get(CONF_MANUFACTURER):
-                        new_data[CONF_MANUFACTURER] = updates["manufacturer"]
-                        data_changed = True
-                    if "sw_version" in updates and updates["sw_version"] != new_data.get(CONF_SW_VERSION):
-                        new_data[CONF_SW_VERSION] = updates["sw_version"]
-                        data_changed = True
-                    if data_changed:
-                        hass.config_entries.async_update_entry(entry, data=new_data)
+
+                new_data = dict(entry.data)
+                data_changed = False
+
+                # Auto-enrich primary MAC if missing
+                if not new_data.get(CONF_MAC_ADDRESS) and (client.mac_wifi or client.mac_ethernet):
+                    new_data[CONF_MAC_ADDRESS] = dr.format_mac(client.mac_wifi or client.mac_ethernet)
+                    data_changed = True
+
+                # Auto-enrich secondary MAC if missing
+                primary_mac = new_data.get(CONF_MAC_ADDRESS)
+                detected_sec = None
+                if client.mac_wifi and client.mac_ethernet and client.mac_wifi != client.mac_ethernet:
+                    if primary_mac == client.mac_wifi:
+                        detected_sec = client.mac_ethernet
+                    elif primary_mac == client.mac_ethernet:
+                        detected_sec = client.mac_wifi
+                    else:
+                        detected_sec = client.mac_ethernet
+                elif client.mac_ethernet and primary_mac != client.mac_ethernet:
+                    detected_sec = client.mac_ethernet
+                elif client.mac_wifi and primary_mac != client.mac_wifi:
+                    detected_sec = client.mac_wifi
+
+                if (
+                    detected_sec
+                    and not entry.options.get(CONF_SECONDARY_MAC_ADDRESS)
+                    and new_data.get(CONF_SECONDARY_MAC_ADDRESS) != detected_sec
+                ):
+                    new_data[CONF_SECONDARY_MAC_ADDRESS] = detected_sec
+                    data_changed = True
+
+                if "model" in updates and updates["model"] != new_data.get(CONF_MODEL):
+                    new_data[CONF_MODEL] = updates["model"]
+                    data_changed = True
+                if "manufacturer" in updates and updates["manufacturer"] != new_data.get(CONF_MANUFACTURER):
+                    new_data[CONF_MANUFACTURER] = updates["manufacturer"]
+                    data_changed = True
+                if "sw_version" in updates and updates["sw_version"] != new_data.get(CONF_SW_VERSION):
+                    new_data[CONF_SW_VERSION] = updates["sw_version"]
+                    data_changed = True
+                if data_changed:
+                    hass.config_entries.async_update_entry(entry, data=new_data)
         except Exception as err:
             _LOGGER.debug("[%s] Dynamic device registry enrichment failed: %s", client.ip, err)
 
     client.register_device_info_callback(_on_device_info_update)
-    entry.async_on_unload(
-        lambda: client.unregister_device_info_callback(_on_device_info_update)
-    )
+    entry.async_on_unload(lambda: client.unregister_device_info_callback(_on_device_info_update))
 
     return True
 
 
 async def async_remove_config_entry_device(
-    hass: HomeAssistant, config_entry: HisenseVidaaConfigEntry, device_entry: Any
+    hass: HomeAssistant, config_entry: VidaaConfigEntry, device_entry: Any
 ) -> bool:
     """Remove a config entry from a device (stale device cleanup)."""
     return True
 
 
-async def async_remove_entry(hass: HomeAssistant, entry: HisenseVidaaConfigEntry) -> None:
+async def async_remove_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> None:
     """Clean up the persistent Repairs issues belonging to a removed entry."""
     # [F4-leg2/F5-leg6]: is_persistent issues survive entry removal and would
     # keep showing an unfixable card for a TV that is no longer configured.
     ir.async_delete_issue(hass, DOMAIN, f"certificate_missing_{entry.entry_id}")
     ir.async_delete_issue(hass, DOMAIN, f"auth_token_invalidated_{entry.entry_id}")
+    persistent_notification.async_dismiss(hass, f"vidaa_reauth_{entry.entry_id}")
 
 
-async def update_listener(hass: HomeAssistant, entry: HisenseVidaaConfigEntry) -> None:
+async def update_listener(hass: HomeAssistant, entry: VidaaConfigEntry) -> None:
     """Handle options update."""
     runtime_data = getattr(entry, "runtime_data", None)
     if runtime_data and runtime_data.options == dict(entry.options):
@@ -545,17 +639,15 @@ async def update_listener(hass: HomeAssistant, entry: HisenseVidaaConfigEntry) -
     await hass.config_entries.async_reload(entry.entry_id)
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: HisenseVidaaConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> bool:
     """Unload a config entry."""
     runtime_data = getattr(entry, "runtime_data", None)
     platforms = runtime_data.platforms if runtime_data else PLATFORMS
     client = runtime_data.client if runtime_data else None
 
-    unload_ok = await hass.config_entries.async_unload_platforms(
-        entry, platforms
-    )
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, platforms)
     if unload_ok:
         if client:
             await client.async_disconnect()
-        await async_unload_services(hass)
+        await async_unload_services(hass, current_entry=entry)
     return unload_ok

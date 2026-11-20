@@ -60,7 +60,7 @@ def test_get_device_fingerprint():
     mock_response.read.return_value = sample_xml.encode("utf-8")
     mock_response.__enter__.return_value = mock_response
 
-    with patch("urllib.request.urlopen", return_value=mock_response):
+    with patch("urllib.request.urlopen", return_value=mock_response) as mock_urlopen:
         fp = get_device_fingerprint("192.168.50.12")
         assert fp["friendly_name"] == "Living Room TV"
         assert fp["model_name"] == "65U8N"
@@ -69,6 +69,10 @@ def test_get_device_fingerprint():
         assert fp["mac_wifi"] == "E85177EC981C"
         assert fp["mac_ethernet"] == "E43BC957F14F"
         assert fp["platform"] == "1"
+        expected_dt = email.utils.parsedate_to_datetime("Fri, 11 Sep 2026 12:00:00 GMT")
+        assert fp["tv_timestamp"] == int(expected_dt.timestamp())
+        # Single-pass UPnP query: extracts both descriptor and Date header in 1 request
+        assert mock_urlopen.call_count == 1
 
 
 def test_get_device_fingerprint_malformed_xml():
@@ -249,11 +253,7 @@ def test_parse_ssdp_discovery_toptro_projector():
         "manufacturer": "smarttv.com",
         "modelName": "X7",
         "modelDescription": (
-            "vidaa_support=1\n"
-            "transport_protocol=3290\n"
-            "brand=tpo\n"
-            "macwifi=00:11:22:33:44:55\n"
-            "model=X7\n"
+            "vidaa_support=1\ntransport_protocol=3290\nbrand=tpo\nmacwifi=00:11:22:33:44:55\nmodel=X7\n"
         ),
     }
 
@@ -267,3 +267,68 @@ def test_parse_ssdp_discovery_toptro_projector():
     assert info.mac_address == "00:11:22:33:44:55"
 
 
+def test_parse_ssdp_discovery_dual_mac():
+    """Test parse_ssdp_discovery extracts both WiFi and Ethernet MACs and assigns primary/secondary."""
+    from custom_components.vidaa.protocol.discovery import parse_ssdp_discovery
+
+    ssdp_info = MagicMock()
+    ssdp_info.ssdp_headers = {"_host": "192.168.50.12"}
+    ssdp_info.ssdp_udn = "uuid:hisense-tv-12345"
+    ssdp_info.upnp = {
+        "friendlyName": "Hisense 58A53FXVT",
+        "manufacturer": "Hisense",
+        "modelName": "58A53FXVT",
+        "modelDescription": (
+            "vidaa_support=1\n"
+            "transport_protocol=3160\n"
+            "brand=his\n"
+            "macWifi=e85177ec981c\n"
+            "macEthernet=e43bc957f14f\n"
+            "model=58A53FXVT\n"
+        ),
+    }
+
+    # Case 1: ARP matches ethernet
+    with patch("custom_components.vidaa.protocol.discovery.get_arp_mac", return_value="e4:3b:c9:57:f1:4f"):
+        info = parse_ssdp_discovery(ssdp_info)
+        assert info is not None
+        assert info.mac_address == "e4:3b:c9:57:f1:4f"
+        assert info.secondary_mac_address == "e8:51:77:ec:98:1c"
+
+    # Case 2: ARP matches wifi
+    with patch("custom_components.vidaa.protocol.discovery.get_arp_mac", return_value="e8:51:77:ec:98:1c"):
+        info = parse_ssdp_discovery(ssdp_info)
+        assert info is not None
+        assert info.mac_address == "e8:51:77:ec:98:1c"
+        assert info.secondary_mac_address == "e4:3b:c9:57:f1:4f"
+
+
+def test_probe_udp_port_success():
+    """Test UDP port 36671 probe receiving and parsing discovery payload."""
+    from custom_components.vidaa.protocol.discovery import probe_udp_port
+
+    mock_sock = MagicMock()
+    mock_payload = b'{"devicename": "Living Room TV", "model": "58A53FXVT", "mac": "e8:51:77:ec:98:1c"}'
+    mock_sock.recvfrom.return_value = (mock_payload, ("192.168.50.12", 36671))
+
+    with patch("socket.socket", return_value=mock_sock):
+        res = probe_udp_port("192.168.50.12", timeout=0.5)
+
+    assert res is not None
+    assert res["ip"] == "192.168.50.12"
+    assert res["name"] == "Living Room TV"
+    assert res["model"] == "58A53FXVT"
+    assert res["mac"] == "e8:51:77:ec:98:1c"
+
+
+def test_probe_udp_port_timeout():
+    """Test UDP port 36671 probe timing out gracefully returns None."""
+    from custom_components.vidaa.protocol.discovery import probe_udp_port
+
+    mock_sock = MagicMock()
+    mock_sock.recvfrom.side_effect = TimeoutError()
+
+    with patch("socket.socket", return_value=mock_sock):
+        res = probe_udp_port("192.168.50.12", timeout=0.1)
+
+    assert res is None

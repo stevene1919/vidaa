@@ -47,7 +47,6 @@
         "title": "设备功能与选项",
         "description": "自定义您的海信 VIDAA 电视功能。",
         "data": {
-          "enable_remote": "启用独立的遥控器 (Remote) 实体",
           "enable_wol": "启用局域网唤醒 (WoL) 开机",
           "include_apps_in_sources": "在播放器输入源列表中包含智能电视应用",
           "enable_media_controls": "启用媒体播放控制 (播放/暂停、停止、跳过)",
@@ -85,14 +84,10 @@
       },
       "power_network": {
         "title": "电源与网络选项",
-        "description": "配置局域网唤醒 (Wake-on-LAN)、辅助网络接口以及待机状态下的令牌自动续订。",
+        "description": "配置局域网唤醒 (WoL) 与辅助网络接口 (Wi-Fi 或以太网)。当前主 MAC: {primary_mac}。",
         "data": {
           "enable_wol": "启用局域网唤醒 (WoL) 开机",
-          "secondary_mac_address": "辅助 MAC 地址 (Wi-Fi 或以太网)",
-          "refresh_in_standby": "电视待机时自动续订访问令牌"
-        },
-        "data_description": {
-          "refresh_in_standby": "如果电视在关机时保持网络连接（例如开启了“快速开机/快速启动”），请启用此选项。这样即使电视未开机，为期 2 天的访问令牌也会自动刷新，确保在 Home Assistant 重启后配对凭据依然有效。对于待机时完全断电的电视，请保持关闭。"
+          "secondary_mac_address": "辅助 MAC 地址 (Wi-Fi 或以太网)"
         }
       },
       "playback_sources": {
@@ -113,7 +108,6 @@
         "title": "实体与遥控控制",
         "description": "配置实体开关、图像校准、声音预设以及遥控按键延迟。",
         "data": {
-          "enable_remote": "启用独立的遥控器 (Remote) 实体",
           "enable_picture_controls": "启用图像模式选择与校准滑块 (背光、亮度、对比度)",
           "enable_sound_controls": "启用声音模式均衡器预设选择器",
           "enable_audio_only": "启用“仅音频/关闭屏幕”切换开关",
@@ -135,7 +129,8 @@
     },
     "error": {
       "certs_not_found": "在指定路径未找到证书或密钥文件。请检查文件位置和权限。",
-      "invalid_ssl_cert": "SSL 证书或私钥验证失败。"
+      "invalid_ssl_cert": "SSL 证书或私钥验证失败。",
+      "invalid_mac": "无效的 MAC 地址。必须是 12 位十六进制地址 (例如 AA:BB:CC:DD:EE:FF)。"
     }
   },
   "entity": {
@@ -175,7 +170,7 @@
         "name": "探测功能支持"
       },
       "trigger_reauth": {
-        "name": "触发重新配对"
+        "name": "开始重新认证"
       }
     },
     "select": {
@@ -334,6 +329,15 @@
     },
     "unhandled_trigger_type": {
       "message": "不支持触发器类型 {trigger_type}。"
+    },
+    "auth_required": {
+      "message": "Authentication required: Re-pair TV in Settings > Integrations."
+    },
+    "turn_on_failed": {
+      "message": "Wake-on-LAN failed: TV did not wake up."
+    },
+    "device_off": {
+      "message": "无法执行操作：电视当前已关机。"
     }
   },
   "selector": {

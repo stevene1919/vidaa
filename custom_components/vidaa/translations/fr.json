@@ -47,7 +47,6 @@
         "title": "Fonctionnalités et options de l'appareil",
         "description": "Personnalisez les fonctionnalités pour votre VIDAA Smart TV.",
         "data": {
-          "enable_remote": "Activer l'entité Télécommande dédiée",
           "enable_wol": "Activer l'allumage par Wake-on-LAN",
           "include_apps_in_sources": "Inclure les applications Smart TV dans la liste des sources du lecteur multimédia",
           "enable_media_controls": "Activer les commandes de lecture multimédia (lecture/pause, arrêt, piste suivante/précédente)",
@@ -85,14 +84,10 @@
       },
       "power_network": {
         "title": "Options d'alimentation et réseau",
-        "description": "Configurez le Wake-on-LAN, les interfaces réseau secondaires et le renouvellement de jeton en veille.",
+        "description": "Configurer le Wake-on-LAN et l'interface réseau secondaire (Wi-Fi ou Ethernet). MAC principale active: {primary_mac}.",
         "data": {
           "enable_wol": "Activer l'allumage par Wake-on-LAN",
-          "secondary_mac_address": "Adresse MAC secondaire (Wi-Fi ou Ethernet)",
-          "refresh_in_standby": "Renouveler les jetons d'accès pendant que le téléviseur est en veille"
-        },
-        "data_description": {
-          "refresh_in_standby": "Activez cette option si le téléviseur conserve sa connexion réseau lorsqu'il est éteint (ex. Démarrage rapide / Fast Power On). Le jeton d'accès valable 2 jours est ainsi renouvelé même si le téléviseur n'est pas allumé, ce qui permet à l'appairage de survivre aux redémarrages de Home Assistant. Laissez désactivé pour les téléviseurs qui s'éteignent complètement en veille."
+          "secondary_mac_address": "Adresse MAC secondaire (Wi-Fi ou Ethernet)"
         }
       },
       "playback_sources": {
@@ -112,7 +107,6 @@
         "title": "Entités et télécommande",
         "description": "Configurez les entités, le calibrage d'image, les présets audio et les délais de télécommande.",
         "data": {
-          "enable_remote": "Activer l'entité Télécommande dédiée",
           "enable_picture_controls": "Activer le sélecteur de mode d'image et les curseurs de calibrage (Rétroéclairage, Luminosité, Contraste)",
           "enable_sound_controls": "Activer le sélecteur de préréglages d'égaliseur de mode sonore",
           "enable_audio_only": "Activer l'interrupteur Audio uniquement (Écran éteint)",
@@ -134,7 +128,8 @@
     },
     "error": {
       "certs_not_found": "Fichier de certificat ou de clé privée introuvable au chemin spécifié. Veuillez vérifier l'emplacement du fichier et ses permissions.",
-      "invalid_ssl_cert": "Échec de validation du certificat SSL ou de la clé privée. Vérifiez que les fichiers sont au format PEM non chiffré ou PKCS#12 valide et concordent."
+      "invalid_ssl_cert": "Échec de validation du certificat SSL ou de la clé privée. Vérifiez que les fichiers sont au format PEM non chiffré ou PKCS#12 valide et concordent.",
+      "invalid_mac": "Adresse MAC invalide. Doit être une adresse hexadécimale à 12 chiffres (ex. AA:BB:CC:DD:EE:FF)."
     }
   },
   "entity": {
@@ -174,7 +169,7 @@
         "name": "Sonder les capacités"
       },
       "trigger_reauth": {
-        "name": "Déclencher le réappairage"
+        "name": "Démarrer la réauthentification"
       }
     },
     "select": {
@@ -360,6 +355,15 @@
     },
     "send_text_input_failed": {
       "message": "Échec de l'envoi de la saisie de texte : {error}"
+    },
+    "auth_required": {
+      "message": "Authentication required: Re-pair TV in Settings > Integrations."
+    },
+    "turn_on_failed": {
+      "message": "Wake-on-LAN failed: TV did not wake up."
+    },
+    "device_off": {
+      "message": "Impossible d'effectuer l'action : le téléviseur est actuellement éteint."
     }
   },
   "selector": {

@@ -1,16 +1,16 @@
-"""Unit tests for HisenseTvClient authentication algorithms and profile probing."""
+"""Unit tests for VidaaClient authentication algorithms and profile probing."""
 
 import asyncio
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from custom_components.vidaa.client import HisenseTvClient
+from custom_components.vidaa.client import VidaaClient
 
 
 def test_legacy_static_auth():
     """Test legacy static authentication profile initializes static credentials without PIN."""
-    client = HisenseTvClient(ip="192.168.50.12", auth_profile="legacy")
+    client = VidaaClient(ip="192.168.50.12", auth_profile="legacy")
 
     # Run async start auth for legacy
     asyncio.run(client.async_start_auth())
@@ -24,9 +24,29 @@ def test_legacy_static_auth():
     assert client.check_and_refresh_token(force=True) is False
 
 
+@pytest.mark.anyio
+async def test_legacy_static_ssl_without_client_certs():
+    """Test legacy static authentication supports TLS without client certificates (Issue #71)."""
+    client = VidaaClient(
+        ip="192.168.1.46",
+        auth_profile="legacy",
+        use_ssl=True,
+        certfile="/nonexistent/cert.crt",
+        keyfile="/nonexistent/key.key",
+    )
+    # validate_certificates does not raise FileNotFoundError for legacy
+    client.validate_certificates()
+
+    # _async_build_ssl_context succeeds and returns an SSLContext without client certs
+    ssl_ctx = await client._async_build_ssl_context()
+    assert ssl_ctx is not None
+    assert ssl_ctx.verify_mode == 0  # ssl.CERT_NONE
+    assert ssl_ctx.check_hostname is False
+
+
 def test_probe_auth_methods():
     """Test probing various auth algorithms returns structured capability dict."""
-    client = HisenseTvClient(ip="192.168.50.12")
+    client = VidaaClient(ip="192.168.50.12")
 
     fake_results = {
         "legacy_static": {"rc": 0, "supported": True},
@@ -49,7 +69,7 @@ def test_probe_auth_methods():
 @pytest.mark.anyio
 async def test_async_start_auth_auto_fallback_on_rc5():
     """Test auto profile fallback from modern to middle when modern gets rc 5 rejection."""
-    client = HisenseTvClient(ip="192.168.50.12", auth_profile="auto")
+    client = VidaaClient(ip="192.168.50.12", auth_profile="auto")
 
     calls = []
 
@@ -61,8 +81,10 @@ async def test_async_start_auth_auto_fallback_on_rc5():
             return
         raise Exception(f"Unexpected profile {profile}")
 
-    with patch.object(client, "get_device_fingerprint", return_value={}), \
-         patch.object(client, "_async_start_auth_internal", side_effect=mock_internal):
+    with (
+        patch.object(client, "get_device_fingerprint", return_value={}),
+        patch.object(client, "_async_start_auth_internal", side_effect=mock_internal),
+    ):
         await client.async_start_auth()
 
     assert calls == ["modern", "middle"]
@@ -72,7 +94,7 @@ async def test_async_start_auth_auto_fallback_on_rc5():
 @pytest.mark.anyio
 async def test_async_start_auth_full_cascade_to_legacy():
     """Test auto profile cascades all dynamic profiles (modern, middle, remotenow) when all fail."""
-    client = HisenseTvClient(ip="192.168.50.12", auth_profile="auto")
+    client = VidaaClient(ip="192.168.50.12", auth_profile="auto")
 
     calls = []
 
@@ -80,8 +102,10 @@ async def test_async_start_auth_full_cascade_to_legacy():
         calls.append(profile)
         raise Exception("MQTT connection rejected with code 5")
 
-    with patch.object(client, "get_device_fingerprint", return_value={}), \
-         patch.object(client, "_async_start_auth_internal", side_effect=mock_internal):
+    with (
+        patch.object(client, "get_device_fingerprint", return_value={}),
+        patch.object(client, "_async_start_auth_internal", side_effect=mock_internal),
+    ):
         with pytest.raises(Exception, match="rejected with code 5"):
             await client.async_start_auth()
         assert calls[:3] == ["modern", "middle", "remotenow"]
@@ -164,3 +188,19 @@ async def test_async_probe_tv_auth_methods_toptro_rejection_diagnostics():
     usernames = [call_kw.get("username") for call_kw in probed_creds]
     assert any(u and u.startswith("tpo$") for u in usernames)
 
+
+def test_client_auth_failed_lifecycle():
+    """Test auth_failed flag toggling on dispatch and connection."""
+    client = VidaaClient(ip="192.168.50.12")
+    assert client.auth_failed is False
+
+    cb = MagicMock()
+    client.register_auth_failed_callback(cb)
+
+    client._dispatch_auth_failed()
+    assert client.auth_failed is True
+    cb.assert_called_once_with(client)
+
+    # When MQTT connects, auth_failed resets to False
+    client._handle_connected(standard=False)
+    assert client.auth_failed is False

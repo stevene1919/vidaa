@@ -1,4 +1,4 @@
-"""Config and options flow subpackage for Hisense VIDAA TV."""
+"""Config and options flow subpackage for VIDAA Smart TV."""
 
 from __future__ import annotations
 

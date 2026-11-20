@@ -1,10 +1,10 @@
-"""Unit tests for HisenseTvClient state processing and callbacks."""
+"""Unit tests for VidaaClient state processing and callbacks."""
 
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from custom_components.vidaa.client import HisenseTvClient
+from custom_components.vidaa.client import VidaaClient
 from custom_components.vidaa.tv.aliases import ALL_KEY_AND_APP_ALIASES as KEY_ALIASES
 
 
@@ -32,7 +32,7 @@ def test_key_aliases():
 
 def test_state_dispatch_callbacks():
     """Test state update messages trigger registered callbacks with parsed data."""
-    client = HisenseTvClient(ip="192.168.50.12", client_id="test_client")
+    client = VidaaClient(ip="192.168.50.12", client_id="test_client")
     client.update_topic_paths()
 
     received_state = []
@@ -80,7 +80,7 @@ def test_state_dispatch_callbacks():
 
 def test_volume_alternate_topic_dispatch():
     """Test volume update messages on alternate VIDAA firmware topics."""
-    client = HisenseTvClient(ip="192.168.50.12", client_id="test_client")
+    client = VidaaClient(ip="192.168.50.12", client_id="test_client")
     client.update_topic_paths()
 
     received_volume = []
@@ -111,7 +111,7 @@ def test_wake_on_lan_subnet_broadcast():
     mock_sock.sendto.side_effect = mock_sendto
 
     with patch("socket.socket", return_value=mock_sock):
-        result = HisenseTvClient.send_wake_on_lan(
+        result = VidaaClient.send_wake_on_lan(
             mac="e8:51:77:ec:98:1c",
             ip="192.168.50.12",
         )
@@ -122,7 +122,7 @@ def test_wake_on_lan_subnet_broadcast():
 
 def test_callback_unregistration_and_safety():
     """Test callback registration, unregistration, and error isolation."""
-    client = HisenseTvClient(ip="192.168.50.12")
+    client = VidaaClient(ip="192.168.50.12")
     called = []
 
     def faulty_cb(data):
@@ -146,7 +146,7 @@ def test_callback_unregistration_and_safety():
 
 def test_connected_and_disconnected_callbacks():
     """Test connected and disconnected callback lifecycle."""
-    client = HisenseTvClient(ip="192.168.50.12")
+    client = VidaaClient(ip="192.168.50.12")
     events = []
 
     def on_conn():
@@ -173,7 +173,7 @@ def test_connected_and_disconnected_callbacks():
 
 def test_source_cycling_and_command_helpers():
     """Test cycle_source and send_command with input, source, and app prefixes."""
-    client = HisenseTvClient(ip="192.168.50.12", client_id="test_client")
+    client = VidaaClient(ip="192.168.50.12", client_id="test_client")
     client.change_source = MagicMock()
     client.send_key = MagicMock()
     client.launch_app = MagicMock()
@@ -234,7 +234,7 @@ def test_source_cycling_and_command_helpers():
 
 def test_volume_and_mute_state_parsing():
     """Test volume and mute parsing properly distinguishes ARC volume from mute packets."""
-    client = HisenseTvClient(ip="192.168.50.12", client_id="test_client")
+    client = VidaaClient(ip="192.168.50.12", client_id="test_client")
     client.update_topic_paths()
 
     mock_msg = MagicMock()
@@ -259,7 +259,7 @@ def test_volume_and_mute_state_parsing():
 
 def test_livetv_state_parsing_and_cycling():
     """Test Live TV broadcast parsing without sourcename and cycling over hardware sources."""
-    client = HisenseTvClient(ip="192.168.50.12", client_id="test_client")
+    client = VidaaClient(ip="192.168.50.12", client_id="test_client")
     client.update_topic_paths()
     client.change_source = MagicMock()
 
@@ -299,7 +299,7 @@ def test_apply_state_update_fake_sleep_vocabulary():
     """
     from custom_components.vidaa.tv.state import apply_state_update
 
-    client = HisenseTvClient(ip="192.168.50.12", client_id="cid")
+    client = VidaaClient(ip="192.168.50.12", client_id="cid")
 
     # (b) fake_sleep_0 => off
     apply_state_update(client, {"statetype": "fake_sleep_0"})
@@ -332,10 +332,10 @@ def test_apply_state_update_fake_sleep_vocabulary():
 
 
 def test_device_info_telemetry_and_entity_binding():
-    """Test getdeviceinfo and gettvinfo telemetry update client state and HisenseVidaaEntity device_info."""
-    from custom_components.vidaa.entity import HisenseVidaaEntity
+    """Test getdeviceinfo and gettvinfo telemetry update client state and VidaaEntity device_info."""
+    from custom_components.vidaa.entity import VidaaEntity
 
-    client = HisenseTvClient(ip="192.168.50.12", client_id="test_client")
+    client = VidaaClient(ip="192.168.50.12", client_id="test_client")
     client.update_topic_paths()
 
     # Dispatch getdeviceinfo telemetry
@@ -368,7 +368,7 @@ def test_device_info_telemetry_and_entity_binding():
     }
     mock_entry.options = {}
 
-    entity = HisenseVidaaEntity(client, mock_entry)
+    entity = VidaaEntity(client, mock_entry)
     dev_info = entity.device_info
 
     assert dev_info["manufacturer"] == "Hisense"
@@ -377,10 +377,10 @@ def test_device_info_telemetry_and_entity_binding():
 
 
 def test_entity_device_info_brand_fallback():
-    """Test HisenseVidaaEntity falls back to BRAND_MAP based on brand code when manufacturer is unset."""
-    from custom_components.vidaa.entity import HisenseVidaaEntity
+    """Test VidaaEntity falls back to BRAND_MAP based on brand code when manufacturer is unset."""
+    from custom_components.vidaa.entity import VidaaEntity
 
-    client = HisenseTvClient(ip="192.168.50.25", brand="loe")
+    client = VidaaClient(ip="192.168.50.25", brand="loe")
     mock_entry = MagicMock()
     mock_entry.entry_id = "test_entry_loe"
     mock_entry.title = "Loewe bild i"
@@ -390,7 +390,7 @@ def test_entity_device_info_brand_fallback():
     }
     mock_entry.options = {}
 
-    entity = HisenseVidaaEntity(client, mock_entry)
+    entity = VidaaEntity(client, mock_entry)
     dev_info = entity.device_info
     assert dev_info["manufacturer"] == "Loewe"
 
@@ -410,12 +410,33 @@ def test_generic_manufacturer_filtered_in_device_info_update():
     assert client.model_name == "65U7G"
 
 
+def test_device_info_update_extracts_dual_mac():
+    """Test apply_device_info_update extracts eth0 and wlan0 MAC addresses."""
+    from custom_components.vidaa.tv.state import apply_device_info_update
+
+    client = MagicMock()
+    client.mac_ethernet = None
+    client.mac_wifi = None
+
+    apply_device_info_update(
+        client,
+        {
+            "eth0": "e43bc957f14f",
+            "wlan0": "e85177ec981c",
+            "model_name": "58A53FXVT",
+        },
+    )
+
+    assert client.mac_ethernet == "e4:3b:c9:57:f1:4f"
+    assert client.mac_wifi == "e8:51:77:ec:98:1c"
+
+
 @pytest.mark.anyio
 async def test_async_send_command_text_prefixes():
     """Test async_send_command parses and dispatches text and clear commands."""
     from custom_components.vidaa.tv.actions_input import async_send_command
 
-    client = HisenseTvClient(ip="192.168.50.12", client_id="test_client")
+    client = VidaaClient(ip="192.168.50.12", client_id="test_client")
     client.async_send_text_input = AsyncMock()
 
     assert await async_send_command(client, "text:Inception") is True
@@ -436,7 +457,7 @@ async def test_async_send_command_text_prefixes():
 
 def test_sourcelist_with_active_signal_does_not_wake_standby_tv():
     """Test sourcelist broadcast with active HDMI signal (is_signal=1) does not wake client in standby (Issue #61)."""
-    client = HisenseTvClient(ip="192.168.50.12", client_id="test_client")
+    client = VidaaClient(ip="192.168.50.12", client_id="test_client")
     client.update_topic_paths()
 
     # 1. TV reports standby via fake_sleep_0
@@ -480,9 +501,3 @@ def test_sourcelist_with_active_signal_does_not_wake_standby_tv():
     assert len(state_events) == 1
     assert state_events[0]["statetype"] == "fake_sleep_1"
     assert state_events[0]["sourcename"] == "HDMI1"
-
-
-
-
-
-

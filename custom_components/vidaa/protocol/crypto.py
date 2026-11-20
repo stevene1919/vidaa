@@ -1,4 +1,4 @@
-"""Cryptographic and pairing credential helpers for Hisense VIDAA TV."""
+"""Cryptographic and pairing credential helpers for VIDAA Smart TV."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ def normalize_mac_address(mac_address: str | None) -> str:
     if mac_address:
         stripped = mac_address.replace(":", "").replace("-", "").replace(".", "").strip()
         if len(stripped) == 12:
-            return ":".join(stripped[i:i + 2] for i in range(0, 12, 2))
+            return ":".join(stripped[i : i + 2] for i in range(0, 12, 2))
     return ":".join(f"{random.randint(0, 255):02x}" for _ in range(6)).upper()
 
 
@@ -66,10 +66,7 @@ def generate_initial_credentials(
     if profile in ("legacy", "static"):
         return client_id, "hisenseservice", "multimqttservice"
 
-    is_modern = (
-        use_new_auth is True
-        or (use_new_auth is None and profile in ("auto", "modern", "vidaa_2024", "vidaa"))
-    )
+    is_modern = use_new_auth is True or (use_new_auth is None and profile in ("auto", "modern", "vidaa_2024", "vidaa"))
     is_middle = profile in ("middle", "vidaa_15", "vidaa_middle")
 
     if is_modern:

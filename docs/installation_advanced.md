@@ -3,7 +3,7 @@
 This guide covers advanced deployment methods for the **VIDAA Smart TV Integration**, including direct Git cloning, tracking pre-release/beta branches, Git submodule management, air-gapped offline installations, standalone CLI diagnostics, and clean uninstallation.
 
 > [!NOTE]
-> For standard installations, using **HACS** (Home Assistant Community Store) or extracting the official release archive is recommended. See [Beginner's Quick Start Guide](quick_start_beginners.md).
+> For standard installations, using **Marketplace (HACS)** or extracting the official release archive is recommended. See [Beginner's Quick Start Guide](quick_start_beginners.md).
 
 ---
 
@@ -11,7 +11,7 @@ This guide covers advanced deployment methods for the **VIDAA Smart TV Integrati
 
 | Method | Target Audience | Primary Use Case |
 | :--- | :--- | :--- |
-| **[1. Git Clone Deployment](#1-git-clone-deployment)** | Power users, developers | Track cutting-edge fixes on `main` before HACS releases |
+| **[1. Git Clone Deployment](#1-git-clone-deployment)** | Power users, developers | Track cutting-edge fixes on `main` before Marketplace (HACS) releases |
 | **[2. Testing Pre-Release Branches](#2-testing-pre-release-branches)** | Testers, bug reporters | Verify PRs and bug fix branches (e.g. `feat/ssl-cert-validation`) |
 | **[3. Git Submodule Integration](#3-git-submodule-integration)** | Infrastructure-as-code users | Manage `/config` as a version-controlled monorepo |
 | **[4. Standalone CLI Diagnostics](#4-standalone-cli-diagnostics-without-home-assistant)** | Network & TV debuggers | Test TLS, pairing, and UPnP without running Home Assistant |
@@ -22,7 +22,7 @@ This guide covers advanced deployment methods for the **VIDAA Smart TV Integrati
 
 ## 1. Git Clone Deployment
 
-Deploying via Git allows you to pull updates directly using `git pull` without waiting for HACS releases.
+Deploying via Git allows you to pull updates directly using `git pull` without waiting for Marketplace (HACS) releases.
 
 ### Architecture Warning (Avoid Nested Component Collision)
 The repository root contains developer tooling (`test_client.py`, tests, documentation, and metadata). Home Assistant expects the component directory to be located at:
@@ -115,7 +115,7 @@ git submodule update --remote custom_components/vidaa_submodule
 
 ## 4. Standalone CLI Diagnostics (Without Home Assistant)
 
-The repository includes standalone diagnostic utilities ([`scripts/test_client.py`](../scripts/test_client.py) and [`scripts/debug_tv.py`](../scripts/debug_tv.py)) that can run from **any machine** on your local network (Linux, macOS, or Windows WSL). You do not need Home Assistant running to inspect TV telemetry, verify SSL certificates, or test PIN pairing.
+The repository includes standalone diagnostic utilities ([`scripts/test_client.py`](../scripts/test_client.py) and zero-setup [`scripts/diag.sh`](../scripts/diag.sh)) that can run from **any machine** on your local network (Linux, macOS, or Windows WSL). You do not need Home Assistant running to inspect TV telemetry, verify SSL certificates, or test PIN pairing.
 
 ### Setting Up a Virtual Environment
 
@@ -199,8 +199,8 @@ If you placed client certificates or key files in `/config/ssl/vidaa/` (or `/con
 2. Delete the certificate files from the directory (e.g. `rm -rf /config/ssl/vidaa` or delete `El.p12`).
 
 ### 6.3 Uninstall Component
-- **Via HACS (Recommended)**:
-  1. Navigate to **HACS → Integrations**.
+- **Via Marketplace (HACS) (Recommended)**:
+  1. Navigate to **Marketplace (HACS) → Integrations**.
   2. Find **VIDAA Smart TV** in the list of installed integrations.
   3. Click the three vertical dots (`⋮`) on the integration row and select **Remove**.
   4. Confirm the removal.

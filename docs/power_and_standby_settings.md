@@ -61,9 +61,9 @@ When statutory energy-saving timers force the TV into a Tier 2 shutdown, the app
 | **Fast Power On / Quick Start** | **ON** | `Settings → System → Advanced Settings → Fast Power On` | Maintains low-power networked standby. |
 | **Auto Standby with No Signal** | **OFF** | `Settings → System → Timers (or Timer Settings) → Auto Standby with No Signal` | Disables automated energy-saving power cut on signal loss. |
 | **Auto Sleep / Idle Standby** | **OFF** | `Settings → System → Timers → Auto Sleep` | Disables 4-hour inactivity timer. |
-| **Wake on Wireless Network** | **ON** | `Settings → Network → Wake on Wireless Network` | Keeps Wi-Fi chip in low-power DTIM listening mode (if wired Ethernet unavailable). |
-| **Wake on LAN** | **ON** | `Settings → Network → Wake on LAN` | Preserves wired WoL capability. |
-| **Wake on Cast** | **ON** | `Settings → Network → Wake on Cast` | Allows casting/DIAL events to wake TV. |
+| **Wake on Wireless Network** | **ON** | `Settings → Network → Wake on Wireless Network` | Keeps Wi-Fi chip in low-power 802.11 DTIM sleep to receive Wake-on-Wireless-LAN (WoWLAN) magic packets. |
+| **Wake on LAN** | **ON** | `Settings → Network → Wake on LAN` | Preserves wired Ethernet WoL capability. |
+| **Wake on Cast** | **User preference (OFF for deep WoWLAN)** | `Settings → Network → Wake on Cast` | Master override on certain U6 firmware builds. When ON, locks lower toggles and maintains ~7.5W Fast Boot. When OFF, unlocks individual toggles and allows the TV to enter 0.0W deep sleep after ~15m where WoWLAN magic packets wake it. |
 | **CEC Control** | **User preference** | `Settings → Connection → HDMI & CEC → CEC Control` | Toggle if connected HDMI devices inadvertently toggle TV power. |
 
 ---
@@ -82,24 +82,51 @@ When statutory energy-saving timers force the TV into a Tier 2 shutdown, the app
 
 ---
 
-## ⚠️ Wake-on-LAN Hardware Limitations (2020–2022 / VIDAA U4 & U5 Era)
+## 📡 Wake-on-LAN & Wake-on-Wireless-LAN (WoWLAN) Architecture
 
-Extensive testing confirms that on many budget and mid-range 2020–2022 VIDAA models (such as the **A6, A53, A7, and early U-series**), **Wake-on-LAN (WoL) magic packets fail completely—even over a direct wired Ethernet connection**.
+The `vidaa` integration enables Wake-on-LAN by default (`enable_wol: true`). It automatically handles the TV's two-stage standby behavior:
 
-### Why WoL Fails on These Models:
-1. **Unpowered Ethernet PHY in Deep Sleep**: To achieve statutory standby power limits ($\le 0.5\text{W}$), the mainboard cuts all DC power rails to the physical Ethernet transceiver (PHY) and Wi-Fi SoC when the display is off. The physical Ethernet link drops entirely (switch link light turns off), making it physically impossible for the network card to receive UDP magic packets.
-2. **Firmware WoL Toggle Flaws**: On certain VIDAA U4 and U5 firmware builds, the "Wake on LAN" menu toggle is purely cosmetic or resets its state upon shutdown.
+1. **Stage 1: Transitional Standby / Fast Power On (~7.5W)**:
+   - Immediately upon pressing power off on the remote, the screen turns off but the TV OS kernel and internal MQTT broker remain active in RAM.
+   - **Wake Mechanism**: The hardware network PHY ignores L2 Wake-on-LAN packets in this state. Home Assistant automatically wakes the screen by sending the native `KEY_POWER` command over the active encrypted MQTT connection (`media_player.turn_on`).
+2. **Stage 2: Regulatory Deep Sleep (≤0.5W / 0.0W)**:
+   - When **Wake on Cast is disabled**, after ~15–20 minutes of inactivity, the TV cuts power to the main SoC and application processor, dropping power draw to ≤0.5W.
+   - **Wake Mechanism**: The Wi-Fi SoC (or wired Ethernet PHY) remains powered in low-power 802.11 DTIM sleep, actively maintaining beacon synchronization with your wireless router or access point. Home Assistant broadcasts standard UDP Wake-on-LAN magic packets (`wakeonlan`) to trigger the TV's power management circuit to boot.
 
-### 💡 The Solution: MQTT Wake via Fast Power On
-Because WoL packets cannot wake a depowered network chip, the **only reliable way** to turn on these TVs from Home Assistant is:
+> [!IMPORTANT]
+> **Testing Wake-on-LAN? You Must Wait ~15 Minutes After Powering Off!**
+> 
+> If you turn off your TV and immediately send a Wake-on-LAN packet, **it will do nothing**. 
+> 
+> Here is why:
+> * **First 15 Minutes (Fast Boot Standby, ~7.5W)**: The TV is only in shallow screen-off sleep. The network chip is not in low-power sleep mode and **completely ignores Wake-on-LAN magic packets**. During this 15-minute window, the TV only wakes via software MQTT (`KEY_POWER`) or the physical remote.
+> * **After ~15–20 Minutes (Deep Sleep, 0.0W)**: The TV finally powers down the main processor into true deep sleep. **Only then** does the network card enter low-power listening mode where Wake-on-LAN packets will actually wake it up.
+> 
+> If you are testing Wake-on-LAN, turn the TV off, wait 20 minutes until the TV enters deep sleep, and *then* test your WoL command.
 
-1. **Keep Fast Power On = ON**:
-   - The TV remains in shallow Network Standby (**Tier 1 / `fake_sleep`**).
-   - The network card and internal MQTT broker stay alive.
-   - Home Assistant wakes the TV by sending the native `KEY_POWER` command directly over the encrypted local MQTT connection—**zero Wake-on-LAN magic packets required**.
-2. **Alternative Cold-Boot Fallbacks**:
-   - **HDMI-CEC**: Waking a connected device (e.g. Chromecast, Apple TV, gaming console, or PC with HDMI-CEC) automatically wakes the TV over the HDMI bus.
-   - **IR Blaster**: Using a network IR transmitter (e.g. Broadlink RM4, SofaBaton, or Tuya IR) as an emergency cold-boot fallback if mains power is cut.
+---
+
+### ⚠️ Model & Firmware Variations Across Generations
+
+> [!NOTE]
+> **Menu Layouts & Option Names**:
+> Depending on your VIDAA version (`U4`, `U5`, `U6`, `U7`, `U8`) and regional hardware SKU, menu paths and labels vary:
+> - **Menu Paths**: Look under `Settings → Network` or `Settings → Connection & Network` (or `Settings → System → Advanced Settings`).
+> - **Toggle Labels**: You may see **Wake on Wireless Network**, **Wake on WLAN**, **Wake on Wi-Fi**, **TV Auto Power On**, or **Mobile App Control**.
+
+### ⚠️ Hardware Limitations on Budget / Older Models (2020–2022 / Early U4 & U5)
+Extensive testing confirms that while modern models (such as VIDAA U6+ `58A53FXVT`) fully support Wake-on-Wireless-LAN, some early budget models (e.g. early A6/A7 series) have hardware constraints:
+1. **Unpowered PHY in Deep Sleep**: To meet strict statutory standby power limits, certain budget mainboards cut all DC power rails to the physical Ethernet transceiver and Wi-Fi module when entering deep sleep.
+2. **Firmware WoL Toggle Flaws**: On certain older firmware builds, the "Wake on LAN" menu toggle is purely cosmetic.
+
+### 💡 Fallback for Unsupported Models (or After Power Outages):
+If your specific hardware model completely shuts off its network chip in deep sleep, or following an AC mains power cut:
+1. **Keep Fast Power On = ON**: The TV stays in shallow Network Standby (~1.5W–7.5W) where local MQTT wakes it natively.
+2. **Wired Ethernet**: Use a physical RJ45 Ethernet cable instead of Wi-Fi.
+3. **IR Blaster / Smart Plug Turn-On Trigger**: Use the native `vidaa.turn_on` device automation trigger (Recipe 4) to automatically fire an IR command or toggle a smart plug whenever the Media Player is turned on.
+4. **Smart Retry with IR Fallback**: Use Recipe 5 to attempt silent Wake-on-LAN first and automatically blast an IR power code only if the TV is still off after 15 seconds.
+
+See [Custom Services & Example Automations](services_and_automations.md#recipe-4-custom-turn-on-trigger-via-vidaaturn_on-ir-blaster--smart-plug) for ready-to-use YAML configuration recipes.
 
 > [!NOTE]
 > **Daily Automations vs. Cold-Boot Recovery (e.g. Power Outages)**:

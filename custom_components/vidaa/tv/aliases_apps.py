@@ -1,4 +1,4 @@
-"""Smart application alias definitions across international regions for Hisense VIDAA TV."""
+"""Smart application alias definitions across international regions for VIDAA Smart TV."""
 
 from __future__ import annotations
 

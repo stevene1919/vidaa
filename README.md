@@ -33,10 +33,10 @@ Connects **directly** to the TV's internal MQTT broker (TLS port `36669`) using 
 
 Setting up your TV takes less than 3 minutes across 3 simple steps:
 
-### 1️⃣ Install via HACS
-Click the one-click button below (or search **VIDAA Smart TV** in HACS → Integrations → Download):
+### 1️⃣ Install via Marketplace (HACS)
+Click the one-click button below (or search **VIDAA Smart TV** in Marketplace (HACS) → Integrations → Download):
 
-[![Open HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
+[![Open Marketplace (HACS)](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
 
 ### 2️⃣ Place the Key File (`client_mobile_android.p12` or `El.p12`)
 VIDAA TVs enforce mutual TLS on port 36669. Drop the universal **`client_mobile_android.p12`** (or `El.p12`) file into your Home Assistant **`/config/ssl/`** directory.
@@ -114,7 +114,7 @@ For deep technical details, configuration parameters, and dashboard templates, r
 | 🛠️ **[Services & Automation Examples](docs/services_and_automations.md)** | Ready-to-use YAML automations for movie modes, picture/sound toggling, and keyboard input. |
 | 🔒 **[Advanced SSL Certificate Setup](docs/certificates.md)** | Mutual TLS file placement, filename matrix, custom PEM keypairs, and OpenSSL reference. |
 | 🌐 **[Network & Wake-on-LAN Requirements](docs/network_requirements.md)** | 100% local LAN architecture, UPnP LAN control, IoT VLAN rules, and reliable wired WoL setup. |
-| 🧪 **[CLI Testing & Diagnostic Tools](docs/cli_tools.md)** | Standalone [`scripts/test_client.py`](scripts/test_client.py) and [`scripts/debug_tv.py`](scripts/debug_tv.py) command-line tool reference. |
+| 🧪 **[CLI Testing & Diagnostic Tools](docs/cli_tools.md)** | Standalone [`scripts/test_client.py`](scripts/test_client.py) and zero-setup [`scripts/diag.sh`](scripts/diag.sh) command-line tool reference. |
 | 🔬 **[Protocol & Cryptographic Architecture](docs/protocol_architecture.md)** | Reverse-engineered UPnP LAN control, XOR bitmasks, token lifecycles, and multi-brand ecosystem. |
 | 🛠️ **[Advanced Installation & Lifecycle](docs/installation_advanced.md)** | Git cloning, submodules, air-gapped VLAN installs, and clean uninstallation. |
 | 🩺 **[Troubleshooting & Error Reference](docs/troubleshooting.md)** | Diagnostic procedures, error recovery, pairing resets, and action error resolutions. |
@@ -136,7 +136,7 @@ The integration exposes dedicated Home Assistant actions for automations, script
 
 ## 🛠️ Diagnostics & CLI Utilities
 
-Standalone CLI tools ([`scripts/test_client.py`](scripts/test_client.py) and [`scripts/debug_tv.py`](scripts/debug_tv.py)) are available to test network reachability, verify TLS certificates, probe TV capabilities, and generate pre-formatted report blocks for GitHub issues without running Home Assistant. See the **[CLI Testing & Diagnostic Tools Guide](docs/cli_tools.md)**.
+Standalone CLI tools ([`scripts/test_client.py`](scripts/test_client.py) and the zero-setup [`scripts/diag.sh`](scripts/diag.sh) runner) are available to test network reachability, verify TLS certificates, probe TV capabilities, and generate pre-formatted report blocks for GitHub issues without running Home Assistant. See the **[CLI Testing & Diagnostic Tools Guide](docs/cli_tools.md)**.
 
 ---
 

@@ -1,7 +1,8 @@
-"""Custom services registration and handlers for Hisense VIDAA TV."""
+"""Custom services registration and handlers for VIDAA Smart TV."""
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import logging
 from typing import Any
@@ -70,7 +71,7 @@ __all__ = [
 
 
 async def async_setup_services(hass: HomeAssistant) -> None:
-    """Register all custom services for the Hisense VIDAA TV integration."""
+    """Register all custom services for the VIDAA Smart TV integration."""
     services_map = [
         (
             SERVICE_SEND_KEY,
@@ -152,6 +153,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         # Register non-breaking alias under legacy domain (hisense_vidaa.<service>)
         if not hass.services.has_service(LEGACY_DOMAIN, service_name):
+
             def _make_legacy_handler(name: str, target_fn: Any):
                 async def _legacy_service_handler(call: Any) -> Any:
                     _LOGGER.warning(
@@ -193,18 +195,23 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                     _LOGGER.debug("Could not register legacy service description schema for %s: %s", service_name, err)
 
 
-async def async_unload_services(hass: HomeAssistant) -> None:
+async def async_unload_services(hass: HomeAssistant, current_entry: Any | None = None) -> None:
     """Unregister all custom services if no active entries remain."""
     loaded_entries: list[Any] = []
     if hasattr(hass, "config_entries") and hasattr(hass.config_entries, "async_loaded_entries"):
-        try:
+        with contextlib.suppress(Exception):
             res = hass.config_entries.async_loaded_entries(DOMAIN)
             if isinstance(res, list):
                 loaded_entries = res
-        except Exception:
-            pass
 
-    if len(loaded_entries) > 1:
+    # If another entry remains loaded, do not unregister shared services
+    if current_entry is not None:
+        remaining = [
+            e for e in loaded_entries if getattr(e, "entry_id", None) != getattr(current_entry, "entry_id", None)
+        ]
+        if remaining:
+            return
+    elif len(loaded_entries) > 1:
         return
 
     services_to_remove = [

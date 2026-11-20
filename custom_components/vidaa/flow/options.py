@@ -1,13 +1,15 @@
-"""Options flow handler for Hisense VIDAA TV."""
+"""Options flow handler for VIDAA Smart TV."""
 
 from __future__ import annotations
 
 import asyncio
+import re
 from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.helpers import selector
+from homeassistant.helpers.device_registry import format_mac
 
 from ..const import (
     AUTH_PROFILE_SELECTOR,
@@ -19,15 +21,14 @@ from ..const import (
     CONF_ENABLE_CEC_NAMES,
     CONF_ENABLE_MEDIA_CONTROLS,
     CONF_ENABLE_PICTURE_CONTROLS,
-    CONF_ENABLE_REMOTE,
     CONF_ENABLE_SOUND_CONTROLS,
     CONF_ENABLE_WOL,
     CONF_INCLUDE_APPS_IN_SOURCES,
     CONF_KEY_DELAY,
     CONF_KEY_REPEAT,
     CONF_KEYFILE,
+    CONF_MAC_ADDRESS,
     CONF_PLAYBACK_DEBOUNCE,
-    CONF_REFRESH_IN_STANDBY,
     CONF_SECONDARY_MAC_ADDRESS,
     CONF_SOURCES,
     CONF_USE_SSL,
@@ -37,14 +38,12 @@ from ..const import (
     DEFAULT_ENABLE_CEC_NAMES,
     DEFAULT_ENABLE_MEDIA_CONTROLS,
     DEFAULT_ENABLE_PICTURE_CONTROLS,
-    DEFAULT_ENABLE_REMOTE,
     DEFAULT_ENABLE_SOUND_CONTROLS,
     DEFAULT_ENABLE_WOL,
     DEFAULT_INCLUDE_APPS_IN_SOURCES,
     DEFAULT_KEY_DELAY,
     DEFAULT_KEY_REPEAT,
     DEFAULT_PLAYBACK_DEBOUNCE,
-    DEFAULT_REFRESH_IN_STANDBY,
     DEFAULT_USE_SSL,
 )
 from ..protocol import check_certs_exist, validate_ssl_certs
@@ -53,9 +52,7 @@ from ..protocol import check_certs_exist, validate_ssl_certs
 class VidaaOptionsFlowHandler(config_entries.OptionsFlow):
     """Handle categorized VIDAA options with intuitive menu navigation."""
 
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.ConfigFlowResult:
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
         """Present categorized options menu."""
         return self.async_show_menu(
             step_id="init",
@@ -71,28 +68,63 @@ class VidaaOptionsFlowHandler(config_entries.OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         """Power, Wake-on-LAN and network options."""
-        if user_input is not None:
-            updated_options = {**self.config_entry.options, **user_input}
-            return self.async_create_entry(title="", data=updated_options)
-
+        errors: dict[str, str] = {}
         options = self.config_entry.options
+        data = self.config_entry.data
+
+        primary_mac = data.get(CONF_MAC_ADDRESS) or ""
+
+        if user_input is not None:
+            raw_sec_mac = (user_input.get(CONF_SECONDARY_MAC_ADDRESS) or "").strip()
+            if raw_sec_mac:
+                cleaned_mac = format_mac(raw_sec_mac)
+                if not re.match(r"^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$", cleaned_mac):
+                    errors[CONF_SECONDARY_MAC_ADDRESS] = "invalid_mac"
+                else:
+                    user_input[CONF_SECONDARY_MAC_ADDRESS] = cleaned_mac.lower()
+            else:
+                user_input[CONF_SECONDARY_MAC_ADDRESS] = ""
+
+            if not errors:
+                updated_options = {**self.config_entry.options, **user_input}
+                return self.async_create_entry(title="", data=updated_options)
+
+        current_sec_mac = options.get(CONF_SECONDARY_MAC_ADDRESS)
+        if not current_sec_mac:
+            current_sec_mac = data.get(CONF_SECONDARY_MAC_ADDRESS)
+
+        if not current_sec_mac:
+            client = (
+                getattr(self.config_entry.runtime_data, "client", None)
+                if hasattr(self.config_entry, "runtime_data")
+                else None
+            )
+            if client:
+                mac_wifi = getattr(client, "mac_wifi", None)
+                mac_eth = getattr(client, "mac_ethernet", None)
+                if mac_wifi and mac_eth and mac_wifi != mac_eth:
+                    current_sec_mac = mac_eth if primary_mac == mac_wifi else mac_wifi
+                elif mac_wifi and mac_wifi != primary_mac:
+                    current_sec_mac = mac_wifi
+                elif mac_eth and mac_eth != primary_mac:
+                    current_sec_mac = mac_eth
 
         return self.async_show_form(
             step_id="power_network",
-            data_schema=vol.Schema({
-                vol.Optional(
-                    CONF_ENABLE_WOL,
-                    default=options.get(CONF_ENABLE_WOL, DEFAULT_ENABLE_WOL),
-                ): bool,
-                vol.Optional(
-                    CONF_SECONDARY_MAC_ADDRESS,
-                    default=options.get(CONF_SECONDARY_MAC_ADDRESS, ""),
-                ): str,
-                vol.Optional(
-                    CONF_REFRESH_IN_STANDBY,
-                    default=options.get(CONF_REFRESH_IN_STANDBY, DEFAULT_REFRESH_IN_STANDBY),
-                ): bool,
-            }),
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
+                        CONF_ENABLE_WOL,
+                        default=options.get(CONF_ENABLE_WOL, DEFAULT_ENABLE_WOL),
+                    ): bool,
+                    vol.Optional(
+                        CONF_SECONDARY_MAC_ADDRESS,
+                        default=current_sec_mac or "",
+                    ): str,
+                }
+            ),
+            description_placeholders={"primary_mac": primary_mac or "Unknown"},
+            errors=errors,
         )
 
     async def async_step_playback_sources(
@@ -150,37 +182,39 @@ class VidaaOptionsFlowHandler(config_entries.OptionsFlow):
                 )
             )
 
-        schema_dict.update({
-            vol.Optional(
-                CONF_ENABLE_MEDIA_CONTROLS,
-                default=options.get(
+        schema_dict.update(
+            {
+                vol.Optional(
                     CONF_ENABLE_MEDIA_CONTROLS,
-                    DEFAULT_ENABLE_MEDIA_CONTROLS,
-                ),
-            ): bool,
-            vol.Optional(
-                CONF_ENABLE_CEC_NAMES,
-                default=options.get(
+                    default=options.get(
+                        CONF_ENABLE_MEDIA_CONTROLS,
+                        DEFAULT_ENABLE_MEDIA_CONTROLS,
+                    ),
+                ): bool,
+                vol.Optional(
                     CONF_ENABLE_CEC_NAMES,
-                    DEFAULT_ENABLE_CEC_NAMES,
-                ),
-            ): bool,
-            vol.Optional(
-                CONF_PLAYBACK_DEBOUNCE,
-                default=options.get(
+                    default=options.get(
+                        CONF_ENABLE_CEC_NAMES,
+                        DEFAULT_ENABLE_CEC_NAMES,
+                    ),
+                ): bool,
+                vol.Optional(
                     CONF_PLAYBACK_DEBOUNCE,
-                    DEFAULT_PLAYBACK_DEBOUNCE,
+                    default=options.get(
+                        CONF_PLAYBACK_DEBOUNCE,
+                        DEFAULT_PLAYBACK_DEBOUNCE,
+                    ),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=0.0,
+                        max=5.0,
+                        step=0.05,
+                        unit_of_measurement="s",
+                        mode=selector.NumberSelectorMode.SLIDER,
+                    )
                 ),
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=0.0,
-                    max=5.0,
-                    step=0.05,
-                    unit_of_measurement="s",
-                    mode=selector.NumberSelectorMode.SLIDER,
-                )
-            ),
-        })
+            }
+        )
 
         return self.async_show_form(
             step_id="playback_sources",
@@ -192,6 +226,11 @@ class VidaaOptionsFlowHandler(config_entries.OptionsFlow):
     ) -> config_entries.ConfigFlowResult:
         """Entities, device features, and remote timing controls."""
         if user_input is not None:
+            if CONF_KEY_REPEAT in user_input:
+                try:
+                    user_input[CONF_KEY_REPEAT] = round(float(user_input[CONF_KEY_REPEAT]))
+                except (ValueError, TypeError):
+                    user_input[CONF_KEY_REPEAT] = DEFAULT_KEY_REPEAT
             updated_options = {**self.config_entry.options, **user_input}
             return self.async_create_entry(title="", data=updated_options)
 
@@ -199,75 +238,65 @@ class VidaaOptionsFlowHandler(config_entries.OptionsFlow):
 
         return self.async_show_form(
             step_id="features_remote",
-            data_schema=vol.Schema({
-                vol.Optional(
-                    CONF_ENABLE_REMOTE,
-                    default=options.get(CONF_ENABLE_REMOTE, DEFAULT_ENABLE_REMOTE),
-                ): bool,
-                vol.Optional(
-                    CONF_ENABLE_PICTURE_CONTROLS,
-                    default=options.get(
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
                         CONF_ENABLE_PICTURE_CONTROLS,
-                        DEFAULT_ENABLE_PICTURE_CONTROLS,
-                    ),
-                ): bool,
-                vol.Optional(
-                    CONF_ENABLE_SOUND_CONTROLS,
-                    default=options.get(
+                        default=options.get(
+                            CONF_ENABLE_PICTURE_CONTROLS,
+                            DEFAULT_ENABLE_PICTURE_CONTROLS,
+                        ),
+                    ): bool,
+                    vol.Optional(
                         CONF_ENABLE_SOUND_CONTROLS,
-                        DEFAULT_ENABLE_SOUND_CONTROLS,
-                    ),
-                ): bool,
-                vol.Optional(
-                    CONF_ENABLE_AUDIO_ONLY,
-                    default=options.get(
+                        default=options.get(
+                            CONF_ENABLE_SOUND_CONTROLS,
+                            DEFAULT_ENABLE_SOUND_CONTROLS,
+                        ),
+                    ): bool,
+                    vol.Optional(
                         CONF_ENABLE_AUDIO_ONLY,
-                        DEFAULT_ENABLE_AUDIO_ONLY,
+                        default=options.get(
+                            CONF_ENABLE_AUDIO_ONLY,
+                            DEFAULT_ENABLE_AUDIO_ONLY,
+                        ),
+                    ): bool,
+                    vol.Optional(
+                        CONF_KEY_DELAY,
+                        default=options.get(CONF_KEY_DELAY, DEFAULT_KEY_DELAY),
+                    ): selector.NumberSelector(
+                        selector.NumberSelectorConfig(
+                            min=0.05,
+                            max=2.0,
+                            step=0.05,
+                            unit_of_measurement="s",
+                            mode=selector.NumberSelectorMode.SLIDER,
+                        )
                     ),
-                ): bool,
-                vol.Optional(
-                    CONF_KEY_DELAY,
-                    default=options.get(CONF_KEY_DELAY, DEFAULT_KEY_DELAY),
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=0.05,
-                        max=2.0,
-                        step=0.05,
-                        unit_of_measurement="s",
-                        mode=selector.NumberSelectorMode.SLIDER,
-                    )
-                ),
-                vol.Optional(
-                    CONF_KEY_REPEAT,
-                    default=options.get(CONF_KEY_REPEAT, DEFAULT_KEY_REPEAT),
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=1,
-                        max=10,
-                        step=1,
-                        mode=selector.NumberSelectorMode.BOX,
-                    )
-                ),
-            }),
+                    vol.Optional(
+                        CONF_KEY_REPEAT,
+                        default=int(options.get(CONF_KEY_REPEAT, DEFAULT_KEY_REPEAT)),
+                    ): selector.NumberSelector(
+                        selector.NumberSelectorConfig(
+                            min=1,
+                            max=10,
+                            step=1,
+                            mode=selector.NumberSelectorMode.BOX,
+                        )
+                    ),
+                }
+            ),
         )
 
-    async def async_step_security(
-        self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.ConfigFlowResult:
+    async def async_step_security(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
         """SSL / TLS encryption, auth profile, and client certificate paths."""
         errors: dict[str, str] = {}
         options = self.config_entry.options
         data = self.config_entry.data
 
-        current_profile = options.get(
-            CONF_AUTH_PROFILE, data.get(CONF_AUTH_PROFILE, DEFAULT_AUTH_PROFILE)
-        )
-        current_brand = options.get(
-            CONF_BRAND, data.get(CONF_BRAND, DEFAULT_BRAND_OPTION)
-        )
-        current_use_ssl = options.get(
-            CONF_USE_SSL, data.get(CONF_USE_SSL, DEFAULT_USE_SSL)
-        )
+        current_profile = options.get(CONF_AUTH_PROFILE, data.get(CONF_AUTH_PROFILE, DEFAULT_AUTH_PROFILE))
+        current_brand = options.get(CONF_BRAND, data.get(CONF_BRAND, DEFAULT_BRAND_OPTION))
+        current_use_ssl = options.get(CONF_USE_SSL, data.get(CONF_USE_SSL, DEFAULT_USE_SSL))
         current_cert = options.get(CONF_CERTFILE, data.get(CONF_CERTFILE, ""))
         current_key = options.get(CONF_KEYFILE, data.get(CONF_KEYFILE, ""))
 
@@ -276,6 +305,7 @@ class VidaaOptionsFlowHandler(config_entries.OptionsFlow):
             new_key = (user_input.get(CONF_KEYFILE) or "").strip()
 
             if new_cert or new_key:
+
                 async def _check_exist(c: str | None, k: str | None) -> bool:
                     if hasattr(self, "hass") and self.hass:
                         return await self.hass.async_add_executor_job(check_certs_exist, c, k)
@@ -294,6 +324,7 @@ class VidaaOptionsFlowHandler(config_entries.OptionsFlow):
                     else:
                         errors["base"] = "certs_not_found"
                 else:
+
                     async def _validate(c: str | None, k: str | None) -> tuple[bool, str | None]:
                         if hasattr(self, "hass") and self.hass:
                             return await self.hass.async_add_executor_job(validate_ssl_certs, c, k)
@@ -314,43 +345,41 @@ class VidaaOptionsFlowHandler(config_entries.OptionsFlow):
 
         return self.async_show_form(
             step_id="security",
-            data_schema=vol.Schema({
-                vol.Optional(
-                    CONF_AUTH_PROFILE,
-                    default=current_profile,
-                ): AUTH_PROFILE_SELECTOR,
-                vol.Optional(
-                    CONF_BRAND,
-                    default=current_brand,
-                ): BRAND_SELECTOR,
-                vol.Optional(
-                    CONF_USE_SSL,
-                    default=current_use_ssl,
-                ): bool,
-                vol.Optional(
-                    CONF_CERTFILE,
-                    default=current_cert,
-                ): str,
-                vol.Optional(
-                    CONF_KEYFILE,
-                    default=current_key,
-                ): str,
-            }),
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
+                        CONF_AUTH_PROFILE,
+                        default=current_profile,
+                    ): AUTH_PROFILE_SELECTOR,
+                    vol.Optional(
+                        CONF_BRAND,
+                        default=current_brand,
+                    ): BRAND_SELECTOR,
+                    vol.Optional(
+                        CONF_USE_SSL,
+                        default=current_use_ssl,
+                    ): bool,
+                    vol.Optional(
+                        CONF_CERTFILE,
+                        default=current_cert,
+                    ): str,
+                    vol.Optional(
+                        CONF_KEYFILE,
+                        default=current_key,
+                    ): str,
+                }
+            ),
             errors=errors,
         )
 
     # --------------------------------------------------------------------------
     # Backward compatibility aliases
     # --------------------------------------------------------------------------
-    async def async_step_general(
-        self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.ConfigFlowResult:
+    async def async_step_general(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
         """Backward-compatible alias for power_network."""
         return await self.async_step_power_network(user_input)
 
-    async def async_step_sources(
-        self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.ConfigFlowResult:
+    async def async_step_sources(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
         """Backward-compatible alias for playback_sources."""
         return await self.async_step_playback_sources(user_input)
 
@@ -360,15 +389,11 @@ class VidaaOptionsFlowHandler(config_entries.OptionsFlow):
         """Backward-compatible alias for features_remote."""
         return await self.async_step_features_remote(user_input)
 
-    async def async_step_remote_keys(
-        self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.ConfigFlowResult:
+    async def async_step_remote_keys(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
         """Backward-compatible alias for features_remote."""
         return await self.async_step_features_remote(user_input)
 
-    async def async_step_certs(
-        self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.ConfigFlowResult:
+    async def async_step_certs(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
         """Backward-compatible alias for security."""
         return await self.async_step_security(user_input)
 

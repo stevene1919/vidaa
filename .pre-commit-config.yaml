@@ -1,20 +1,24 @@
 # Pre-commit configuration for Hisense VIDAA TV Integration
 repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.4
+    hooks:
+      - id: ruff-check
+        args:
+          - --fix
+      - id: ruff-format
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-json
       - id: check-added-large-files
-
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.4
-    hooks:
-      - id: ruff
-        args: [--fix]
-      - id: ruff-format
+      - id: no-commit-to-branch
+        args:
+          - --branch=main
 
   - repo: https://github.com/codespell-project/codespell
     rev: v2.3.0
@@ -27,8 +31,7 @@ repos:
     hooks:
       - id: pytest
         name: pytest
-        entry: pytest
+        entry: uv run pytest -q
         language: system
         pass_filenames: false
         always_run: true
-

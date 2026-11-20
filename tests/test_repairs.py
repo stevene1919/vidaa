@@ -67,6 +67,7 @@ async def test_repairs_flow_confirm_certs_found(monkeypatch):
 # Fix 3: AuthTokenInvalidatedRepairFlow tests
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.anyio
 async def test_auth_token_invalidated_repair_flow_creation():
     """async_create_fix_flow must return AuthTokenInvalidatedRepairFlow for the new issue type."""
@@ -125,9 +126,7 @@ async def test_auth_token_invalidated_repair_flow_starts_reauth():
     entry.entry_id = "abc123"
     hass.config_entries.async_get_entry = MagicMock(return_value=entry)
 
-    flow = await async_create_fix_flow(
-        hass, "auth_token_invalidated_abc123", {"entry_id": "abc123"}
-    )
+    flow = await async_create_fix_flow(hass, "auth_token_invalidated_abc123", {"entry_id": "abc123"})
     flow.hass = hass
 
     result = await flow.async_step_confirm(user_input={})
@@ -184,9 +183,12 @@ async def test_certificate_missing_repair_flow_reloads_entry_on_fix():
     assert isinstance(flow, CertificateMissingRepairFlow)
     flow.hass = hass
 
-    with patch("custom_components.vidaa.repairs.resolve_certificates", return_value=("/ssl/custom.crt", "/ssl/custom.key")), \
-         patch("custom_components.vidaa.repairs.check_certs_exist", return_value=True):
+    with (
+        patch(
+            "custom_components.vidaa.repairs.resolve_certificates", return_value=("/ssl/custom.crt", "/ssl/custom.key")
+        ),
+        patch("custom_components.vidaa.repairs.check_certs_exist", return_value=True),
+    ):
         result = await flow.async_step_confirm(user_input={})
         assert result["type"] == "create_entry"
         hass.config_entries.async_reload.assert_awaited_once_with("test_entry_cert")
-

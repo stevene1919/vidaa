@@ -64,9 +64,10 @@ async def test_async_migrate_entry_v1_to_v2():
     mock_device = MagicMock()
     mock_device.id = "dev_reg_id_1"
 
-    with patch("custom_components.vidaa.er.async_get", return_value=ent_reg), \
-         patch("custom_components.vidaa.dr.async_get") as mock_dr_get:
-
+    with (
+        patch("custom_components.vidaa.er.async_get", return_value=ent_reg),
+        patch("custom_components.vidaa.dr.async_get") as mock_dr_get,
+    ):
         dev_reg = MagicMock()
         dev_reg.async_get_device.return_value = mock_device
         mock_dr_get.return_value = dev_reg
@@ -85,8 +86,41 @@ async def test_async_migrate_entry_v1_to_v2():
         hass.config_entries.async_update_entry.assert_called_once_with(
             mock_entry,
             version=2,
-            minor_version=1,
+            minor_version=2,
         )
+
+
+@pytest.mark.anyio
+async def test_async_migrate_entry_v2_1_to_v2_2_legacy_ssl():
+    """Test migrating v2.1 legacy entry with use_ssl=False to v2.2 with use_ssl=True."""
+    hass = MagicMock(spec=HomeAssistant)
+    hass.config_entries = MagicMock()
+
+    mock_entry = MagicMock(spec=ConfigEntry)
+    mock_entry.entry_id = "entry_legacy_ssl_123"
+    mock_entry.title = "Older Hisense TV"
+    mock_entry.version = 2
+    mock_entry.minor_version = 1
+    mock_entry.domain = DOMAIN
+    mock_entry.data = {
+        "ip_address": "192.168.50.12",
+        "auth_profile": "legacy",
+        "use_ssl": False,
+    }
+    mock_entry.options = {}
+
+    result = await async_migrate_entry(hass, mock_entry)
+    assert result is True
+
+    hass.config_entries.async_update_entry.assert_called_once_with(
+        mock_entry,
+        data={
+            "ip_address": "192.168.50.12",
+            "auth_profile": "legacy",
+            "use_ssl": True,
+        },
+        minor_version=2,
+    )
 
 
 @pytest.mark.anyio
@@ -153,9 +187,10 @@ async def test_legacy_device_trigger_support():
     mock_device.id = "device_123"
     mock_device.config_entries = ["test_entry_456"]
 
-    with patch("custom_components.vidaa.helpers.dr.async_get") as mock_dr_get, \
-         patch("custom_components.vidaa.device_trigger.async_get_device_entry_by_device_id", return_value=mock_device):
-
+    with (
+        patch("custom_components.vidaa.helpers.dr.async_get") as mock_dr_get,
+        patch("custom_components.vidaa.device_trigger.async_get_device_entry_by_device_id", return_value=mock_device),
+    ):
         dev_reg = MagicMock()
         dev_reg.async_get.return_value = mock_device
         mock_dr_get.return_value = dev_reg
@@ -201,16 +236,14 @@ async def test_async_setup_auto_migrates_legacy_entries():
     hass.config_entries = MagicMock()
     hass.config_entries.async_entries.return_value = [legacy_entry]
 
-    with patch("custom_components.vidaa.er.async_get"), \
-         patch("custom_components.vidaa.dr.async_get"):
-
+    with patch("custom_components.vidaa.er.async_get"), patch("custom_components.vidaa.dr.async_get"):
         res = await async_setup(hass, {})
         assert res is True
         assert legacy_entry.domain == DOMAIN
         hass.config_entries.async_update_entry.assert_called_once_with(
             legacy_entry,
             version=2,
-            minor_version=1,
+            minor_version=2,
         )
 
 
@@ -225,9 +258,10 @@ async def test_legacy_directory_detection_issue():
     hass.config_entries.async_entries.return_value = []
     hass.config.path.return_value = "/config/custom_components/hisense_vidaa"
 
-    with patch("os.path.isdir", return_value=True), \
-         patch("custom_components.vidaa.ir.async_create_issue") as mock_create_issue:
-
+    with (
+        patch("os.path.isdir", return_value=True),
+        patch("custom_components.vidaa.ir.async_create_issue") as mock_create_issue,
+    ):
         res = await async_setup(hass, {})
         assert res is True
         mock_create_issue.assert_called_once()

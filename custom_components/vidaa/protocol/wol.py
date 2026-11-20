@@ -1,4 +1,4 @@
-"""Wake-on-LAN magic packet utilities for Hisense VIDAA TV."""
+"""Wake-on-LAN magic packet utilities for VIDAA Smart TV."""
 
 from __future__ import annotations
 

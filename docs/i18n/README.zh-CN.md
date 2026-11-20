@@ -27,10 +27,10 @@
 
 只需 3 个简步，3 分钟内完成设置：
 
-### 1️⃣ 通过 HACS 安装
-点击下方按钮（或在 HACS 中搜索 **VIDAA Smart TV** → 集成 → 下载）：
+### 1️⃣ 通过 Marketplace (HACS) 安装
+点击下方按钮（或在 Marketplace (HACS) 中搜索 **VIDAA Smart TV** → 集成 → 下载）：
 
-[![打开 HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
+[![打开 Marketplace (HACS)](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
 
 ### 2️⃣ 放置证书密钥文件 (`client_mobile_android.p12` 或 `El.p12`)
 VIDAA 电视要求在 36669 端口进行双向 TLS 认证。将通用秘钥文件 **`client_mobile_android.p12`**（或 `El.p12`）放置在 Home Assistant 的 **`/config/ssl/`** 目录中。
@@ -91,5 +91,5 @@ VIDAA 电视要求在 36669 端口进行双向 TLS 认证。将通用秘钥文�
 | 📱 **[Lovelace 仪表盘与卡片](../lovelace_cards.md)** | 遥控器卡片、快捷按钮与界面范例。 |
 | 🛠️ **[服务与自动化示例](../services_and_automations.md)** | 观影模式、输入源自动切换及按键宏 YAML 示例。 |
 | 🔒 **[高级 SSL 证书](../certificates.md)** | 证书路径、自建 PEM 证书与 OpenSSL 命令行操作。 |
-| 🧪 **[CLI 测试与诊断工具](../cli_tools.md)** | 独立排错工具（`scripts/test_client.py`、`scripts/debug_tv.py`）。 |
+| 🧪 **[CLI 测试与诊断工具](../cli_tools.md)** | 独立排错工具（`scripts/test_client.py`、`scripts/diag.sh`）。 |
 | 🩺 **[故障排除与排错指南](../troubleshooting.md)** | 网络连接、证书认证及配对失败排查方案。 |

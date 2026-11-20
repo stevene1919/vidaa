@@ -1,14 +1,15 @@
-"""Client for connecting to Hisense VIDAA TV MQTT broker over TLS."""
+"""Client for connecting to VIDAA Smart TV MQTT broker over TLS."""
 
 from __future__ import annotations
 
 import asyncio
 import inspect
 import logging
+import os
 import time
 from typing import TYPE_CHECKING, Any
 
-from .const import BRAND_MAP
+from .const import BRAND_MAP, DEFAULT_WOL_TIMEOUT
 from .protocol import generate_initial_credentials, resolve_ca_certificate, resolve_certificates
 from .protocol.auth import (
     async_perform_token_refresh,
@@ -25,7 +26,7 @@ from .protocol.pairing import (
 )
 from .protocol.ping import async_ping_tv
 from .protocol.topics import build_topic_paths
-from .protocol.upnp import HisenseUpnpClient
+from .protocol.upnp import VidaaUpnpClient
 from .protocol.wol import send_wake_on_lan
 from .tv.actions import TvActionsMixin
 from .tv.callbacks import CallbackRegistryMixin
@@ -69,6 +70,7 @@ class VidaaClient(
         self,
         ip: str,
         mac: str | None = None,
+        secondary_mac: str | None = None,
         client_id: str | None = None,
         username: str | None = None,
         password: str | None = None,
@@ -84,7 +86,7 @@ class VidaaClient(
         use_ssl: bool = True,
         verify_ssl: bool = False,
         auth_profile: str = "auto",
-        refresh_in_standby: bool = False,
+        refresh_in_standby: bool = True,
         name: str | None = None,
         brand: str = "his",
         session: aiohttp.ClientSession | None = None,
@@ -92,6 +94,7 @@ class VidaaClient(
         """Initialize the client."""
         self.ip = ip
         self.mac = mac
+        self.secondary_mac = secondary_mac
         self.brand = "his" if (not brand or brand == "auto") else brand
         self.client_id = client_id or ""
         self.username = username or ""
@@ -137,16 +140,26 @@ class VidaaClient(
         self.use_ssl = use_ssl
         self.verify_ssl = verify_ssl
 
-        if not use_ssl or auth_profile in ("legacy", "static") or (
-            certfile
-            and keyfile
-            and not (
-                (isinstance(certfile, str) and certfile.lower().endswith((".p12", ".pfx")))
-                or (isinstance(keyfile, str) and keyfile.lower().endswith((".p12", ".pfx")))
+        if (
+            not use_ssl
+            or auth_profile in ("legacy", "static")
+            or (
+                certfile
+                and keyfile
+                and not (
+                    (isinstance(certfile, str) and certfile.lower().endswith((".p12", ".pfx")))
+                    or (isinstance(keyfile, str) and keyfile.lower().endswith((".p12", ".pfx")))
+                )
             )
         ):
-            self.certfile = certfile
-            self.keyfile = keyfile
+            if auth_profile in ("legacy", "static") and not (
+                certfile and os.path.isfile(certfile) and keyfile and os.path.isfile(keyfile)
+            ):
+                self.certfile = None
+                self.keyfile = None
+            else:
+                self.certfile = certfile
+                self.keyfile = keyfile
             self.ca_cert = ca_cert
         else:
             self.certfile, self.keyfile = resolve_certificates(
@@ -167,6 +180,8 @@ class VidaaClient(
         self._auth_future: asyncio.Future | None = None
         self._auth_code_future: asyncio.Future | None = None
         self._token_future: asyncio.Future | None = None
+        self._wake_event = asyncio.Event()
+        self._reconnect_event = asyncio.Event()
         self._init_callbacks()
 
         self._token_manager = TokenLifecycleManager(self)
@@ -179,11 +194,42 @@ class VidaaClient(
 
         # UPnP Client for zero-cert fast reachability, volume, and playback state
         # (shares Home Assistant's aiohttp session when injected)
-        self.upnp = HisenseUpnpClient(self.ip, session=session)
+        self.upnp = VidaaUpnpClient(self.ip, session=session)
 
     @property
     def _query_timer(self) -> Any:
         return self._query_task
+
+    def _update_wake_event(self) -> None:
+        """Updates the wake event state based on connection and power telemetry."""
+        wake_event = getattr(self, "_wake_event", None)
+        if wake_event is not None:
+            is_awake = bool(getattr(self, "connected", False) and getattr(self, "is_on", False))
+            loop = getattr(self, "_loop", None)
+            try:
+                running = asyncio.get_running_loop()
+            except RuntimeError:
+                running = None
+            action = wake_event.set if is_awake else wake_event.clear
+            if running is not None and (loop is None or running is loop):
+                action()
+            elif loop is not None and loop.is_running():
+                loop.call_soon_threadsafe(action)
+            else:
+                action()
+
+    async def async_wait_until_awake(self, timeout: float = DEFAULT_WOL_TIMEOUT) -> bool:
+        """Wait until TV is connected to MQTT and reports an active ON state."""
+        if getattr(self, "connected", False) and getattr(self, "is_on", False):
+            return True
+        wake_event = getattr(self, "_wake_event", None)
+        if wake_event is None:
+            return bool(getattr(self, "connected", False) and getattr(self, "is_on", False))
+        try:
+            await asyncio.wait_for(wake_event.wait(), timeout=timeout)
+            return bool(getattr(self, "connected", False) and getattr(self, "is_on", False))
+        except TimeoutError:
+            return bool(getattr(self, "connected", False) and getattr(self, "is_on", False))
 
     @_query_timer.setter
     def _query_timer(self, value: Any) -> None:
@@ -222,7 +268,11 @@ class VidaaClient(
     # --------------------------------------------------------------------------
     def validate_certificates(self) -> None:
         """Validates that local client certificates exist on disk."""
-        self.certfile, self.keyfile = resolve_certificates(auth_profile=self.auth_profile, certfile=self.certfile, keyfile=self.keyfile)
+        if not self.use_ssl or self.auth_profile in ("legacy", "static"):
+            return
+        self.certfile, self.keyfile = resolve_certificates(
+            auth_profile=self.auth_profile, certfile=self.certfile, keyfile=self.keyfile
+        )
         self.ca_cert = resolve_ca_certificate(self.ca_cert)
         if not self.certfile or not self.keyfile:
             raise FileNotFoundError(
@@ -341,9 +391,7 @@ class VidaaClient(
         """Starts the authentication handshake and triggers the TV to show PIN."""
         await async_start_pairing_handshake(self)
 
-    async def _async_start_auth_internal(
-        self, profile: str = "modern", use_new_auth: bool | None = None
-    ) -> None:
+    async def _async_start_auth_internal(self, profile: str = "modern", use_new_auth: bool | None = None) -> None:
         """Internal helper attempting a single auth handshake attempt."""
         await _async_execute_pairing_attempt(self, profile=profile, use_new_auth=use_new_auth)
 
@@ -362,5 +410,5 @@ class VidaaClient(
         return send_wake_on_lan(mac=mac, broadcast_ip=broadcast_ip, port=port, ip=ip)
 
 
-# Backwards-compatible alias during migration
+# Backwards-compatible alias for migration
 HisenseTvClient = VidaaClient

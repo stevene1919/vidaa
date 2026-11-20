@@ -1,4 +1,4 @@
-"""Media execution, playback commands, and source resolution for Hisense VIDAA TV."""
+"""Media execution, playback commands, and source resolution for VIDAA Smart TV."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import time
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from ..client import HisenseTvClient
+    from ..client import VidaaClient
 
 __all__ = [
     "async_execute_play_media",
@@ -100,10 +100,7 @@ def parse_sourcelist_payload(
     for source in sources:
         if isinstance(source, dict):
             source_name = (
-                source.get("sourcename")
-                or source.get("sourceName")
-                or source.get("displayname")
-                or source.get("name")
+                source.get("sourcename") or source.get("sourceName") or source.get("displayname") or source.get("name")
             )
             if source_name and is_physical_input_source(source_name):
                 available_sources.append(source_name)
@@ -189,10 +186,7 @@ def build_media_player_source_list(
             dev_label = None
             if enable_cec and "hdmi" in source_name.lower():
                 if isinstance(source_data, dict):
-                    dev_label = (
-                        source_data.get("displayname2")
-                        or source_data.get("source_detail")
-                    )
+                    dev_label = source_data.get("displayname2") or source_data.get("source_detail")
                 if not dev_label and source_name == current_source and connected_device:
                     dev_label = connected_device
             if dev_label:
@@ -219,7 +213,7 @@ def build_media_player_source_list(
 
 
 def execute_play_media(
-    client: HisenseTvClient,
+    client: VidaaClient,
     app_dict: dict[str, dict[str, Any]],
     media_type: str,
     media_id: str,
@@ -237,9 +231,7 @@ def execute_play_media(
             )
             return
         for app_name, app_info in app_dict.items():
-            if app_name.lower() == media_id.lower() or (
-                str(app_info.get("url") or "").lower() == media_id.lower()
-            ):
+            if app_name.lower() == media_id.lower() or (str(app_info.get("url") or "").lower() == media_id.lower()):
                 client.launch_app(
                     str(app_info.get("appId") or app_info.get("app_id") or ""),
                     str(app_info.get("name") or app_name),
@@ -258,11 +250,7 @@ def execute_play_media(
         for ch in channels:
             if isinstance(ch, dict):
                 ch_name = str(ch.get("channel_name") or ch.get("name") or "").strip().lower()
-                if (
-                    ch_name
-                    and ch_name == clean_id.lower()
-                    and (ch_num := (ch.get("channel_num") or ch.get("num")))
-                ):
+                if ch_name and ch_name == clean_id.lower() and (ch_num := (ch.get("channel_num") or ch.get("num"))):
                     clean_id = str(ch_num)
                     break
 
@@ -279,38 +267,37 @@ def execute_play_media(
 
 
 async def async_execute_play_media(
-    client: HisenseTvClient,
+    client: VidaaClient,
     app_dict: dict[str, dict[str, Any]],
     media_type: str,
     media_id: str,
-) -> None:
+) -> bool:
     """Executes media playback command asynchronously: launches app, tunes channel number, or sends key."""
     type_lower = media_type.lower()
     if type_lower in ("app", "application", "url", "deep_link", "video", "music") or "://" in media_id:
         # Check app dictionary for direct match or scheme match
         app = app_dict.get(media_id)
         if app:
-            await client.async_launch_app(
-                str(app.get("appId") or app.get("app_id") or ""),
-                str(app.get("name") or ""),
-                str(app.get("url") or app.get("appUrl") or ""),
-            )
-            return
-        for app_name, app_info in app_dict.items():
-            if app_name.lower() == media_id.lower() or (
-                str(app_info.get("url") or "").lower() == media_id.lower()
-            ):
+            return bool(
                 await client.async_launch_app(
-                    str(app_info.get("appId") or app_info.get("app_id") or ""),
-                    str(app_info.get("name") or app_name),
-                    str(app_info.get("url") or app_info.get("appUrl") or ""),
+                    str(app.get("appId") or app.get("app_id") or ""),
+                    str(app.get("name") or ""),
+                    str(app.get("url") or app.get("appUrl") or ""),
                 )
-                return
+            )
+        for app_name, app_info in app_dict.items():
+            if app_name.lower() == media_id.lower() or (str(app_info.get("url") or "").lower() == media_id.lower()):
+                return bool(
+                    await client.async_launch_app(
+                        str(app_info.get("appId") or app_info.get("app_id") or ""),
+                        str(app_info.get("name") or app_name),
+                        str(app_info.get("url") or app_info.get("appUrl") or ""),
+                    )
+                )
 
         # Direct URL / deep-link launch
         if "://" in media_id or type_lower in ("url", "deep_link"):
-            await client.async_launch_app("", media_id, media_id)
-            return
+            return bool(await client.async_launch_app("", media_id, media_id))
 
     if type_lower in ("channel", "tvshow"):
         clean_id = str(media_id).strip()
@@ -318,28 +305,29 @@ async def async_execute_play_media(
         for ch in channels:
             if isinstance(ch, dict):
                 ch_name = str(ch.get("channel_name") or ch.get("name") or "").strip().lower()
-                if (
-                    ch_name
-                    and ch_name == clean_id.lower()
-                    and (ch_num := (ch.get("channel_num") or ch.get("num")))
-                ):
+                if ch_name and ch_name == clean_id.lower() and (ch_num := (ch.get("channel_num") or ch.get("num"))):
                     clean_id = str(ch_num)
                     break
 
+        all_ok = True
         for char in clean_id:
             if char.isdigit():
-                await client.async_send_key(f"KEY_{char}")
+                res = await client.async_send_key(f"KEY_{char}")
+                if res is False:
+                    all_ok = False
                 await asyncio.sleep(0.1)
             elif char in (".", "-"):
-                await client.async_send_key("KEY_CHANNELDOT")
+                res = await client.async_send_key("KEY_CHANNELDOT")
+                if res is False:
+                    all_ok = False
                 await asyncio.sleep(0.1)
-        return
+        return all_ok
 
-    await client.async_send_command(media_id)
+    return bool(await client.async_send_command(media_id))
 
 
 def execute_select_source(
-    client: HisenseTvClient,
+    client: VidaaClient,
     source_dict: dict[str, dict[str, Any]],
     app_dict: dict[str, dict[str, Any]],
     source: str,
@@ -370,11 +358,9 @@ def execute_select_source(
                 if source_name.lower() in (source_lower, cleaned_lower):
                     matched_source = source_data
                     break
-                cec_label = str(
-                    source_data.get("displayname2")
-                    or source_data.get("source_detail")
-                    or ""
-                ).strip().lower()
+                cec_label = (
+                    str(source_data.get("displayname2") or source_data.get("source_detail") or "").strip().lower()
+                )
                 if cec_label and cec_label in (source_lower, cleaned_lower):
                     matched_source = source_data
                     break
@@ -388,14 +374,14 @@ def execute_select_source(
 
 
 async def async_execute_select_source(
-    client: HisenseTvClient,
+    client: VidaaClient,
     source_dict: dict[str, dict[str, Any]],
     app_dict: dict[str, dict[str, Any]],
     source: str,
-) -> None:
+) -> bool:
     """Resolves and selects a source input or smart TV application asynchronously."""
     if not source:
-        return
+        return False
     cleaned_source = clean_source_label(source)
     source_lower = source.strip().lower()
     cleaned_lower = cleaned_source.strip().lower()
@@ -408,8 +394,9 @@ async def async_execute_select_source(
                 app = app_data
                 break
     if app:
-        await client.async_launch_app(str(app.get("appId", "")), str(app.get("name", "")), str(app.get("url", "")))
-        return
+        return bool(
+            await client.async_launch_app(str(app.get("appId", "")), str(app.get("name", "")), str(app.get("url", "")))
+        )
 
     # 2. Input source match (exact and case-insensitive)
     matched_source = source_dict.get(source) or source_dict.get(cleaned_source)
@@ -419,21 +406,18 @@ async def async_execute_select_source(
                 if source_name.lower() in (source_lower, cleaned_lower):
                     matched_source = source_data
                     break
-                cec_label = str(
-                    source_data.get("displayname2")
-                    or source_data.get("source_detail")
-                    or ""
-                ).strip().lower()
+                cec_label = (
+                    str(source_data.get("displayname2") or source_data.get("source_detail") or "").strip().lower()
+                )
                 if cec_label and cec_label in (source_lower, cleaned_lower):
                     matched_source = source_data
                     break
     if matched_source:
         resolved_source_id = str(matched_source.get("sourceid") or matched_source.get("sourcename") or "")
         resolved_source_name = str(matched_source.get("sourcename") or cleaned_source)
-        await client.async_change_source(resolved_source_id, resolved_source_name)
-        return
+        return bool(await client.async_change_source(resolved_source_id, resolved_source_name))
 
-    await client.async_change_source(cleaned_source)
+    return bool(await client.async_change_source(cleaned_source))
 
 
 def parse_media_state_broadcast(
@@ -510,12 +494,7 @@ def parse_sourcelist_data(data: list[dict[str, Any]] | None) -> dict[str, dict[s
         if not isinstance(item, dict):
             continue
         # Accept the same key spellings as parse_sourcelist_payload.
-        name = (
-            item.get("sourcename")
-            or item.get("sourceName")
-            or item.get("displayname")
-            or item.get("name")
-        )
+        name = item.get("sourcename") or item.get("sourceName") or item.get("displayname") or item.get("name")
         if name:
             result[name] = item
     return result
@@ -536,4 +515,3 @@ def parse_applist_data(
         if name:
             app_dict[name] = item
     return data, app_dict
-

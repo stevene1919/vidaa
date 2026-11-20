@@ -20,11 +20,11 @@ The integration automatically registers entities across 9 Home Assistant platfor
 
 | Platform            | Entity Class                | Description & Features                                                                                                                                                                                |
 |:------------------- |:--------------------------- |:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`media_player`**  | `MediaPlayerDeviceClass.TV` | Power toggle, volume step/set, mute, source input switcher, Smart TV app launcher, media transport controls (Play, Pause, Stop, Next, Previous), active source/app artwork, and display state.        |
+| **`media_player`**  | `MediaPlayerDeviceClass.TV` | Power toggle, volume step/set, mute, source input switcher, Smart TV app launcher, media transport controls (Play, Pause, Stop, Next, Previous), active source/app artwork, display state, and state attributes (`hotel_mode`, `audio_output`, `raw_source`, `connected_device`). |
 | **`remote`**        | `RemoteEntity`              | Discrete key press commands, sequence dispatching (`vidaa.send_key_sequence`), configurable inter-key delays, and repeat counts.                                                              |
 | **`sensor`**        | `SensorEntity`              | Active Source, Active App, Audio Output Mode, Session Status, Auth Profile, and Hardware Clock Drift offset ($> 60\text{s}$ warning threshold).                                                       |
 | **`binary_sensor`** | `BinarySensorEntity`        | Live MQTT Connection state and In Use indicator.                                                                                                                                                      |
-| **`button`**        | `ButtonEntity`              | **Sync TV Clock**, **Force Reconnect**, and **Trigger Re-pairing** diagnostic buttons.                                                                                                                |
+| **`button`**        | `ButtonEntity`              | **Sync TV Clock**, **Force Reconnect**, **Start Re-authentication**, and **Probe Capabilities** diagnostic buttons.                                                                                                                |
 | **`switch`**        | `SwitchEntity`              | **Debug Logging** logger toggle and **Audio Only** screen backlight toggle.                                                                                                                           |
 | **`select`**        | `SelectEntity`              | **Picture Mode** (`Standard`, `Cinema Day`, `Cinema Night`, `Dynamic`, `Sports`, `Game`, `Filmmaker`) and **Sound Mode** switcher (`Standard`, `Theatre`, `Music`, `Speech`, `Late Night`, `Sports`). |
 | **`number`**        | `NumberEntity`              | Calibration sliders for **Backlight**, **Brightness**, and **Contrast** (0–100).                                                                                                                      |
@@ -68,11 +68,10 @@ To customize integration behavior for an existing TV, navigate to **Settings →
 
 ### 2.1 Power & Network (`power_network`)
 
-| Parameter                   | Type      | Default | Description                                                                                                                                                    |
-|:--------------------------- |:--------- |:------- |:-------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`enable_wol`**            | `boolean` | `true`  | Automatically sends Wake-on-LAN (WoL) magic packets to wake the TV when powering on from cold standby.                                                         |
-| **`secondary_mac_address`** | `string`  | `None`  | Secondary MAC address (e.g., Ethernet MAC if paired over Wi-Fi, or vice-versa). WoL packets will be broadcast to both MACs simultaneously.                     |
-| **`refresh_in_standby`**    | `boolean` | `false` | When enabled, proactively refreshes MQTT access tokens even while the TV is in standby (recommended for TVs that maintain an active network stack in standby). |
+| Parameter                   | Type      | Default | Description                                                                                                                                |
+|:--------------------------- |:--------- |:------- |:------------------------------------------------------------------------------------------------------------------------------------------ |
+| **`enable_wol`**            | `boolean` | `true`  | Automatically sends Wake-on-LAN (WoL) magic packets to wake the TV when powering on from cold standby.                                     |
+| **`secondary_mac_address`** | `string`  | `None`  | Secondary MAC address (e.g., Ethernet MAC if paired over Wi-Fi, or vice-versa). WoL packets will be broadcast to both MACs simultaneously. |
 
 ### 2.2 Playback & Sources (`playback_sources`)
 
@@ -88,7 +87,6 @@ To customize integration behavior for an existing TV, navigate to **Settings →
 
 | Parameter                     | Type                      | Default | Description                                                                                                |
 |:----------------------------- |:------------------------- |:------- |:---------------------------------------------------------------------------------------------------------- |
-| **`enable_remote`**           | `boolean`                 | `true`  | When enabled, registers a `remote.<tv>` entity for sending discrete remote keys and sequences.             |
 | **`enable_picture_controls`** | `boolean`                 | `true`  | Exposes `select.<tv>_picture_mode` and calibration number entities (Backlight, Brightness, Contrast).      |
 | **`enable_sound_controls`**   | `boolean`                 | `true`  | Exposes `select.<tv>_sound_mode` for switching audio modes (Standard, Theater, Music, Speech, Late Night). |
 | **`enable_audio_only`**       | `boolean`                 | `true`  | Exposes `switch.<tv>_audio_only` to turn off the TV display backlight while keeping audio playing.         |
@@ -128,40 +126,67 @@ If your TV's local IP address changes (for example, if DHCP assigns a new lease)
 
 To facilitate real-time monitoring and troubleshooting directly from the Home Assistant UI, the integration provides several built-in diagnostic and maintenance entities under the **Diagnostic** category:
 
-### 3.1 Maintenance Buttons (`button`)
+### 4.1 Maintenance Buttons (`button`)
 
-| Entity ID                            | Entity Name            | Description                                                                                                                                                                                |
-|:------------------------------------ |:---------------------- |:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **`button.<tv>_sync_clock`**         | **Sync TV Clock**      | Queries the TV's UPnP `Date:` HTTP header on port `38400` / `18400`, recalculates the host-to-TV clock drift in seconds, and updates the clock drift diagnostic sensor.                    |
-| **`button.<tv>_force_reconnect`**    | **Force Reconnect**    | Tears down the existing MQTT broker connection loop, resets socket state, and re-establishes a fresh connection to the TV. Useful when recovering from router reboots or network glitches. |
-| **`button.<tv>_trigger_re_pairing`** | **Trigger Re-pairing** | Manually initiates Home Assistant's native re-authentication and PIN pairing flow on the device without waiting for an automated token error or repairs issue.                             |
+| Entity ID                                 | Entity Name                  | Description                                                                                                                                                                                                                                                                                                                                                                                       |
+|:----------------------------------------- |:---------------------------- |:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`button.<tv>_sync_clock`**              | **Sync TV Clock**            | Queries the TV's UPnP `Date:` HTTP header on port `38400` / `18400`, recalculates host-to-TV clock drift in seconds, and updates the `sensor.<tv>_clock_drift` diagnostic entity. Resolves timestamp divergence issues causing token generation or signature failures.                                                                                                                           |
+| **`button.<tv>_force_reconnect`**         | **Force Reconnect**          | Resets exponential backoff counters (`rejected_refresh_failures`, `broker_rejection_failures`), tears down the active MQTT session socket, and attempts immediate reconnection. Awaits handshake resolution up to 3 seconds, raising an actionable `HomeAssistantError` (`auth_required` or `not_connected`) if connection cannot be established.                                                 |
+| **`button.<tv>_start_re_authentication`** | **Start Re-authentication**  | Initiates Home Assistant's native re-authentication flow. Transitions `media_player` and `remote` entities to `unavailable`, flips `binary_sensor.<tv>_authentication_problem` to `on`, opens an actionable repair issue in **Settings → System → Repairs**, and posts a clickable persistent notification directing the user to submit and complete PIN pairing.                                     |
+| **`button.<tv>_probe_capabilities`**      | **Probe Capabilities**       | Actively probes the TV over MQTT for supported Picture (contrast, brightness, backlight) and Sound (bass, treble, balance) settings, updating config entry options dynamically (disabled by default; enable in entity settings to probe newly discovered TV capabilities).                                                                                                                     |
 
-### 3.2 Diagnostic Sensors (`sensor` & `binary_sensor`)
+### 4.2 Diagnostic Sensors (`sensor` & `binary_sensor`)
 
-| Entity ID                               | Entity Name        | Description & Attributes                                                                                                                                                                                                                                                                                                                                                                                |
-|:--------------------------------------- |:------------------ |:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`sensor.<tv>_clock_drift`**           | **Clock Drift**    | Reports TV hardware clock drift in seconds relative to the Home Assistant host (disabled by default). Automatically synchronized every 2 hours and on wake transition from standby. Changes icon between `mdi:clock-check-outline` (synced, $< 60\text{s}$) and `mdi:clock-alert-outline` ($> 60\text{s}$). Attributes: `synchronized` (bool), `drift_human` (e.g. `+15s`, `-5d 14h`), `tv_time`, `host_time`, `last_synced`. |
-| **`sensor.<tv>_session_status`**        | **Session Status** | Indicates active session state (`Active`, `Standby`, `Reauth Required`). Attributes: `client_id` (masked), `auth_profile`, `configured_auth_profile`, `brand_profile`, `active_brand`, `encryption` (TLS version/port), `local_only` (bool), `paired_at`, `access_token_expires_at`, `refresh_token_expires_at`. |
-| **`sensor.<tv>_reported_name`**         | **Reported Name**  | Displays the live friendly name reported by the TV over MQTT/UPnP (disabled by default). Attributes: `ip_address`, `mac_address`, `model_name`, `manufacturer`, `firmware_version`. |
-| **`sensor.<tv>_active_source`**         | **Active Source**  | Current hardware input source name (`HDMI1`, `HDMI2`, `TV`, `AV`, `App`, `Home Launcher`, `Standby`, `Off`). Attributes: `display_name` (e.g. `HDMI1 (Bedroom Chrome)`), `connected_device` (e.g. `Bedroom Chrome`), `available_sources` (physical hardware inputs), `connected_inputs` (physical inputs with active signal), `last_known_source`. |
-| **`sensor.<tv>_active_app`**            | **Active App**     | Currently running Smart TV application name.                                                                                                                                                                                                                                                                                                                                                            |
-| **`binary_sensor.<tv>_mqtt_connected`** | **MQTT Connected** | Live binary indicator of whether the persistent TLS MQTT socket to port `36669` is established.                                                                                                                                                                                                                                                                                                         |
-| **`binary_sensor.<tv>_in_use`**         | **In Use**         | Indicates whether the TV display is powered on and actively drawing playback/content.                                                                                                                                                                                                                                                                                                                   |
+| Entity ID                                      | Entity Name                    | Description & Attributes                                                                                                                                                                                                                                                                                                                                                                                |
+|:---------------------------------------------- |:------------------------------ |:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`binary_sensor.<tv>_authentication_problem`** | **Authentication Problem**     | Device class `problem`. Turns `on` when TV broker rejects credentials (`rc: 134`, `rc: 4`, expired tokens) or when re-authentication is initiated. Normal operation state is `off`.                                                                                                                                                                                                                  |
+| **`binary_sensor.<tv>_mqtt_connected`**        | **MQTT Connected**             | Live binary indicator of whether the persistent TLS MQTT socket to port `36669` is currently established and active.                                                                                                                                                                                                                                                                                    |
+| **`binary_sensor.<tv>_in_use`**                | **In Use**                     | Indicates whether the TV display is powered on and actively drawing playback/content.                                                                                                                                                                                                                                                                                                                   |
+| **`sensor.<tv>_session_status`**               | **Session Status**             | Indicates active session state (`Active`, `Standby`, `Reauth Required`). Attributes: `client_id` (masked), `auth_profile`, `configured_auth_profile`, `brand_profile`, `active_brand`, `encryption` (TLS version/port), `local_only` (bool), `paired_at`, `access_token_expires_at`, `refresh_token_expires_at`.                                                                                 |
+| **`sensor.<tv>_clock_drift`**                  | **Clock Drift**                | Reports TV hardware clock drift in seconds relative to Home Assistant host (disabled by default). Automatically synchronized every 2 hours and on wake transition from standby. Changes icon between `mdi:clock-check-outline` (synced, $< 60\text{s}$) and `mdi:clock-alert-outline` ($> 60\text{s}$). Attributes: `synchronized` (bool), `drift_human`, `tv_time`, `host_time`, `last_synced`.    |
+| **`sensor.<tv>_reported_name`**                | **Reported Name**              | Displays the live friendly name reported by TV over MQTT/UPnP (disabled by default). Attributes: `ip_address`, `mac_address`, `model_name`, `manufacturer`, `firmware_version`.                                                                                                                                                                                                                        |
+| **`sensor.<tv>_active_source`**                | **Active Source**              | Current hardware input source name (`HDMI1`, `HDMI2`, `TV`, `AV`, `App`, `Home Launcher`, `Standby`, `Off`). Attributes: `display_name`, `connected_device`, `available_sources`, `connected_inputs`, `last_known_source`.                                                                                                                                                                          |
+| **`sensor.<tv>_active_app`**                   | **Active App**                 | Currently running Smart TV application name.                                                                                                                                                                                                                                                                                                                                                            |
 
-### 3.3 Debugging Switches (`switch`)
+### 4.3 Media Player State Attributes
+
+The primary `media_player.<tv>` entity exposes rich runtime state attributes accessible in templates, automations, and frontend cards:
+
+| Attribute | Type | Description |
+|:--- |:--- |:--- |
+| **`hotel_mode`** | `boolean` | Indicates whether the TV has Hotel Mode active. When enabled by commercial firmware, TV menus, input switching, or volume ranges may be restricted. |
+| **`audio_output`** | `string` | Active audio routing path reported by the TV (`TV Speakers` or `ARC / eARC`). |
+| **`raw_source`** | `string` | Hardware input source identifier (e.g. `HDMI1`, `HDMI2`, `TV`, `AV`). |
+| **`connected_device`** | `string` | Friendly name of connected HDMI-CEC external equipment (e.g. `Chromecast`, `Apple TV`, `PlayStation 5`). |
+| **`custom_labels`** | `dict` | User-configured display name mappings for input ports. |
+| **`source_list`** | `list` | Full array of user-selectable inputs and Smart TV applications. |
+
+### 4.4 Control & Utility Switches (`switch`)
 
 | Entity ID                       | Entity Name       | Description                                                                                                                                                             |
 |:------------------------------- |:----------------- |:----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **`switch.<tv>_debug_logging`** | **Debug Logging** | Dynamically enables or disables verbose `DEBUG` level logging for the `custom_components.vidaa` module in real-time without requiring a Home Assistant restart. |
-| **`switch.<tv>_audio_only`**    | **Audio Only**    | Turns off the physical screen panel backlight while keeping audio playback streaming through TV speakers or ARC soundbar.                                               |
+| **`switch.<tv>_audio_only`**    | **Audio Only**    | Turns off physical screen panel backlight while keeping audio playback streaming through TV speakers or ARC soundbar.                                                   |
+
+### 4.5 Re-authentication & Troubleshooting Architecture
+
+> [!NOTE]
+> **Why clicking "Start Re-authentication" doesn't immediately open a modal dialog:**
+> In Home Assistant core architecture, entity buttons execute exclusively on the backend server. A backend button entity cannot spontaneously inject a modal dialog over whatever dashboard or browser tab you happen to be viewing.
+> 
+> Instead, clicking **Start Re-authentication** initiates a standard Home Assistant config flow:
+> 1. A persistent notification appears with direct links to [Settings → System → Repairs](/config/repairs) and [Settings → Devices & Services](/config/integrations).
+> 2. The entry is marked as requiring re-authentication (`binary_sensor.<tv>_authentication_problem` turns `on`).
+> 3. Opening the repair card prompts a confirmation dialog. Once confirmed, Home Assistant initiates the live TLS handshake to the TV, causing the **4-digit PIN** to appear on screen.
+> 4. Enter the 4-digit PIN in the dialog. Upon completion, credentials are saved, entities return to available, and the notification and repair issue are automatically dismissed.
 
 ---
 
-## 🛠️ 4. Home Assistant Debugging & Diagnostics Guide
+## 🛠️ 5. Home Assistant Debugging & Diagnostics Guide
 
 When troubleshooting communication, pairing, or state synchronization issues between Home Assistant and the TV, several debugging facilities are available:
 
-### 4.1 Enabling Debug Logging
+### 5.1 Enabling Debug Logging
 
 There are four convenient methods to enable verbose debug logging for the integration:
 
@@ -204,7 +229,7 @@ data:
 
 ---
 
-### 4.2 Downloading Home Assistant Diagnostics
+### 5.2 Downloading Home Assistant Diagnostics
 
 Home Assistant provides official sanitized diagnostic bundles for bug reports:
 
@@ -224,14 +249,14 @@ Home Assistant provides official sanitized diagnostic bundles for bug reports:
 
 ---
 
-### 4.3 Native Repairs & PIN Re-Pairing Flow
+### 5.3 Native Repairs & PIN Re-Pairing Flow
 
 - **Automated Repairs**: If the TV purges its internal mobile authentication token table or if credentials become invalid, the integration automatically registers a Home Assistant **Repair Issue** alerting you that re-authentication is required.
-- **Manual Trigger**: To proactively renew pairing or re-pair after TV firmware updates, press the **`button.<tv>_trigger_re_pairing`** entity on the TV device page in Home Assistant. This immediately initiates the PIN entry dialog on your television screen and in the Home Assistant UI.
+- **Manual Trigger**: To proactively renew pairing or re-pair after TV firmware updates, press the **Start Re-authentication** entity (`button.<tv>_start_re_authentication` or `button.<tv>_trigger_re_pairing`) on the TV device page in Home Assistant. This immediately initiates the PIN entry dialog on your television screen and in the Home Assistant UI.
 
 ---
 
-### 4.4 Inspecting Logs
+### 5.4 Inspecting Logs
 
 To view live integration logs:
 
@@ -243,4 +268,6 @@ To view live integration logs:
    - `[custom_components.vidaa.protocol.connection] [<ip>] MQTT session error: Disconnected during message iteration`
    - `[custom_components.vidaa.protocol.dispatcher] [<ip>] Message received: <payload> on topic <topic>`
 
-> **Audio output routing:** `media_player.<tv>` exposes an `audio_output` attribute (`TV Speakers` or `ARC / eARC`), derived from the TV's `volume_type` broadcasts. VIDAA firmware does not report Optical/SPDIF or Bluetooth output over MQTT, so those modes appear as `TV Speakers`.
+> **Audio output routing & external amplifiers (ARC/eARC):**
+> - `media_player.<tv>` exposes an `audio_output` attribute (`TV Speakers` or `ARC / eARC`), derived from the TV's `volume_type` broadcasts (retiring legacy standalone sensor/select entities). VIDAA firmware does not report Optical/SPDIF or Bluetooth output over MQTT, so those modes appear as `TV Speakers`.
+> - **Volume slider vs. external amplifiers:** Moving the volume slider sends an absolute level (`actions/changevolume`), which VIDAA OS only applies to internal TV speakers. When audio is routed to an external soundbar or AVR via ARC/eARC, the TV ignores absolute percentage values and only forwards step commands (`KEY_VOLUMEUP` / `KEY_VOLUMEDOWN`). Use `media_player.volume_up` / `media_player.volume_down` for external amplifiers.

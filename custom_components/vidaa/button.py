@@ -1,4 +1,4 @@
-"""Diagnostic utility buttons for Hisense VIDAA TV."""
+"""Diagnostic utility buttons for VIDAA Smart TV."""
 
 from __future__ import annotations
 
@@ -6,18 +6,22 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
+from homeassistant.components import persistent_notification
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .client import VidaaClient
 from .const import (
     CONF_ENABLE_PICTURE_CONTROLS,
     CONF_ENABLE_SOUND_CONTROLS,
+    DOMAIN,
 )
 from .entity import VidaaEntity
+from .helpers import check_client_command_readiness
 
 if TYPE_CHECKING:
     from . import VidaaConfigEntry
@@ -63,9 +67,55 @@ class VidaaForceReconnectButton(VidaaBaseButton):
 
     async def async_press(self) -> None:
         """Handle button press."""
+        if getattr(self._client, "auth_failed", False) is True:
+            raise HomeAssistantError(
+                "Authentication required: Re-pair TV in Settings > Integrations.",
+                translation_domain=DOMAIN,
+                translation_key="auth_required",
+            )
         _LOGGER.info("Manually forcing MQTT reconnection to TV at %s", self._client.ip)
         await self._client.async_disconnect()
-        await self._client.async_connect_and_run()
+
+        # Reset backoff counters so manual force reconnect attempts immediately
+        if hasattr(self._client, "_token_manager"):
+            self._client._token_manager.rejected_refresh_failures = 0
+            self._client._token_manager.broker_rejection_failures = 0
+            self._client._token_manager.last_refresh_attempt = 0.0
+
+        try:
+            await self._client.async_connect_and_run()
+            # Wait briefly to confirm successful connection or surface immediate rejection
+            for _ in range(30):
+                if getattr(self._client, "connected", False) is True:
+                    return
+                if getattr(self._client, "auth_failed", False) is True:
+                    raise HomeAssistantError(
+                        "Authentication required: Re-pair TV in Settings > Integrations.",
+                        translation_domain=DOMAIN,
+                        translation_key="auth_required",
+                    )
+                await asyncio.sleep(0.1)
+
+            if getattr(self._client, "connected", False) is not True:
+                raise HomeAssistantError(
+                    f"Failed to reconnect to TV at {self._client.ip}: device unreachable",
+                    translation_domain=DOMAIN,
+                    translation_key="not_connected",
+                )
+        except HomeAssistantError:
+            raise
+        except Exception as err:
+            if getattr(self._client, "auth_failed", False) is True:
+                raise HomeAssistantError(
+                    "Authentication required: Re-pair TV in Settings > Integrations.",
+                    translation_domain=DOMAIN,
+                    translation_key="auth_required",
+                ) from err
+            raise HomeAssistantError(
+                f"Failed to reconnect to TV at {self._client.ip}: {err}",
+                translation_domain=DOMAIN,
+                translation_key="not_connected",
+            ) from err
 
 
 class VidaaSyncClockButton(VidaaBaseButton):
@@ -88,7 +138,12 @@ class VidaaSyncClockButton(VidaaBaseButton):
                 offset,
             )
         else:
-            _LOGGER.warning("Could not fetch UPnP timestamp from TV at %s", self._client.ip)
+            raise HomeAssistantError(
+                f"Could not fetch UPnP timestamp from TV at {self._client.ip}",
+                translation_domain=DOMAIN,
+                translation_key="send_key_failed",
+                translation_placeholders={"key": "sync_clock", "error": "UPnP clock sync failed"},
+            )
 
 
 class VidaaProbeCapabilitiesButton(VidaaBaseButton):
@@ -104,9 +159,7 @@ class VidaaProbeCapabilitiesButton(VidaaBaseButton):
 
     async def async_press(self) -> None:
         """Handle button press to probe capabilities."""
-        if not self._client.connected:
-            _LOGGER.warning("[%s] Cannot probe capabilities: TV is not connected via MQTT", self._client.ip)
-            return
+        check_client_command_readiness(self._client, require_on=True)
 
         _LOGGER.info("[%s] Probing TV picture and sound menu capabilities over MQTT...", self._client.ip)
         await self._client.async_get_picture_settings()
@@ -128,8 +181,10 @@ class VidaaProbeCapabilitiesButton(VidaaBaseButton):
         if pic_supported or sound_supported:
             new_options = {
                 **self._entry.options,
-                CONF_ENABLE_PICTURE_CONTROLS: pic_supported or self._entry.options.get(CONF_ENABLE_PICTURE_CONTROLS, False),
-                CONF_ENABLE_SOUND_CONTROLS: sound_supported or self._entry.options.get(CONF_ENABLE_SOUND_CONTROLS, False),
+                CONF_ENABLE_PICTURE_CONTROLS: pic_supported
+                or self._entry.options.get(CONF_ENABLE_PICTURE_CONTROLS, False),
+                CONF_ENABLE_SOUND_CONTROLS: sound_supported
+                or self._entry.options.get(CONF_ENABLE_SOUND_CONTROLS, False),
             }
             self.hass.config_entries.async_update_entry(self._entry, options=new_options)
 
@@ -147,7 +202,21 @@ class VidaaTriggerReauthButton(VidaaBaseButton):
     async def async_press(self) -> None:
         """Handle button press to trigger re-authentication flow."""
         _LOGGER.info("[%s] Manually triggering re-pairing flow for TV", self._client.ip)
+        if hasattr(self._client, "_dispatch_auth_failed"):
+            self._client._dispatch_auth_failed()
         self._entry.async_start_reauth(self.hass)
+        device_name = getattr(self._client, "name", None) or "VIDAA TV"
+        persistent_notification.async_create(
+            self.hass,
+            message=(
+                f"Re-authentication requested for **{device_name}** (`{self._client.ip}`).\n\n"
+                f"Open [Settings > System > Repairs](/config/repairs) or "
+                f"[Settings > Devices & Services](/config/integrations) and click **Reconfigure** "
+                f"to display the 4-digit PIN on your TV and complete pairing."
+            ),
+            title=f"{device_name}: Re-authentication Requested",
+            notification_id=f"vidaa_reauth_{self._entry_id}",
+        )
 
 
 # Backwards-compatible aliases during migration
@@ -156,4 +225,3 @@ HisenseVidaaForceReconnectButton = VidaaForceReconnectButton
 HisenseVidaaSyncClockButton = VidaaSyncClockButton
 HisenseVidaaProbeCapabilitiesButton = VidaaProbeCapabilitiesButton
 HisenseVidaaTriggerReauthButton = VidaaTriggerReauthButton
-

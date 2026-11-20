@@ -1,4 +1,4 @@
-"""Core remote control key name aliases for Hisense VIDAA TV."""
+"""Core remote control key name aliases for VIDAA Smart TV."""
 
 from __future__ import annotations
 
@@ -13,7 +13,6 @@ KEY_ALIASES: dict[str, str] = {
     "standby": "KEY_POWER",
     "off": "KEY_POWER",
     "on": "KEY_POWER",
-
     # Navigation D-Pad & Control
     "up": "KEY_UP",
     "down": "KEY_DOWN",
@@ -36,7 +35,6 @@ KEY_ALIASES: dict[str, str] = {
     "cancel": "KEY_EXIT",
     "info": "KEY_INFO",
     "display": "KEY_INFO",
-
     # Volume & Audio Controls
     "volume_up": "KEY_VOLUMEUP",
     "volumeup": "KEY_VOLUMEUP",
@@ -54,7 +52,6 @@ KEY_ALIASES: dict[str, str] = {
     "unmute": "KEY_MUTE",
     "silence": "KEY_MUTE",
     "mute_long": "KEY_MUTE_LONG_PRESS",
-
     # Voice Assistant
     "voice_up": "KEY_VOICEUP",
     "voiceup": "KEY_VOICEUP",
@@ -62,7 +59,6 @@ KEY_ALIASES: dict[str, str] = {
     "voice_down": "KEY_VOICEDOWN",
     "voicedown": "KEY_VOICEDOWN",
     "voice-": "KEY_VOICEDOWN",
-
     # Channel Controls & Freeview
     "channel_up": "KEY_CHANNELUP",
     "channelup": "KEY_CHANNELUP",
@@ -82,7 +78,6 @@ KEY_ALIASES: dict[str, str] = {
     "ch_dot": "KEY_CHANNELDOT",
     "dash": "KEY_CHANNELDOT",
     "period": "KEY_CHANNELDOT",
-
     # Media Playback Controls
     "play": "KEY_PLAY",
     "pause": "KEY_PAUSE",
@@ -100,7 +95,6 @@ KEY_ALIASES: dict[str, str] = {
     "fastrewind": "KEY_BACK",
     "rw": "KEY_BACK",
     "rev": "KEY_BACK",
-
     # Subtitles, EPG, Teletext, Channel List
     "subtitle": "KEY_SUBTITLE",
     "subtitles": "KEY_SUBTITLE",
@@ -120,7 +114,6 @@ KEY_ALIASES: dict[str, str] = {
     "teletext": "KEY_TEXT",
     "txt": "KEY_TEXT",
     "ttx": "KEY_TEXT",
-
     # Interactive Color Keys (Freeview / HbbTV)
     "red": "KEY_RED",
     "color_red": "KEY_RED",
@@ -130,7 +123,6 @@ KEY_ALIASES: dict[str, str] = {
     "color_yellow": "KEY_YELLOW",
     "blue": "KEY_BLUE",
     "color_blue": "KEY_BLUE",
-
     # Input & TV Source Controls
     "livetv": "KEY_LIVETV",
     "live_tv": "KEY_LIVETV",
@@ -147,7 +139,6 @@ KEY_ALIASES: dict[str, str] = {
     "source_menu": "KEY_MENU",
     "key_input_menu": "KEY_MENU",
     "key_source_menu": "KEY_MENU",
-
     # Screen / Audio / Mouse / Zoom
     "audio_only": "KEY_AUDIO",
     "screen_off": "KEY_AUDIO",
@@ -166,7 +157,6 @@ KEY_ALIASES: dict[str, str] = {
     "zoom_out": "KEY_ZOOMOUT",
     "zoomout": "KEY_ZOOMOUT",
     "zoom-": "KEY_ZOOMOUT",
-
     # Number Pad
     "0": "KEY_0",
     "1": "KEY_1",
@@ -178,7 +168,6 @@ KEY_ALIASES: dict[str, str] = {
     "7": "KEY_7",
     "8": "KEY_8",
     "9": "KEY_9",
-
     # Direct Hardware App Buttons
     "netflix": "KEY_NETFLIX",
     "youtube": "KEY_YOUTUBE",

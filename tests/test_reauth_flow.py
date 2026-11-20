@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from homeassistant.core import HomeAssistant
 
-from custom_components.vidaa.config_flow import HisenseVidaaConfigFlow
+from custom_components.vidaa.config_flow import VidaaConfigFlow
 from custom_components.vidaa.const import (
     CONF_AUTH_PROFILE,
     CONF_BRAND,
@@ -20,7 +20,7 @@ from custom_components.vidaa.const import (
 )
 
 
-def _reauth_flow(hass: MagicMock, entry: MagicMock, entry_id: str) -> HisenseVidaaConfigFlow:
+def _reauth_flow(hass: MagicMock, entry: MagicMock, entry_id: str) -> VidaaConfigFlow:
     """Build a config flow wired up for a reauth/reconfigure of `entry`."""
     hass.config_entries.async_get_entry = MagicMock(return_value=entry)
     hass.config_entries.async_entries = MagicMock(return_value=[entry])
@@ -28,10 +28,21 @@ def _reauth_flow(hass: MagicMock, entry: MagicMock, entry_id: str) -> HisenseVid
     hass.config_entries.async_reload = AsyncMock()
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {"entry_id": entry_id}
     return flow
+
+
+@pytest.fixture(autouse=True)
+def mock_reauth_port_open(monkeypatch: pytest.MonkeyPatch):
+    """By default in reauth flow tests, assume TV port 36669 is open."""
+    mock = AsyncMock(return_value=True)
+    monkeypatch.setattr(
+        "custom_components.vidaa.flow.reauth.ReauthFlowMixin._async_port_open",
+        mock,
+    )
+    return mock
 
 
 @pytest.mark.anyio
@@ -51,7 +62,7 @@ async def test_reauth_flow_success(monkeypatch: pytest.MonkeyPatch) -> None:
     hass.config_entries.async_update_entry = MagicMock()
     hass.config_entries.async_reload = AsyncMock()
 
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {"entry_id": "test_entry_reauth"}
 
@@ -62,7 +73,7 @@ async def test_reauth_flow_success(monkeypatch: pytest.MonkeyPatch) -> None:
 
     # Confirm reauth
     monkeypatch.setattr(
-        "custom_components.vidaa.client.HisenseTvClient.async_start_auth",
+        "custom_components.vidaa.client.VidaaClient.async_start_auth",
         AsyncMock(return_value=None),
     )
     result_confirm = await flow.async_step_reauth_confirm(user_input={})
@@ -71,7 +82,7 @@ async def test_reauth_flow_success(monkeypatch: pytest.MonkeyPatch) -> None:
 
     # Submit PIN
     monkeypatch.setattr(
-        "custom_components.vidaa.client.HisenseTvClient.async_submit_pin",
+        "custom_components.vidaa.client.VidaaClient.async_submit_pin",
         AsyncMock(return_value=None),
     )
     flow.client.access_token = "new_access_token"
@@ -103,7 +114,7 @@ async def test_reconfigure_flow_success(monkeypatch: pytest.MonkeyPatch) -> None
     hass.config_entries.async_update_entry = MagicMock()
     hass.config_entries.async_reload = AsyncMock()
 
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {"entry_id": "test_entry_reconf"}
 
@@ -112,7 +123,7 @@ async def test_reconfigure_flow_success(monkeypatch: pytest.MonkeyPatch) -> None
     flow._abort_if_unique_id_configured = MagicMock()
 
     monkeypatch.setattr(
-        "custom_components.vidaa.client.HisenseTvClient.async_start_auth",
+        "custom_components.vidaa.client.VidaaClient.async_start_auth",
         AsyncMock(return_value=None),
     )
     # Legacy/reconfigure now probes the static session for a PIN challenge;
@@ -143,7 +154,7 @@ async def test_finish_reauth_disconnects_client() -> None:
     hass.config_entries.async_update_entry = MagicMock()
     hass.config_entries.async_reload = AsyncMock(return_value=True)
 
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     mock_entry = MagicMock()
     mock_entry.entry_id = "test_entry_123"
@@ -168,7 +179,7 @@ async def test_finish_reauth_disconnects_client() -> None:
     result = await flow._async_finish_reauth(reason="reauth_successful")
     assert result["type"] == "abort"
     assert result["reason"] == "reauth_successful"
-    assert (mock_client.async_disconnect.called or mock_client.disconnect.called)
+    assert mock_client.async_disconnect.called or mock_client.disconnect.called
     assert flow.client is None
     assert hass.config_entries.async_reload.called
 
@@ -180,7 +191,7 @@ async def test_finish_reauth_without_client() -> None:
     hass.config_entries.async_update_entry = MagicMock()
     hass.config_entries.async_reload = AsyncMock(return_value=True)
 
-    flow = HisenseVidaaConfigFlow()
+    flow = VidaaConfigFlow()
     flow.hass = hass
     mock_entry = MagicMock()
     mock_entry.entry_id = "test_entry_456"
@@ -209,7 +220,7 @@ async def test_reauth_keeps_entry_transport_settings(monkeypatch: pytest.MonkeyP
     }
     flow = _reauth_flow(hass, entry, "legacy_entry")
     monkeypatch.setattr(
-        "custom_components.vidaa.client.HisenseTvClient.async_start_auth",
+        "custom_components.vidaa.client.VidaaClient.async_start_auth",
         AsyncMock(return_value=None),
     )
 
@@ -242,7 +253,7 @@ async def test_reauth_seeds_certificates_from_entry(monkeypatch: pytest.MonkeyPa
     }
     flow = _reauth_flow(hass, entry, "tls_entry")
     monkeypatch.setattr(
-        "custom_components.vidaa.client.HisenseTvClient.async_start_auth",
+        "custom_components.vidaa.client.VidaaClient.async_start_auth",
         AsyncMock(return_value=None),
     )
 
@@ -307,7 +318,7 @@ async def test_reconfigure_aborts_when_new_ip_belongs_to_another_tv(
         AsyncMock(return_value="e8:51:77:ec:98:2d"),
     )
     monkeypatch.setattr(
-        "custom_components.vidaa.client.HisenseTvClient.async_start_auth",
+        "custom_components.vidaa.client.VidaaClient.async_start_auth",
         AsyncMock(return_value=None),
     )
     monkeypatch.setattr(
@@ -353,18 +364,14 @@ async def test_reauth_confirm_disconnects_existing_running_client_before_start_a
     flow.use_ssl = True
 
     events = []
-    running_client.async_disconnect = AsyncMock(
-        side_effect=lambda: events.append("disconnect_existing")
-    )
-    running_client.disconnect = MagicMock(
-        side_effect=lambda: events.append("disconnect_existing")
-    )
+    running_client.async_disconnect = AsyncMock(side_effect=lambda: events.append("disconnect_existing"))
+    running_client.disconnect = MagicMock(side_effect=lambda: events.append("disconnect_existing"))
 
     async def mock_start_auth(self):
         events.append("start_auth")
 
     monkeypatch.setattr(
-        "custom_components.vidaa.client.HisenseTvClient.async_start_auth",
+        "custom_components.vidaa.client.VidaaClient.async_start_auth",
         mock_start_auth,
     )
 
@@ -398,7 +405,7 @@ async def test_reauth_preserves_oem_brand(monkeypatch: pytest.MonkeyPatch) -> No
 
     # Confirm reauth
     monkeypatch.setattr(
-        "custom_components.vidaa.client.HisenseTvClient.async_start_auth",
+        "custom_components.vidaa.client.VidaaClient.async_start_auth",
         AsyncMock(return_value=None),
     )
     result_confirm = await flow.async_step_reauth_confirm(user_input={})
@@ -409,7 +416,7 @@ async def test_reauth_preserves_oem_brand(monkeypatch: pytest.MonkeyPatch) -> No
 
     # Submit PIN and verify updated entry retains brand='tos'
     monkeypatch.setattr(
-        "custom_components.vidaa.client.HisenseTvClient.async_submit_pin",
+        "custom_components.vidaa.client.VidaaClient.async_submit_pin",
         AsyncMock(return_value=None),
     )
     flow.client.access_token = "new_tos_token"
@@ -422,3 +429,112 @@ async def test_reauth_preserves_oem_brand(monkeypatch: pytest.MonkeyPatch) -> No
     update_call_args = hass.config_entries.async_update_entry.call_args
     updated_data = update_call_args[1]["data"]
     assert updated_data[CONF_BRAND] == "tos"
+
+
+@pytest.mark.anyio
+async def test_reauth_wake_tv_when_standby(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test reauth flow sends Wake-on-LAN when TV port 36669 is initially closed, then polls and proceeds."""
+    hass = MagicMock(spec=HomeAssistant)
+    hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
+
+    mock_entry = MagicMock()
+    mock_entry.entry_id = "test_entry_wake"
+    mock_entry.data = {
+        CONF_IP_ADDRESS: "192.168.50.12",
+        CONF_MAC_ADDRESS: "e8:51:77:ec:98:1c",
+        "secondary_mac_address": "e4:3b:c9:57:f1:4f",
+    }
+    mock_entry.options = {}
+    flow = _reauth_flow(hass, mock_entry, "test_entry_wake")
+
+    await flow.async_step_reauth(mock_entry.data)
+
+    mock_wol = MagicMock(return_value=True)
+    monkeypatch.setattr("custom_components.vidaa.protocol.wol.send_wake_on_lan", mock_wol)
+    monkeypatch.setattr("asyncio.sleep", AsyncMock())
+
+    # First check False (closed), second check True (opened after WoL)
+    port_checks = [False, True]
+    monkeypatch.setattr(
+        "custom_components.vidaa.flow.reauth.ReauthFlowMixin._async_port_open",
+        AsyncMock(side_effect=lambda ip, port, timeout=1.0: port_checks.pop(0) if port_checks else True),
+    )
+    monkeypatch.setattr(
+        "custom_components.vidaa.client.VidaaClient.async_start_auth",
+        AsyncMock(return_value=None),
+    )
+
+    result_confirm = await flow.async_step_reauth_confirm(user_input={})
+    assert result_confirm["type"] == "form"
+    assert result_confirm["step_id"] == "auth"
+
+    mock_wol.assert_called_once()
+    called_macs = mock_wol.call_args[0][0]
+    assert "e8:51:77:ec:98:1c" in called_macs
+    assert "e4:3b:c9:57:f1:4f" in called_macs
+
+
+@pytest.mark.anyio
+async def test_reauth_wake_tv_times_out(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test reauth flow surfaces tv_not_awake error when TV port never opens."""
+    hass = MagicMock(spec=HomeAssistant)
+    hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
+
+    mock_entry = MagicMock()
+    mock_entry.entry_id = "test_entry_wake_timeout"
+    mock_entry.data = {
+        CONF_IP_ADDRESS: "192.168.50.12",
+        CONF_MAC_ADDRESS: "e8:51:77:ec:98:1c",
+    }
+    mock_entry.options = {}
+    flow = _reauth_flow(hass, mock_entry, "test_entry_wake_timeout")
+
+    await flow.async_step_reauth(mock_entry.data)
+
+    mock_wol = MagicMock(return_value=True)
+    monkeypatch.setattr("custom_components.vidaa.protocol.wol.send_wake_on_lan", mock_wol)
+    monkeypatch.setattr("asyncio.sleep", AsyncMock())
+    monkeypatch.setattr(
+        "custom_components.vidaa.flow.reauth.ReauthFlowMixin._async_port_open",
+        AsyncMock(return_value=False),
+    )
+    # Simulate monotonic clock passing deadline
+    t = [0.0]
+
+    def fake_monotonic():
+        t[0] += 5.0
+        return t[0]
+
+    monkeypatch.setattr("time.monotonic", fake_monotonic)
+
+    result_confirm = await flow.async_step_reauth_confirm(user_input={})
+    assert result_confirm["type"] == "form"
+    assert result_confirm["step_id"] == "reauth_confirm"
+    assert result_confirm["errors"] == {"base": "tv_not_awake"}
+    mock_wol.assert_called_once()
+
+
+@pytest.mark.anyio
+async def test_reauth_wake_tv_no_mac_returns_tv_not_awake(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test reauth flow surfaces tv_not_awake immediately when no MAC address is configured and port is closed."""
+    hass = MagicMock(spec=HomeAssistant)
+    mock_entry = MagicMock()
+    mock_entry.entry_id = "test_entry_no_mac"
+    mock_entry.data = {CONF_IP_ADDRESS: "192.168.50.12"}
+    mock_entry.options = {}
+    flow = _reauth_flow(hass, mock_entry, "test_entry_no_mac")
+
+    await flow.async_step_reauth(mock_entry.data)
+
+    mock_wol = MagicMock(return_value=True)
+    monkeypatch.setattr("custom_components.vidaa.protocol.wol.send_wake_on_lan", mock_wol)
+    monkeypatch.setattr(
+        "custom_components.vidaa.flow.reauth.ReauthFlowMixin._async_port_open",
+        AsyncMock(return_value=False),
+    )
+
+    result_confirm = await flow.async_step_reauth_confirm(user_input={})
+    assert result_confirm["type"] == "form"
+    assert result_confirm["step_id"] == "reauth_confirm"
+    assert result_confirm["errors"] == {"base": "tv_not_awake"}
+    mock_wol.assert_not_called()

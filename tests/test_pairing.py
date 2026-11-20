@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from homeassistant.core import HomeAssistant
 
-from custom_components.vidaa.client import HisenseTvClient
-from custom_components.vidaa.config_flow import HisenseVidaaConfigFlow
+from custom_components.vidaa.client import VidaaClient
+from custom_components.vidaa.config_flow import VidaaConfigFlow
 from custom_components.vidaa.const import DOMAIN
 from custom_components.vidaa.protocol.pairing import (
     PairingStatusError,
@@ -19,12 +19,13 @@ from custom_components.vidaa.protocol.pairing import (
 
 PROBE_PATH = "custom_components.vidaa.config_flow.async_probe_pairing_challenge"
 
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-def _static_client() -> HisenseTvClient:
+def _static_client() -> VidaaClient:
     """A static-session (legacy) client with its topic paths defined."""
-    client = HisenseTvClient(ip="192.168.50.12", auth_profile="legacy")
+    client = VidaaClient(ip="192.168.50.12", auth_profile="legacy")
     client.client_id = "hisenseservice"
     client.username = "hisenseservice"
     client.password = "multimqttservice"
@@ -39,8 +40,8 @@ def _hass() -> MagicMock:
     return hass
 
 
-def _flow(hass: MagicMock, *, profile: str = "legacy") -> HisenseVidaaConfigFlow:
-    flow = HisenseVidaaConfigFlow()
+def _flow(hass: MagicMock, *, profile: str = "legacy") -> VidaaConfigFlow:
+    flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
     flow.ip_address = "192.168.50.12"
@@ -55,11 +56,11 @@ def _flow(hass: MagicMock, *, profile: str = "legacy") -> HisenseVidaaConfigFlow
 def no_network_start_auth(monkeypatch):
     """Keep the flow's client construction offline."""
     monkeypatch.setattr(
-        "custom_components.vidaa.client.HisenseTvClient.async_start_auth",
+        "custom_components.vidaa.client.VidaaClient.async_start_auth",
         AsyncMock(return_value=None),
     )
     monkeypatch.setattr(
-        "custom_components.vidaa.client.HisenseTvClient.get_device_fingerprint",
+        "custom_components.vidaa.client.VidaaClient.get_device_fingerprint",
         MagicMock(return_value={}),
     )
 
@@ -94,7 +95,7 @@ async def test_static_pin_submit_publishes_authnum_without_token_wait():
 
 @pytest.mark.anyio
 async def test_dynamic_pin_submit_still_requests_token():
-    client = HisenseTvClient(ip="192.168.50.12", auth_profile="modern")
+    client = VidaaClient(ip="192.168.50.12", auth_profile="modern")
     client.client_id = "aa$his$BB_vidaacommon_001"
     client.update_topic_paths()
     published: list[tuple[str, object]] = []
@@ -110,14 +111,16 @@ async def test_dynamic_pin_submit_still_requests_token():
             client._loop.call_soon_threadsafe(
                 client._safe_set_future_result,
                 client._token_future,
-                json.dumps({
-                    "accesstoken": "AT",
-                    "accesstoken_time": 1700000000,
-                    "accesstoken_duration_day": 7,
-                    "refreshtoken": "RT",
-                    "refreshtoken_time": 1700000000,
-                    "refreshtoken_duration_day": 30,
-                }),
+                json.dumps(
+                    {
+                        "accesstoken": "AT",
+                        "accesstoken_time": 1700000000,
+                        "accesstoken_duration_day": 7,
+                        "refreshtoken": "RT",
+                        "refreshtoken_time": 1700000000,
+                        "refreshtoken_duration_day": 30,
+                    }
+                ),
             )
         return (0, 1)
 
@@ -161,9 +164,7 @@ async def test_pin_submit_raises_pairing_status_on_busy():
 
     def fake_publish(topic, payload="", *args, **kwargs):
         if topic.endswith("actions/authenticationcode"):
-            client._loop.call_soon_threadsafe(
-                client._safe_set_future_result, client._pairing_event_future, "busy"
-            )
+            client._loop.call_soon_threadsafe(client._safe_set_future_result, client._pairing_event_future, "busy")
         return (0, 1)
 
     mqtt.publish.side_effect = fake_publish
@@ -221,7 +222,7 @@ async def test_static_pin_submit_completes_flow(monkeypatch, no_network_start_au
     flow = _flow(hass)
     monkeypatch.setattr(PROBE_PATH, AsyncMock(return_value=True))
     monkeypatch.setattr(
-        "custom_components.vidaa.client.HisenseTvClient.async_submit_pin",
+        "custom_components.vidaa.client.VidaaClient.async_submit_pin",
         AsyncMock(return_value={}),
     )
 
@@ -231,7 +232,7 @@ async def test_static_pin_submit_completes_flow(monkeypatch, no_network_start_au
     result = await flow.async_step_auth(user_input={"pin_code": "0656"})
     assert result["step_id"] == "options"
 
-    entry = await flow.async_step_options(user_input={"enable_remote": True})
+    entry = await flow.async_step_options(user_input={"enable_wol": True})
     assert entry["type"] == "create_entry"
 
 
@@ -241,7 +242,7 @@ async def test_static_pin_submit_close_shows_retryable_error(monkeypatch, no_net
     flow = _flow(hass)
     monkeypatch.setattr(PROBE_PATH, AsyncMock(return_value=True))
     monkeypatch.setattr(
-        "custom_components.vidaa.client.HisenseTvClient.async_submit_pin",
+        "custom_components.vidaa.client.VidaaClient.async_submit_pin",
         AsyncMock(side_effect=PairingStatusError("closed")),
     )
 
@@ -260,7 +261,7 @@ async def test_static_pin_submit_failure_after_pin_is_not_invalid_auth(monkeypat
     flow = _flow(hass)
     monkeypatch.setattr(PROBE_PATH, AsyncMock(return_value=True))
     monkeypatch.setattr(
-        "custom_components.vidaa.client.HisenseTvClient.async_submit_pin",
+        "custom_components.vidaa.client.VidaaClient.async_submit_pin",
         AsyncMock(return_value={}),
     )
 
@@ -278,11 +279,9 @@ async def test_static_pin_submit_failure_after_pin_is_not_invalid_auth(monkeypat
 # [P4-a] The probe body itself: async_probe_pairing_challenge must clean up the
 # pairing futures on EVERY exit path (challenge, close, no-challenge timeout).
 # ---------------------------------------------------------------------------
-def _probe_client() -> tuple[HisenseTvClient, MagicMock]:
+def _probe_client() -> tuple[VidaaClient, MagicMock]:
     """A static client whose MQTT layer is faked for the pairing probe."""
-    client = HisenseTvClient(
-        ip="192.168.50.12", mac="e8:51:77:ec:98:1c", auth_profile="legacy"
-    )
+    client = VidaaClient(ip="192.168.50.12", mac="e8:51:77:ec:98:1c", auth_profile="legacy")
     client.client_id = "hisenseservice"
     client.username = "hisenseservice"
     client.password = "multimqttservice"
@@ -362,11 +361,11 @@ async def test_static_no_challenge_disconnects_probe_client(monkeypatch, no_netw
         disconnected.append(self)
 
     monkeypatch.setattr(
-        "custom_components.vidaa.client.HisenseTvClient.async_disconnect",
+        "custom_components.vidaa.client.VidaaClient.async_disconnect",
         fake_disconnect,
     )
     monkeypatch.setattr(
-        "custom_components.vidaa.client.HisenseTvClient.disconnect",
+        "custom_components.vidaa.client.VidaaClient.disconnect",
         fake_disconnect,
     )
 
@@ -436,5 +435,3 @@ async def test_reauth_probe_failure_shows_cannot_connect(monkeypatch, no_network
     assert result["type"] == "form"
     assert result["step_id"] == "reauth_confirm"
     assert result["errors"]["base"] == "cannot_connect"
-
-

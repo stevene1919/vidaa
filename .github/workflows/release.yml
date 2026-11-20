@@ -54,13 +54,21 @@ jobs:
       - name: Create or Update GitHub Release
         run: |
           TAG_NAME="${{ github.ref_name }}"
+          PRERELEASE_FLAG=""
+          if [[ "$TAG_NAME" =~ (beta|alpha|rc) ]]; then
+            echo "Pre-release tag detected ($TAG_NAME), adding --prerelease flag."
+            PRERELEASE_FLAG="--prerelease"
+          fi
+
           if [ "${{ steps.extract_changelog.outputs.autogenerate }}" = "true" ]; then
             if gh release view "$TAG_NAME" >/dev/null 2>&1; then
               echo "Release $TAG_NAME already exists, uploading asset."
+              gh release edit "$TAG_NAME" $PRERELEASE_FLAG
               gh release upload "$TAG_NAME" vidaa.zip --clobber
             else
               gh release create "$TAG_NAME" \
                 --title "$TAG_NAME" \
+                $PRERELEASE_FLAG \
                 --generate-notes \
                 vidaa.zip
             fi
@@ -69,11 +77,13 @@ jobs:
               echo "Release $TAG_NAME already exists, updating notes and uploading asset."
               gh release edit "$TAG_NAME" \
                 --title "$TAG_NAME" \
+                $PRERELEASE_FLAG \
                 --notes-file release_notes.txt
               gh release upload "$TAG_NAME" vidaa.zip --clobber
             else
               gh release create "$TAG_NAME" \
                 --title "$TAG_NAME" \
+                $PRERELEASE_FLAG \
                 --notes-file release_notes.txt \
                 vidaa.zip
             fi

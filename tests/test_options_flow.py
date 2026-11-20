@@ -52,17 +52,26 @@ async def test_options_flow(monkeypatch: pytest.MonkeyPatch) -> None:
     assert result_pwr_form["type"] == "form"
     assert result_pwr_form["step_id"] == "power_network"
 
+    # Test invalid secondary MAC rejection
+    result_pwr_invalid = await handler.async_step_power_network(
+        user_input={
+            "enable_wol": True,
+            "secondary_mac_address": "invalid_mac_str",
+        }
+    )
+    assert result_pwr_invalid["type"] == "form"
+    assert result_pwr_invalid["errors"]["secondary_mac_address"] == "invalid_mac"
+
+    # Test valid secondary MAC normalized to lowercase
     result_pwr_submit = await handler.async_step_power_network(
         user_input={
             "enable_wol": True,
             "secondary_mac_address": "AA:BB:CC:DD:EE:FF",
-            "refresh_in_standby": True,
         }
     )
     assert result_pwr_submit["type"] == "create_entry"
     assert result_pwr_submit["data"]["enable_wol"] is True
-    assert result_pwr_submit["data"]["secondary_mac_address"] == "AA:BB:CC:DD:EE:FF"
-    assert result_pwr_submit["data"]["refresh_in_standby"] is True
+    assert result_pwr_submit["data"]["secondary_mac_address"] == "aa:bb:cc:dd:ee:ff"
 
     # Test playback_sources step form and submission (including debounce)
     result_src_form = await handler.async_step_playback_sources()
@@ -88,21 +97,20 @@ async def test_options_flow(monkeypatch: pytest.MonkeyPatch) -> None:
 
     result_feat_submit = await handler.async_step_features_remote(
         user_input={
-            "enable_remote": False,
             "enable_picture_controls": True,
             "enable_sound_controls": True,
             "enable_audio_only": True,
             "key_delay": 0.3,
-            "key_repeat": 2,
+            "key_repeat": 2.0,
         }
     )
     assert result_feat_submit["type"] == "create_entry"
-    assert result_feat_submit["data"]["enable_remote"] is False
     assert result_feat_submit["data"]["enable_picture_controls"] is True
     assert result_feat_submit["data"]["enable_sound_controls"] is True
     assert result_feat_submit["data"]["enable_audio_only"] is True
     assert result_feat_submit["data"]["key_delay"] == 0.3
     assert result_feat_submit["data"]["key_repeat"] == 2
+    assert isinstance(result_feat_submit["data"]["key_repeat"], int)
 
     # Test security step with invalid non-existent paths
     result_sec_form = await handler.async_step_security()
@@ -187,17 +195,69 @@ async def test_options_flow_brand_change_updates_data_and_triggers_reauth():
     flow.config_entry = entry
     flow.hass = hass
 
-    result = await flow.async_step_security(user_input={
-        CONF_AUTH_PROFILE: "modern",
-        CONF_BRAND: "tos",
-        CONF_USE_SSL: True,
-        CONF_CERTFILE: "",
-        CONF_KEYFILE: "",
-    })
+    result = await flow.async_step_security(
+        user_input={
+            CONF_AUTH_PROFILE: "modern",
+            CONF_BRAND: "tos",
+            CONF_USE_SSL: True,
+            CONF_CERTFILE: "",
+            CONF_KEYFILE: "",
+        }
+    )
 
     assert result["type"] == "create_entry"
     # Verify that entry.data was updated with new brand
     hass.config_entries.async_update_entry.assert_called_once()
     call_args = hass.config_entries.async_update_entry.call_args
     assert call_args.kwargs["data"][CONF_BRAND] == "tos"
+
+
+@pytest.mark.anyio
+async def test_options_flow_power_network_autopopulates_from_data():
+    """Verify secondary MAC auto-populates from config_entry.data when not in options."""
+    entry = MagicMock(spec=ConfigEntry)
+    entry.data = {
+        CONF_MAC_ADDRESS: "e8:51:77:ec:98:1c",
+        "secondary_mac_address": "e4:3b:c9:57:f1:4f",
+    }
+    entry.options = {}
+
+    flow = HisenseVidaaOptionsFlowHandler()
+    flow.config_entry = entry
+
+    result = await flow.async_step_power_network()
+    assert result["type"] == "form"
+    assert result["step_id"] == "power_network"
+    assert result["description_placeholders"]["primary_mac"] == "e8:51:77:ec:98:1c"
+
+    # Schema contains the pre-populated secondary MAC from data
+    schema = result["data_schema"].schema
+    sec_mac_field = next(k for k in schema if str(k) == "secondary_mac_address")
+    assert sec_mac_field.default() == "e4:3b:c9:57:f1:4f"
+
+
+@pytest.mark.anyio
+async def test_options_flow_power_network_autopopulates_from_client_runtime_data():
+    """Verify secondary MAC auto-populates from client runtime_data if missing in data and options."""
+    entry = MagicMock(spec=ConfigEntry)
+    entry.data = {
+        CONF_MAC_ADDRESS: "e8:51:77:ec:98:1c",
+    }
+    entry.options = {}
+
+    mock_client = MagicMock()
+    mock_client.mac_wifi = "e8:51:77:ec:98:1c"
+    mock_client.mac_ethernet = "e4:3b:c9:57:f1:4f"
+
+    entry.runtime_data = MagicMock()
+    entry.runtime_data.client = mock_client
+
+    flow = HisenseVidaaOptionsFlowHandler()
+    flow.config_entry = entry
+
+    result = await flow.async_step_power_network()
+    assert result["type"] == "form"
+    schema = result["data_schema"].schema
+    sec_mac_field = next(k for k in schema if str(k) == "secondary_mac_address")
+    assert sec_mac_field.default() == "e4:3b:c9:57:f1:4f"
 

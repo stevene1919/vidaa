@@ -27,10 +27,10 @@ Elle se connecte **directement** au courtier MQTT interne du téléviseur (port 
 
 L'installation prend moins de 3 minutes en 3 étapes simples :
 
-### 1️⃣ Installation via HACS
-Cliquez sur le bouton ci-dessous (ou recherchez **VIDAA Smart TV** dans HACS → Intégrations → Télécharger) :
+### 1️⃣ Installation via Marketplace (HACS)
+Cliquez sur le bouton ci-dessous (ou recherchez **VIDAA Smart TV** dans Marketplace (HACS) → Intégrations → Télécharger) :
 
-[![Ouvrir HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
+[![Ouvrir Marketplace (HACS)](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
 
 ### 2️⃣ Déposer le fichier de clé (`client_mobile_android.p12` ou `El.p12`)
 Les téléviseurs VIDAA nécessitent une négociation TLS mutuelle sur le port 36669. Copiez le fichier universel **`client_mobile_android.p12`** (ou `El.p12`) dans le dossier **`/config/ssl/`** de Home Assistant.
@@ -91,5 +91,5 @@ Prend officiellement en charge **tous les téléviseurs sous VIDAA OS** (appaira
 | 📱 **[Tableaux de Bord et Cartes Lovelace](../lovelace_cards.md)** | Cartes de télécommande, cartes à boutons et modèles d'interface. |
 | 🛠️ **[Services et Automatisations](../services_and_automations.md)** | Exemples YAML pour soirées cinéma, sélection d'entrées et séquences de touches. |
 | 🔒 **[Certificats SSL Avancés](../certificates.md)** | Emplacements des fichiers, certificats PEM personnalisés et commandes OpenSSL. |
-| 🧪 **[Outils de Test et Diagnostic CLI](../cli_tools.md)** | Utilitaires autonomes (`scripts/test_client.py`, `scripts/debug_tv.py`). |
+| 🧪 **[Outils de Test et Diagnostic CLI](../cli_tools.md)** | Utilitaires autonomes (`scripts/test_client.py`, `scripts/diag.sh`). |
 | 🩺 **[Dépannage et Résolution de Problèmes](../troubleshooting.md)** | Diagnostic et solutions pour les erreurs de connexion et d'appairage. |

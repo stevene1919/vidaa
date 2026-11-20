@@ -1,4 +1,4 @@
-"""Select platform for Hisense VIDAA TV integration."""
+"""Select platform for VIDAA Smart TV integration."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -21,6 +22,7 @@ from .const import (
     LEGACY_DOMAIN,
 )
 from .entity import VidaaEntity
+from .helpers import check_client_command_readiness
 
 if TYPE_CHECKING:
     from . import VidaaConfigEntry
@@ -93,8 +95,16 @@ class VidaaPictureModeSelect(VidaaEntity, SelectEntity):
 
     async def async_select_option(self, option: str) -> None:
         """Change picture mode option."""
+        check_client_command_readiness(self._client, require_on=True)
+        res = await self._client.async_set_picture_mode(option)
+        if res is False:
+            raise HomeAssistantError(
+                f"Failed to set picture mode to {option}: command delivery failed",
+                translation_domain=DOMAIN,
+                translation_key="set_picture_setting_failed",
+                translation_placeholders={"menu_id": "picture_mode", "error": "command delivery failed"},
+            )
         self._current_mode = option
-        await self._client.async_set_picture_mode(option)
         self.async_write_ha_state()
 
 
@@ -154,8 +164,16 @@ class VidaaSoundModeSelect(VidaaEntity, SelectEntity):
 
     async def async_select_option(self, option: str) -> None:
         """Change sound mode option."""
+        check_client_command_readiness(self._client, require_on=True)
+        res = await self._client.async_set_sound_mode(option)
+        if res is False:
+            raise HomeAssistantError(
+                f"Failed to set sound mode to {option}: command delivery failed",
+                translation_domain=DOMAIN,
+                translation_key="set_sound_setting_failed",
+                translation_placeholders={"menu_id": "sound_mode", "error": "command delivery failed"},
+            )
         self._current_mode = option
-        await self._client.async_set_sound_mode(option)
         self.async_write_ha_state()
 
 
@@ -172,12 +190,8 @@ async def async_setup_entry(
     """Set up the VIDAA select platform."""
     client: VidaaClient = config_entry.runtime_data.client
 
-    enable_picture = config_entry.options.get(
-        CONF_ENABLE_PICTURE_CONTROLS, DEFAULT_ENABLE_PICTURE_CONTROLS
-    )
-    enable_sound = config_entry.options.get(
-        CONF_ENABLE_SOUND_CONTROLS, DEFAULT_ENABLE_SOUND_CONTROLS
-    )
+    enable_picture = config_entry.options.get(CONF_ENABLE_PICTURE_CONTROLS, DEFAULT_ENABLE_PICTURE_CONTROLS)
+    enable_sound = config_entry.options.get(CONF_ENABLE_SOUND_CONTROLS, DEFAULT_ENABLE_SOUND_CONTROLS)
 
     # Clean up disabled/unsupported entities from entity registry
     entity_reg = er.async_get(hass)
@@ -200,13 +214,9 @@ async def async_setup_entry(
 
     entities: list[SelectEntity] = []
     if enable_picture:
-        entities.append(
-            VidaaPictureModeSelect(client=client, entry=config_entry)
-        )
+        entities.append(VidaaPictureModeSelect(client=client, entry=config_entry))
     if enable_sound:
-        entities.append(
-            VidaaSoundModeSelect(client=client, entry=config_entry)
-        )
+        entities.append(VidaaSoundModeSelect(client=client, entry=config_entry))
 
     if entities:
         async_add_entities(entities)

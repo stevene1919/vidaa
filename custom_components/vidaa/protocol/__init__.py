@@ -1,4 +1,4 @@
-"""Protocol and network communication subpackage for Hisense VIDAA TV."""
+"""Protocol and network communication subpackage for VIDAA Smart TV."""
 
 from __future__ import annotations
 
@@ -52,7 +52,7 @@ from .dispatcher import (
 from .pairing import async_start_pairing_handshake, async_submit_pin_code
 from .ping import async_ping_tv, ping_tv
 from .topics import TOPIC_BROADCAST_BASEPATH, TopicPaths, build_topic_paths
-from .upnp import HisenseUpnpClient
+from .upnp import HisenseUpnpClient, VidaaUpnpClient
 from .wol import send_wake_on_lan
 
 __all__ = [
@@ -67,6 +67,7 @@ __all__ = [
     "HisenseUpnpClient",
     "MqttSessionAdapter",
     "TopicPaths",
+    "VidaaUpnpClient",
     "apply_mqtt_tls",
     "async_perform_token_refresh",
     "async_ping_tv",

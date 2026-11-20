@@ -1,4 +1,4 @@
-"""TV actions facade and unified mixin for Hisense VIDAA TV."""
+"""TV actions facade and unified mixin for VIDAA Smart TV."""
 
 from __future__ import annotations
 

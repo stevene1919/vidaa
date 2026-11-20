@@ -27,10 +27,10 @@ Si connette **direttamente** al broker MQTT interno del televisore (porta TLS `3
 
 La configurazione richiede meno di 3 minuti in 3 semplici passaggi:
 
-### 1️⃣ Installazione tramite HACS
-Fai clic sul pulsante qui sotto (o cerca **VIDAA Smart TV** in HACS → Integrazioni → Scarica):
+### 1️⃣ Installazione tramite Marketplace (HACS)
+Fai clic sul pulsante qui sotto (o cerca **VIDAA Smart TV** in Marketplace (HACS) → Integrazioni → Scarica):
 
-[![Apri HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
+[![Apri Marketplace (HACS)](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
 
 ### 2️⃣ Posiziona il file della chiave (`client_mobile_android.p12` o `El.p12`)
 I televisori VIDAA richiedono la crittografia reciproca TLS sulla porta 36669. Copia il file universale **`client_mobile_android.p12`** (o `El.p12`) nella cartella **`/config/ssl/`** di Home Assistant.
@@ -91,5 +91,5 @@ Supporta ufficialmente **qualsiasi Smart TV con sistema VIDAA OS** (associazione
 | 📱 **[Schede Lovelace e Dashboard](../lovelace_cards.md)** | Telecomandi grafici, Button Card e template per la dashboard. |
 | 🛠️ **[Automazioni ed Esempi di Servizi](../services_and_automations.md)** | Script e ricette YAML pronte all'uso per serate cinema e routine. |
 | 🔒 **[Configurazione Avanzata SSL](../certificates.md)** | Gestione certificati PEM, directory di archiviazione e comandi OpenSSL. |
-| 🧪 **[Strumenti di Test e Diagnostica CLI](../cli_tools.md)** | Script standalone di diagnostica (`scripts/test_client.py`, `scripts/debug_tv.py`). |
+| 🧪 **[Strumenti di Test e Diagnostica CLI](../cli_tools.md)** | Script standalone di diagnostica (`scripts/test_client.py`, `scripts/diag.sh`). |
 | 🩺 **[Risoluzione dei Problemi](../troubleshooting.md)** | Diagnosi rapida degli errori di associazione e problemi di rete. |

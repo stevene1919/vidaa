@@ -90,8 +90,9 @@ Copy your **`client_mobile_android.p12`** (or **`El.p12`**) file into your Home 
 
 > [!TIP]
 > **4-Digit PIN Not Appearing on Your TV Screen?**  
-> Check your TV settings to ensure **Smart / Connected Services** are accepted (`Settings → Support / System → Terms & Conditions / Smart Services`). VIDAA OS suppresses the on-screen pairing PIN popup if connected services are disabled.  
-> *(Privacy Note: It is completely safe to block the TV from internet/WAN access at your router once pairing is finished—Home Assistant local control works 100% offline).*
+> 1. **Check Terms of Use:** Ensure **Smart / Connected Services** are accepted (`Settings → Support / System → Terms & Conditions / Smart Services`). VIDAA OS suppresses the on-screen pairing PIN popup if connected services are disabled.  
+> 2. **Check the TV's Clock (Firewall-Blocked / Isolated Sets):** If your TV is blocked from the internet by a firewall or DNS sinkhole, its internal clock may have drifted out of sync. Modern VIDAA TV brokers reject pairing challenges if the TV's internal clock differs from real time. Verify the time in **Settings → System → Time/Date** and reboot the TV.  
+> *(Privacy Note: It is completely safe to block the TV from internet/WAN access at your router once pairing is finished, but ensure `UDP 123` / NTP is redirected to a local NTP server so the TV's clock stays accurate across reboots).*
 
 🎉 **You're all done!** Your TV will appear in Home Assistant with full media controls, volume slider, input source selector, remote navigation, and app launcher.
 

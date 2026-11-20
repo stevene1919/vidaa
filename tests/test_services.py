@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import voluptuous as vol
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.exceptions import ServiceValidationError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 
 from custom_components.vidaa import async_setup
 from custom_components.vidaa.const import (
@@ -200,6 +200,7 @@ async def test_launch_app_service_with_app_id_and_url_overrides():
 
     # Schema validation: calling with neither app nor app_id should fail validation
     from custom_components.vidaa.services import _validate_launch_app_data
+
     with pytest.raises(vol.Invalid):
         _validate_launch_app_data({})
 
@@ -260,8 +261,6 @@ async def test_picture_sound_and_text_input_services():
     assert res_txt["text"] == "hello world"
 
 
-
-
 # ---------------------------------------------------------------------------
 # HA-surface fix leg: F7-leg2 (area/floor/label targets) and F8-leg2
 # (vol schemas + ServiceValidationError).
@@ -276,7 +275,6 @@ ALL_SERVICE_NAMES = [
     SERVICE_SEND_KEY_SEQUENCE,
     SERVICE_CHANGE_CHANNEL,
 ]
-
 
 
 def _two_tv_hass():
@@ -307,7 +305,6 @@ def _two_tv_hass():
         }
     }
     return hass, client_living, client_kitchen
-
 
 
 async def _register_handlers(hass):
@@ -373,7 +370,6 @@ async def test_services_register_schemas_that_coerce_repeat_and_delay():
         assert _field(fields, key) is not None
 
 
-
 @pytest.mark.anyio
 async def test_call_against_disconnected_tvs_raises_not_connected():
     """[F8-leg2] a call that can only reach disconnected TVs must raise not_connected."""
@@ -382,9 +378,7 @@ async def test_call_against_disconnected_tvs_raises_not_connected():
     client_living.connected = False
     client_kitchen.connected = False
 
-    call = ServiceCall(
-        domain=DOMAIN, service=SERVICE_SEND_KEY, data={ATTR_KEY: "KEY_HOME", "entity_id": "all"}
-    )
+    call = ServiceCall(domain=DOMAIN, service=SERVICE_SEND_KEY, data={ATTR_KEY: "KEY_HOME", "entity_id": "all"})
 
     with pytest.raises(ServiceValidationError) as err:
         await handlers[SERVICE_SEND_KEY](call)
@@ -392,6 +386,23 @@ async def test_call_against_disconnected_tvs_raises_not_connected():
     assert err.value.translation_key == "not_connected"
     client_living.send_command.assert_not_called()
     client_kitchen.send_command.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_call_against_auth_failed_tvs_raises_auth_required():
+    """Verify that a service call targeted at an auth_failed TV raises auth_required."""
+    hass, client_living, client_kitchen = _two_tv_hass()
+    handlers = await _register_handlers(hass)
+    client_living.connected = False
+    client_living.auth_failed = True
+    client_kitchen.connected = False
+
+    call = ServiceCall(domain=DOMAIN, service=SERVICE_SEND_KEY, data={ATTR_KEY: "KEY_HOME", "entity_id": "all"})
+
+    with pytest.raises(ServiceValidationError) as err:
+        await handlers[SERVICE_SEND_KEY](call)
+
+    assert err.value.translation_key == "auth_required"
 
 
 @pytest.mark.anyio
@@ -569,4 +580,205 @@ async def test_legacy_service_descriptions_registered_without_integration_not_fo
             assert "fields" in desc
 
 
+@pytest.mark.anyio
+async def test_service_action_exceptions_on_command_failure():
+    """Verify HA Quality Scale action-exceptions: service handlers raise HomeAssistantError on command delivery failure."""
+    hass, client_living, _client_kitchen = _two_tv_hass()
+    client_living.ip = "10.0.0.1"
+    handlers = await _register_handlers(hass)
+    client_living.connected = True
+
+    # 1. send_key fails
+    client_living.async_send_command = AsyncMock(return_value=False)
+    call_key = ServiceCall(
+        domain=DOMAIN,
+        service=SERVICE_SEND_KEY,
+        data={ATTR_KEY: "KEY_POWER", "ip_address": "10.0.0.1"},
+    )
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await handlers[SERVICE_SEND_KEY](call_key)
+    assert exc_info.value.translation_key == "send_key_failed"
+
+    # 2. send_key_sequence fails
+    call_seq = ServiceCall(
+        domain=DOMAIN,
+        service=SERVICE_SEND_KEY_SEQUENCE,
+        data={ATTR_SEQUENCE: ["home"], "ip_address": "10.0.0.1"},
+    )
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await handlers[SERVICE_SEND_KEY_SEQUENCE](call_seq)
+    assert exc_info.value.translation_key == "send_key_sequence_failed"
+
+    # 3. change_channel fails
+    call_ch = ServiceCall(
+        domain=DOMAIN,
+        service=SERVICE_CHANGE_CHANNEL,
+        data={ATTR_CHANNEL: "1", "ip_address": "10.0.0.1"},
+    )
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await handlers[SERVICE_CHANGE_CHANNEL](call_ch)
+    assert exc_info.value.translation_key == "change_channel_digit_failed"
+
+    # 4. launch_app fails
+    client_living.async_launch_app = AsyncMock(return_value=False)
+    call_app = ServiceCall(
+        domain=DOMAIN,
+        service=SERVICE_LAUNCH_APP,
+        data={ATTR_APP: "YouTube", "ip_address": "10.0.0.1"},
+    )
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await handlers[SERVICE_LAUNCH_APP](call_app)
+    assert exc_info.value.translation_key == "launch_app_failed"
+
+    # 5. set_picture_setting fails
+    client_living.async_set_picture_setting = AsyncMock(return_value=False)
+    call_pic = ServiceCall(
+        domain=DOMAIN,
+        service=SERVICE_SET_PICTURE_SETTING,
+        data={ATTR_MENU_ID: 91, ATTR_MENU_VALUE: "Standard", "ip_address": "10.0.0.1"},
+    )
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await handlers[SERVICE_SET_PICTURE_SETTING](call_pic)
+    assert exc_info.value.translation_key == "set_picture_setting_failed"
+
+    # 6. set_sound_setting fails
+    client_living.async_set_sound_setting = AsyncMock(return_value=False)
+    call_snd = ServiceCall(
+        domain=DOMAIN,
+        service=SERVICE_SET_SOUND_SETTING,
+        data={ATTR_MENU_ID: 1, ATTR_MENU_VALUE: "Standard", "ip_address": "10.0.0.1"},
+    )
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await handlers[SERVICE_SET_SOUND_SETTING](call_snd)
+    assert exc_info.value.translation_key == "set_sound_setting_failed"
+
+    # 7. send_text_input fails
+    client_living.async_send_text_input = AsyncMock(return_value=False)
+    call_txt = ServiceCall(
+        domain=DOMAIN,
+        service=SERVICE_SEND_TEXT_INPUT,
+        data={ATTR_TEXT: "test", "ip_address": "10.0.0.1"},
+    )
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await handlers[SERVICE_SEND_TEXT_INPUT](call_txt)
+    assert exc_info.value.translation_key == "send_text_input_failed"
+
+
+@pytest.mark.anyio
+async def test_service_action_exceptions_on_disconnected_target():
+    """Verify handlers raise HomeAssistantError when a targeted client in a multi-client call is disconnected."""
+    hass, client_living, client_kitchen = _two_tv_hass()
+    client_living.connected = True
+    client_kitchen.connected = False  # Kitchen is disconnected
+    handlers = await _register_handlers(hass)
+
+    # Calling 'all' targets both clients; kitchen is disconnected
+    call_key = ServiceCall(
+        domain=DOMAIN,
+        service=SERVICE_SEND_KEY,
+        data={ATTR_KEY: "KEY_POWER", "entity_id": "all"},
+    )
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await handlers[SERVICE_SEND_KEY](call_key)
+    assert exc_info.value.translation_key == "send_key_failed"
+    assert "TV is disconnected" in str(exc_info.value)
+
+
+@pytest.mark.anyio
+async def test_service_action_exceptions_when_tv_off():
+    """Verify services raise device_off when targeted TV is off, allow power key, and launch_app auto-wakes."""
+    hass, client_living, _client_kitchen = _two_tv_hass()
+    client_living.ip = "10.0.0.1"
+    client_living.connected = True
+    client_living.is_on = False
+    client_living.async_send_command = AsyncMock(return_value=True)
+    client_living.async_turn_on = AsyncMock(return_value=True)
+    client_living.async_launch_app = AsyncMock(return_value=True)
+    handlers = await _register_handlers(hass)
+
+    # 1. Non-power key raises device_off
+    call_key = ServiceCall(
+        domain=DOMAIN,
+        service=SERVICE_SEND_KEY,
+        data={ATTR_KEY: "KEY_VOLUMEUP", "ip_address": "10.0.0.1"},
+    )
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await handlers[SERVICE_SEND_KEY](call_key)
+    assert exc_info.value.translation_key == "device_off"
+
+    # 2. Power key is permitted when off
+    call_power = ServiceCall(
+        domain=DOMAIN,
+        service=SERVICE_SEND_KEY,
+        data={ATTR_KEY: "KEY_POWER", "ip_address": "10.0.0.1"},
+    )
+    res_power = await handlers[SERVICE_SEND_KEY](call_power)
+    assert res_power["key"] == "KEY_POWER"
+
+    # 3. Key sequence raises device_off
+    call_seq = ServiceCall(
+        domain=DOMAIN,
+        service=SERVICE_SEND_KEY_SEQUENCE,
+        data={ATTR_SEQUENCE: ["up", "ok"], "ip_address": "10.0.0.1"},
+    )
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await handlers[SERVICE_SEND_KEY_SEQUENCE](call_seq)
+    assert exc_info.value.translation_key == "device_off"
+
+    # 4. Change channel raises device_off
+    call_ch = ServiceCall(
+        domain=DOMAIN,
+        service=SERVICE_CHANGE_CHANNEL,
+        data={ATTR_CHANNEL: "123", "ip_address": "10.0.0.1"},
+    )
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await handlers[SERVICE_CHANGE_CHANNEL](call_ch)
+    assert exc_info.value.translation_key == "device_off"
+
+    # 5. Picture setting raises device_off
+    call_pic = ServiceCall(
+        domain=DOMAIN,
+        service=SERVICE_SET_PICTURE_SETTING,
+        data={ATTR_MENU_ID: 1, ATTR_MENU_VALUE: "Standard", "ip_address": "10.0.0.1"},
+    )
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await handlers[SERVICE_SET_PICTURE_SETTING](call_pic)
+    assert exc_info.value.translation_key == "device_off"
+
+    # 6. Sound setting raises device_off
+    call_snd = ServiceCall(
+        domain=DOMAIN,
+        service=SERVICE_SET_SOUND_SETTING,
+        data={ATTR_MENU_ID: 1, ATTR_MENU_VALUE: "Standard", "ip_address": "10.0.0.1"},
+    )
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await handlers[SERVICE_SET_SOUND_SETTING](call_snd)
+    assert exc_info.value.translation_key == "device_off"
+
+    # 7. Text input raises device_off
+    call_txt = ServiceCall(
+        domain=DOMAIN,
+        service=SERVICE_SEND_TEXT_INPUT,
+        data={ATTR_TEXT: "hello", "ip_address": "10.0.0.1"},
+    )
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await handlers[SERVICE_SEND_TEXT_INPUT](call_txt)
+    assert exc_info.value.translation_key == "device_off"
+
+    # 8. Launch app wakes TV first
+    async def _wake_tv(*args, **kwargs):
+        client_living.is_on = True
+        return True
+
+    client_living.async_turn_on = AsyncMock(side_effect=_wake_tv)
+    call_app = ServiceCall(
+        domain=DOMAIN,
+        service=SERVICE_LAUNCH_APP,
+        data={ATTR_APP: "YouTube", "ip_address": "10.0.0.1"},
+    )
+    client_living.is_on = False
+    res_app = await handlers[SERVICE_LAUNCH_APP](call_app)
+    assert res_app["app"] == "YouTube"
+    client_living.async_turn_on.assert_called_once()
+    client_living.async_launch_app.assert_called_once()
 

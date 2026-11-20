@@ -61,7 +61,6 @@ async def test_service_target_resolution():
     assert exc_info.value.translation_key == "ambiguous_target"
 
 
-
 def _install_registry_fakes(monkeypatch, areas, devices, entities):
     """Point the HA registry helpers at simple in-memory registries."""
     area_reg = MagicMock()
@@ -72,15 +71,9 @@ def _install_registry_fakes(monkeypatch, areas, devices, entities):
     ent_reg = MagicMock()
     ent_reg.entities = entities
     ent_reg.async_get = entities.get
-    monkeypatch.setattr(
-        "homeassistant.helpers.area_registry.async_get", lambda hass: area_reg
-    )
-    monkeypatch.setattr(
-        "homeassistant.helpers.device_registry.async_get", lambda hass: dev_reg
-    )
-    monkeypatch.setattr(
-        "homeassistant.helpers.entity_registry.async_get", lambda hass: ent_reg
-    )
+    monkeypatch.setattr("homeassistant.helpers.area_registry.async_get", lambda hass: area_reg)
+    monkeypatch.setattr("homeassistant.helpers.device_registry.async_get", lambda hass: dev_reg)
+    monkeypatch.setattr("homeassistant.helpers.entity_registry.async_get", lambda hass: ent_reg)
 
 
 def _two_tv_hass():
@@ -113,8 +106,6 @@ def _two_tv_hass():
     return hass, client_living, client_kitchen
 
 
-
-
 def test_area_floor_and_label_targets_are_resolved(monkeypatch):
     """[F7-leg2] area/floor/label targets must select their TV, never broadcast."""
 
@@ -144,27 +135,19 @@ def test_area_floor_and_label_targets_are_resolved(monkeypatch):
     _install_registry_fakes(monkeypatch, areas, devices, entities)
 
     # area -> the entity whose area matches
-    call_area = ServiceCall(
-        domain=DOMAIN, service=SERVICE_SEND_KEY, data={"area_id": "area_living"}
-    )
+    call_area = ServiceCall(domain=DOMAIN, service=SERVICE_SEND_KEY, data={"area_id": "area_living"})
     assert _get_target_clients(hass, call_area) == [client_living]
 
     # floor -> the areas on that floor -> their devices
-    call_floor = ServiceCall(
-        domain=DOMAIN, service=SERVICE_SEND_KEY, data={"floor_id": "floor_up"}
-    )
+    call_floor = ServiceCall(domain=DOMAIN, service=SERVICE_SEND_KEY, data={"floor_id": "floor_up"})
     assert _get_target_clients(hass, call_floor) == [client_kitchen]
 
     # label -> the labelled device
-    call_label = ServiceCall(
-        domain=DOMAIN, service=SERVICE_SEND_KEY, data={"label_id": "tv_kids"}
-    )
+    call_label = ServiceCall(domain=DOMAIN, service=SERVICE_SEND_KEY, data={"label_id": "tv_kids"})
     assert _get_target_clients(hass, call_label) == [client_kitchen]
 
     # device -> the device's config entry (existing path, fed by the fake registry)
-    call_device = ServiceCall(
-        domain=DOMAIN, service=SERVICE_SEND_KEY, data={"device_id": "dev_kitchen"}
-    )
+    call_device = ServiceCall(domain=DOMAIN, service=SERVICE_SEND_KEY, data={"device_id": "dev_kitchen"})
     assert _get_target_clients(hass, call_device) == [client_kitchen]
 
     # entity -> the entity's config entry (existing path, fed by the fake registry)
@@ -176,12 +159,8 @@ def test_area_floor_and_label_targets_are_resolved(monkeypatch):
     assert _get_target_clients(hass, call_entity) == [client_living]
 
     # an unmatched target must select nothing - never every TV
-    call_unknown = ServiceCall(
-        domain=DOMAIN, service=SERVICE_SEND_KEY, data={"area_id": "area_nowhere"}
-    )
+    call_unknown = ServiceCall(domain=DOMAIN, service=SERVICE_SEND_KEY, data={"area_id": "area_nowhere"})
     assert _get_target_clients(hass, call_unknown) == []
-
-
 
 
 async def _register_handlers(hass):
@@ -197,8 +176,6 @@ async def _register_handlers(hass):
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
     await async_setup(hass, {})
     return handlers
-
-
 
 
 @pytest.mark.anyio
@@ -223,8 +200,6 @@ async def test_targeted_call_without_a_match_raises_no_target_device():
 
 
 @pytest.mark.anyio
-
-
 def test_multi_tv_ambiguous_target_guard() -> None:
     """Test single-TV auto targeting, multi-TV ambiguous target exception, and 'all' broadcast."""
     from types import SimpleNamespace
@@ -264,30 +239,19 @@ def test_multi_tv_ambiguous_target_guard() -> None:
     assert exc_info.value.translation_key == "ambiguous_target"
 
     # Case 3: Multiple TVs configured, entity_id: "all" string -> targets all
-    call_broadcast_str = ServiceCall(
-        domain=DOMAIN, service=SERVICE_SEND_KEY, data={"entity_id": "ALL"}
-    )
+    call_broadcast_str = ServiceCall(domain=DOMAIN, service=SERVICE_SEND_KEY, data={"entity_id": "ALL"})
     assert _get_target_clients(hass, call_broadcast_str) == [client1, client2]
 
     # Case 4: Multiple TVs configured, entity_id: ["all"] list -> targets all
-    call_broadcast_list = ServiceCall(
-        domain=DOMAIN, service=SERVICE_SEND_KEY, data={"entity_id": ["all"]}
-    )
+    call_broadcast_list = ServiceCall(domain=DOMAIN, service=SERVICE_SEND_KEY, data={"entity_id": ["all"]})
     assert _get_target_clients(hass, call_broadcast_list) == [client1, client2]
 
     # Case 5: Target by explicit IP address
-    call_ip = ServiceCall(
-        domain=DOMAIN, service=SERVICE_SEND_KEY, data={"ip_address": "10.0.0.2"}
-    )
+    call_ip = ServiceCall(domain=DOMAIN, service=SERVICE_SEND_KEY, data={"ip_address": "10.0.0.2"})
     assert _get_target_clients(hass, call_ip) == [client2]
 
     # Case 6: Target by non-existent IP address -> raises no_target_device
-    call_unknown_ip = ServiceCall(
-        domain=DOMAIN, service=SERVICE_SEND_KEY, data={"ip_address": "192.168.1.99"}
-    )
+    call_unknown_ip = ServiceCall(domain=DOMAIN, service=SERVICE_SEND_KEY, data={"ip_address": "192.168.1.99"})
     with pytest.raises(ServiceValidationError) as exc_unknown:
         _resolve_service_targets(hass, call_unknown_ip)
     assert exc_unknown.value.translation_key == "no_target_device"
-
-
-

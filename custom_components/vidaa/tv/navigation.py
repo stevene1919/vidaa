@@ -1,4 +1,4 @@
-"""App matching, input source switching, and navigation helpers for Hisense VIDAA TV."""
+"""App matching, input source switching, and navigation helpers for VIDAA Smart TV."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 from .aliases import KEY_ALIASES
 
 if TYPE_CHECKING:
-    from ..client import HisenseTvClient
+    from ..client import VidaaClient
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -112,10 +112,7 @@ def match_app(
         if isinstance(app, dict):
             app_name = str(app.get("name") or app.get("appName") or "")
             app_id = str(app.get("appId") or app.get("id") or "")
-            if norm_target and (
-                norm_target == normalize_string(app_name)
-                or norm_target == normalize_string(app_id)
-            ):
+            if norm_target and (norm_target == normalize_string(app_name) or norm_target == normalize_string(app_id)):
                 return {
                     "appId": str(app.get("appId") or app.get("id") or ""),
                     "name": app_name or target,
@@ -175,8 +172,7 @@ def _is_hardware_source(source_entry: dict[str, Any]) -> bool:
     display_name = str(source_entry.get("displayname") or "").strip().lower()
     for identifier in (source_name, source_id, display_name):
         if any(
-            identifier.startswith(prefix)
-            for prefix in ("hdmi", "av", "tv", "dtv", "atv", "antenna", "comp", "vga")
+            identifier.startswith(prefix) for prefix in ("hdmi", "av", "tv", "dtv", "atv", "antenna", "comp", "vga")
         ):
             return True
         if identifier in ("tv", "live tv", "livetv", "av", "avs"):
@@ -198,8 +194,7 @@ def get_next_cycled_source(
     valid_sources = [
         source
         for source in sources
-        if isinstance(source, dict)
-        and (source.get("sourceid") is not None or source.get("sourcename") is not None)
+        if isinstance(source, dict) and (source.get("sourceid") is not None or source.get("sourcename") is not None)
     ]
     if not valid_sources:
         return None
@@ -237,7 +232,7 @@ def resolve_command_key(command: str) -> str:
     return KEY_ALIASES.get(cmd_clean, command.strip().upper())
 
 
-def launch_app_by_name(client: HisenseTvClient, app_name: str) -> bool:
+def launch_app_by_name(client: VidaaClient, app_name: str) -> bool:
     """Launches an app on the TV by searching the client's cached app registry."""
     matched = match_app(getattr(client, "apps", []), app_name)
     if matched:
@@ -247,18 +242,16 @@ def launch_app_by_name(client: HisenseTvClient, app_name: str) -> bool:
     return True
 
 
-def change_source_by_name_or_id(client: HisenseTvClient, source_target: str) -> bool:
+def change_source_by_name_or_id(client: VidaaClient, source_target: str) -> bool:
     """Changes input source on the TV by matching against available sources."""
     sid, sname = resolve_source(getattr(client, "sources", []), source_target)
     client.change_source(sid, sname)
     return True
 
 
-def cycle_tv_source(client: HisenseTvClient) -> bool:
+def cycle_tv_source(client: VidaaClient) -> bool:
     """Cycles through input sources on the TV."""
-    cycled = get_next_cycled_source(
-        getattr(client, "sources", []), getattr(client, "current_source", None)
-    )
+    cycled = get_next_cycled_source(getattr(client, "sources", []), getattr(client, "current_source", None))
     if cycled:
         sid, sname = cycled
         client.change_source(sid, sname)

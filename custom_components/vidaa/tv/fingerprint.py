@@ -1,7 +1,8 @@
-"""UPnP, DLNA, mDNS, and ARP device fingerprinting for Hisense VIDAA TVs."""
+"""UPnP, DLNA, mDNS, and ARP device fingerprinting for VIDAA Smart TVs."""
 
 from __future__ import annotations
 
+import contextlib
 import email.utils
 import logging
 import os
@@ -48,7 +49,9 @@ __all__ = [
 def probe_upnp_services(ip: str, verbose: bool = True) -> dict[str, Any]:
     """Probes UPnP services (RenderingControl, AVTransport, LanControl) on the target TV."""
     if verbose:
-        print(f"\n=======================================================\n  UPnP / DLNA Diagnostic Probe ({ip})\n=======================================================")
+        print(
+            f"\n=======================================================\n  UPnP / DLNA Diagnostic Probe ({ip})\n======================================================="
+        )
 
     results: dict[str, Any] = {
         "active_port": None,
@@ -106,7 +109,8 @@ def probe_upnp_services(ip: str, verbose: bool = True) -> dict[str, Any]:
                     results["active_port"] = port
                     results["friendly_name"] = friendly
                     break
-        except Exception:
+        except Exception as e:
+            _LOGGER.debug("UPnP probe attempt failed on port %s: %s", port, e)
             continue
 
     if not active_port:
@@ -185,7 +189,9 @@ def probe_upnp_services(ip: str, verbose: bool = True) -> dict[str, Any]:
         if status == 200:
             print(f"  [LanControlInfo] Status: 200 OK -> Response: {resp_xml[:200]}")
         elif status == 404:
-            print("  [LanControlInfo] Status: 404 Not Found (Standard behavior on transport_protocol=3160; U6+ specific)")
+            print(
+                "  [LanControlInfo] Status: 404 Not Found (Standard behavior on transport_protocol=3160; U6+ specific)"
+            )
         else:
             print(f"  [LanControlInfo] Status: {status} -> {resp_xml[:120]}")
 
@@ -230,16 +236,14 @@ def get_tv_timestamp(ip: str, timeout: float = 2.0) -> int | None:
 
 def get_arp_mac(ip: str) -> str | None:
     """Discovers hardware MAC address via getmac or Linux ARP table."""
-    try:
+    with contextlib.suppress(Exception):
         from getmac import get_mac_address
 
         mac = get_mac_address(ip=ip)
         if mac:
             return mac.lower()
-    except Exception:
-        pass
 
-    try:
+    with contextlib.suppress(Exception):
         if os.path.exists("/proc/net/arp"):
             with open("/proc/net/arp") as f:
                 for line in f:
@@ -248,8 +252,6 @@ def get_arp_mac(ip: str) -> str | None:
                         mac = parts[3]
                         if mac != "00:00:00:00:00:00":
                             return mac.lower()
-    except Exception:
-        pass
 
     return None
 
@@ -274,16 +276,18 @@ def query_upnp_descriptor(ip: str, timeout: float = 2.0) -> dict[str, Any]:
 
     for port in UPNP_PORTS:
         try:
-            if not info["tv_timestamp"]:
-                info["tv_timestamp"] = get_tv_timestamp(ip, timeout=timeout)
             url = f"http://{ip}:{port}/MediaServer/rendererdevicedesc.xml"
             req = urllib.request.Request(url, headers={"User-Agent": "HisenseVIDAATestClient"})
             with urllib.request.urlopen(req, timeout=timeout) as response:
+                if not info["tv_timestamp"]:
+                    date_str = response.headers.get("Date") if hasattr(response, "headers") else None
+                    if date_str:
+                        with contextlib.suppress(Exception):
+                            dt = email.utils.parsedate_to_datetime(date_str)
+                            info["tv_timestamp"] = int(dt.timestamp())
                 content = response.read().decode("utf-8", errors="ignore")
                 parsed_desc = parse_upnp_renderer_descriptor(content)
-                for key, val in parsed_desc.items():
-                    if val is not None:
-                        info[key] = val
+                info.update({key: val for key, val in parsed_desc.items() if val is not None})
             if info["model_name"] or info["friendly_name"]:
                 break
         except Exception as e:
@@ -309,14 +313,12 @@ def query_mdns_fingerprint(ip: str, timeout: float = 2.0, zc: Zeroconf | None = 
 
         class MDNSListener:
             def add_service(self, zc_inst: Zeroconf, type_: str, name: str) -> None:
-                try:
+                with contextlib.suppress(Exception):
                     s_info = zc_inst.get_service_info(type_, name)
                     if s_info:
                         addrs = [socket.inet_ntoa(a) for a in s_info.addresses]
                         if target_ip in addrs or "Smart TV" in name:
                             discovered[type_] = s_info.properties
-                except Exception:
-                    pass
 
             def update_service(self, zc_inst: Zeroconf, type_: str, name: str) -> None:
                 pass
@@ -381,9 +383,7 @@ def get_device_fingerprint(ip: str, timeout: float = 2.0, zc: Zeroconf | None = 
     }
 
     upnp_info = query_upnp_descriptor(ip=ip, timeout=timeout)
-    for k, v in upnp_info.items():
-        if v is not None:
-            info[k] = v
+    info.update({k: v for k, v in upnp_info.items() if v is not None})
 
     mdns_info = query_mdns_fingerprint(ip=ip, timeout=timeout, zc=zc)
     if mdns_info.get("model_code"):

@@ -21,7 +21,7 @@ When an automation or manual service call fails, Home Assistant displays an erro
 
 | Error Message / Translation Key | Cause | How to Fix |
 | :--- | :--- | :--- |
-| **`Failed to send key {key}: {error}`**<br>(`send_key_failed`) | The TV's MQTT broker rejected the key command, the TV is disconnected, or an invalid key name was supplied. | 1. Ensure the TV is awake (send a Wake-on-LAN command if asleep).<br>2. Verify the key name matches supported keys (e.g., `KEY_POWER`, `KEY_VOLUMEUP`, `KEY_HOME`). See [`services_and_automations.md`](services_and_automations.md#11-supported-key-names). |
+| **`Failed to send key {key}: {error}`**<br>(`send_key_failed`) | The TV's MQTT broker rejected the key command, the TV is disconnected, or an invalid key name was supplied. | 1. Ensure the TV is awake (send a Wake-on-LAN command if asleep).<br>2. Verify the key name matches supported keys (e.g., `KEY_POWER`, `KEY_VOLUMEUP`, `KEY_HOME`). See [`services_and_automations.md`](services_and_automations.md#21-supported-key-names--aliases). |
 | **`Key sequence cannot be empty`**<br>(`empty_key_sequence`) | The `send_key_sequence` action was triggered with an empty `sequence` list. | Ensure your automation or script passes at least one key name in the `sequence` list parameter. |
 | **`Failed to send key sequence at step {index} ({key}): {error}`**<br>(`send_key_sequence_failed`) | The sequence was interrupted (e.g. TV disconnected, command timed out, or unmapped key at step *N*). | Check the error details for the specific key step that failed. Increase `delay` between keys (e.g., to `0.5`s or `1.0`s) to give the TV OS time to process each keypress. |
 | **`Channel digits must contain numbers only: {channel}`**<br>(`invalid_channel_digits`) | The `change_channel` action received non-numeric characters (e.g., letters or spaces). | Provide only numeric digits or dot-separated channel numbers (e.g. `10`, `70`, `7.1`). |
@@ -58,15 +58,20 @@ When an automation or manual service call fails, Home Assistant displays an erro
   * Note: Hisense and VIDAA devices often drop ICMP ping requests by default. Reachability must be verified via TCP port `36669` or UPnP HTTP port `38400` (e.g. `curl -I http://<tv_ip>:38400/MediaServer/rendererdevicedesc.xml`), not standard `ping`.
   * See [`network_requirements.md`](network_requirements.md) for complete port and firewall specifications.
 
+### 3. Wake-on-LAN Does Nothing When Tested Immediately After Powering Off
+* **Explanation**: You cannot test Wake-on-LAN immediately after turning off the TV. For the first ~15 minutes after power-off, the TV remains in transitional Fast Boot standby (~7.5W). In this state, the network card is not in low-power L2 sleep mode and **completely ignores Wake-on-LAN magic packets**. During this 15-minute window, the TV only wakes via software MQTT (`KEY_POWER`) or the remote.
+* **Solution**: Wait **15 to 20 minutes** after turning the TV off. Once the TV drops into true regulatory deep sleep (0.0W on a smart plug), the network chip enters low-power listening mode and will respond to Wake-on-LAN magic packets.
+
 ---
 
 ## 🔐 Pairing & Authentication Issues
 
 ### 1. Pairing Fails or PIN Does Not Appear on Screen
 * **Smart / Connected Services Disabled (Terms of Use Not Accepted):** VIDAA OS suppresses the on-screen 4-digit pairing PIN popup if **Smart Services** (Connected Services, Terms of Use, and Privacy Policy) are turned off or skipped in TV settings (`Settings → Support / System → Terms & Conditions / Smart Services`). Enable them on the TV and try pairing again. If you wish to isolate the TV from the internet, you can safely block its IP address from WAN/internet access at your router once pairing is completed.
+* **TV Hardware Clock Drift (Firewall-Blocked / Isolated IoT LANs):** VIDAA OS lacks a battery-backed Real-Time Clock (RTC). If the TV is completely cut off from the internet by a router firewall or DNS sinkhole (e.g. AdGuard / Pi-hole) without an NTP redirect rule, its internal clock will drift or reset after reboots/power cycles. The TV's MQTT broker rejects modern timestamped authentication challenges if the TV's internal clock differs from real time by more than ±60–120 seconds, resulting in a silent connection failure (`rc: 5 / 135`) without ever displaying the 4-digit PIN. Temporarily allow outbound internet access (or check TV Settings → System → Time/Date, verify the time, and power-cycle the TV). See [Section 6 of Network Requirements](network_requirements.md#6-tv-hardware-clock-ntp-sync--isolated-iot-lans-wan-blocked) for long-term UDP 123 NAT redirection.
 * **Mobile App Conflict:** VIDAA TVs typically allow only one active remote control session at a time. If the official **RemoteNOW** or **VIDAA** mobile app is currently running on a phone or tablet, close the mobile app completely before starting pairing in Home Assistant.
 * **Keystore Bundle Filename:** Verify that `client_mobile_android.p12` or `El.p12` is in `/config/ssl/`.
-* **Stale Pairing Cache:** In Home Assistant, restart the config flow or trigger re-pairing via `button.<tv_name>_trigger_re_pairing`.
+* **Stale Pairing Cache:** In Home Assistant, restart the config flow or trigger re-pairing via the **Start re-authentication** button (`button.<tv_name>_start_re_authentication` or `button.<tv_name>_trigger_re_pairing`).
 * **Expired PIN:** PIN codes displayed on the TV screen expire after 60 seconds. Enter the 4-digit code promptly.
 
 ### 2. Frequent Token Loss or Prompts to Re-Authenticate
@@ -77,13 +82,39 @@ When an automation or manual service call fails, Home Assistant displays an erro
   * In TV Settings, disable **Auto Standby with No Signal**.
   * Keep Home Assistant's client certificates properly configured in `/config/ssl/` as documented in [`certificates.md`](certificates.md) to enable automatic mutual TLS authentication.
 
+* **Automated Alerts via Authentication Problem Sensor:**
+  * When stored tokens are wiped or invalidated by the TV broker, the diagnostic entity `binary_sensor.<tv_name>_authentication_problem` turns `on` and Home Assistant displays a persistent Repairs notification. You can automate instant notifications using:
+    ```yaml
+    alias: "Notify when VIDAA TV requires re-authentication"
+    trigger:
+      - trigger: state
+        entity_id: binary_sensor.hisense_tv_authentication_problem
+        to: "on"
+        for: "00:01:00"
+    action:
+      - action: notify.notify
+        data:
+          title: "Hisense TV Needs Re-Pairing"
+          message: "The TV broker invalidated stored tokens. Open Home Assistant Repairs to re-pair."
+    ```
+
 ### 3. Broker Rejection or "Not Authorized" Error (`rc: 5` / `rc: 135`)
-* **Cause: OEM Brand Code Mismatch:**
+An MQTT return code of `rc: 5` (MQTT 3.1.1) or `rc: 135` (MQTT 5.0) indicates that the mutual TLS handshake completed successfully, but the TV's internal broker explicitly rejected the generated client credentials. This is caused by one of two issues:
+
+* **Cause A: TV Hardware Clock Drift / Missing NTP (WAN-Blocked Sets):**
+  * Modern VIDAA firmware validates the HMAC-SHA256 / MD5 password signature against the TV's internal real-time clock. If the TV's system clock is skewed by more than ~60–120 seconds relative to real UTC time, authentication fails with `rc: 5 / 135`.
+  * While the integration automatically queries the TV's HTTP `Date:` header on port `38400` to calculate drift offset, **some partner chassis (such as Loewe) do not serve HTTP responses on port 38400**, leaving Home Assistant with no choice but to fall back to host local time.
+  * **Fix:**
+    1. Check **Settings → System → Time/Date** on the TV. Ensure the on-screen time, date, and timezone match real time.
+    2. If the TV is isolated from the internet by a firewall, temporarily allow WAN access and reboot the TV so its internal NTP client can sync.
+    3. For permanent network isolation, configure a router firewall DNAT redirection rule capturing `UDP 123` (NTP) from the TV and redirecting to your local gateway/NTP server. See [Section 6 of Network Requirements](network_requirements.md#6-tv-hardware-clock-ntp-sync--isolated-iot-lans-wan-blocked).
+
+* **Cause B: OEM Brand Code Mismatch:**
   * When communicating with licensed partner brands (Toshiba, Loewe, TPV/Philips, Sharp, JVC, TOPTRO, etc.), the TV/projector broker validates client credentials against an OEM brand prefix salt. If generic Hisense credentials (`his`) are sent to a partner device, the broker rejects authentication with `rc: 5` (MQTT 3.1.1) or `rc: 135` (MQTT 5.0).
-* **Fix:**
-  * Keep **Brand Profile** set to **Auto Detect (Recommended)**. When enabled, the integration queries UPnP port `38400` / `18400` to extract `brand=` from `<modelDescription>` or cascades through supported candidate OEM brands (`tos`, `loe`, `tpv`, `shp`, `jvc`, `tpo`).
-  * If adding a device across an isolated VLAN where UPnP is blocked and cascade is exhausted, open **Settings → Devices & Services → VIDAA Smart TV → Configure → Security** and manually select your device's brand from the dropdown.
-  * Inspect `sensor.<tv_name>_session_status` attributes (`brand_profile`, `active_brand`, `auth_profile`) to view the currently configured brand profile and active OEM brand in real time.
+  * **Fix:**
+    * Keep **Brand Profile** set to **Auto Detect (Recommended)**. When enabled, the integration queries UPnP port `38400` / `18400` to extract `brand=` from `<modelDescription>` or cascades through supported candidate OEM brands (`tos`, `loe`, `tpv`, `shp`, `jvc`, `tpo`).
+    * If adding a device across an isolated VLAN where UPnP is blocked and cascade is exhausted, open **Settings → Devices & Services → VIDAA Smart TV → Configure → Security** and manually select your device's brand from the dropdown.
+    * Inspect `sensor.<tv_name>_session_status` attributes (`brand_profile`, `active_brand`, `auth_profile`) to view the currently configured brand profile and active OEM brand in real time.
 
 ### 4. Baseline Verification: Testing with the Official VIDAA App (iOS & Android)
 * If Home Assistant fails to discover your TV or the 4-digit pairing PIN never appears on your TV screen, testing with the official companion mobile app is the fastest way to confirm whether your TV hardware and network are ready:
@@ -106,6 +137,27 @@ When an automation or manual service call fails, Home Assistant displays an erro
   * For standard D-pad navigation and volume control, use Home Assistant's built-in [Android TV Remote](https://www.home-assistant.io/integrations/androidtv_remote/) integration.
   * For advanced features (direct OS shell access, dynamic HDMI-CEC input discovery, real-time on-screen keyboard detection, and SoC hardware health sensors over native TLS 1.3 Wireless Debugging), use [**ADB mDNS**](https://github.com/stevene1919/adb_mdns/).
 * **Why the APK is Mentioned:** The vendor pre-signs its client mutual TLS certificate (`.p12` bundle) inside the publicly available VIDAA remote app package (`.apk`). Because an `.apk` is simply an unencrypted ZIP archive, you can open and extract it on any computer (Windows, macOS, Linux) with standard tools like `unzip` or 7-Zip without ever owning an Android device.
+
+---
+
+## 🔊 Audio, Volume & External Amplifier (ARC/eARC) Behavior
+
+### 1. Volume Slider Does Nothing When Connected to an External Amp or Soundbar
+* **Cause: Absolute Volume vs. CEC Step Control:**
+  * When you drag the volume slider in Home Assistant, the integration sends an absolute volume command (`0–100` via `actions/changevolume`).
+  * On VIDAA OS, the TV firmware **only applies absolute percentage volume changes to the TV's internal speakers**.
+  * When an external AV receiver or soundbar is connected via **HDMI ARC/eARC (CEC)**, the TV firmware ignores absolute network volume commands and delegates volume control to the external amplifier over HDMI-CEC. The CEC protocol requires incremental step commands.
+* **Solution:**
+  * Use the **Volume Up** and **Volume Down** buttons (`media_player.volume_up` / `media_player.volume_down`, or send key `KEY_VOLUMEUP` / `KEY_VOLUMEDOWN`). The TV forwards these step keypresses directly across the HDMI ARC/eARC bus to adjust your amplifier volume.
+  * In Lovelace dashboards, use pill rockers or button cards mapped to `volume_up` and `volume_down` rather than the continuous slider when outputting to an external amplifier.
+
+### 2. Missing `sensor.<tv>_audio_output` Entity
+* **Explanation:**
+  * In earlier integration versions, standalone `sensor.<tv>_audio_output` and `select.<tv>_audio_output` entities were exposed.
+  * These were intentionally retired in favor of the **`audio_output` state attribute** directly on the main `media_player.<tv_name>` entity (`TV Speakers` or `ARC / eARC`).
+  * This eliminates entity registry clutter while keeping audio output state readily accessible in automations and templates (e.g. `state_attr('media_player.living_room_tv', 'audio_output')`). Note that VIDAA firmware only distinguishes `ARC / eARC` from internal speakers over MQTT; Optical/SPDIF and Bluetooth appear as `TV Speakers`.
+
+---
 
 ---
 

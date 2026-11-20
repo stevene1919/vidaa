@@ -1,4 +1,4 @@
-"""Picture and Sound setting data structures, menu parsers, and constants for Hisense VIDAA TV."""
+"""Picture and Sound setting data structures, menu parsers, and constants for VIDAA Smart TV."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from ..client import HisenseTvClient
+    from ..client import VidaaClient
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -220,9 +220,7 @@ def find_menu_item_by_name(
     # 2. Substring match
     for item in items:
         normalized_name = re.sub(r"[^a-z0-9]", "", str(item.name).lower())
-        if normalized_target and (
-            normalized_target in normalized_name or normalized_name in normalized_target
-        ):
+        if normalized_target and (normalized_target in normalized_name or normalized_name in normalized_target):
             return item
 
     # 3. Fallback by menu ID
@@ -234,7 +232,7 @@ def find_menu_item_by_name(
     return None
 
 
-def get_picture_settings(client: HisenseTvClient) -> None:
+def get_picture_settings(client: VidaaClient) -> None:
     """Requests current picture settings menu information from the TV."""
     if client.connected and client.mqtt_client:
         client.mqtt_client.publish(
@@ -243,22 +241,22 @@ def get_picture_settings(client: HisenseTvClient) -> None:
         )
 
 
-def set_picture_setting(
-    client: HisenseTvClient, menu_id: int, menu_value: str | int | float
-) -> None:
+def set_picture_setting(client: VidaaClient, menu_id: int, menu_value: str | int | float) -> None:
     """Changes a specific picture setting value."""
     if client.connected and client.mqtt_client:
-        payload = json.dumps({
-            "action": "notify_value_changed",
-            "menu_id": int(menu_id),
-            "menu_value": str(menu_value),
-        })
+        payload = json.dumps(
+            {
+                "action": "notify_value_changed",
+                "menu_id": int(menu_id),
+                "menu_value": str(menu_value),
+            }
+        )
         client.mqtt_client.publish(f"{client.topics.platform}actions/picturesetting", payload)
         if int(menu_id) in client.picture_settings:
             client.picture_settings[int(menu_id)].value = menu_value
 
 
-def set_picture_mode(client: HisenseTvClient, mode: str) -> None:
+def set_picture_mode(client: VidaaClient, mode: str) -> None:
     """Sets the TV picture mode preset."""
     pm_item = find_menu_item_by_name(client.picture_settings, "Picture Mode", DEFAULT_MENU_ID_PICTURE_MODE)
     menu_id = pm_item.menu_id if pm_item else DEFAULT_MENU_ID_PICTURE_MODE
@@ -266,7 +264,7 @@ def set_picture_mode(client: HisenseTvClient, mode: str) -> None:
     client.picture_mode = mode
 
 
-def set_backlight(client: HisenseTvClient, level: int) -> None:
+def set_backlight(client: VidaaClient, level: int) -> None:
     """Sets the TV backlight level (0–100)."""
     bl_item = find_menu_item_by_name(client.picture_settings, "Backlight", DEFAULT_MENU_ID_BACKLIGHT)
     menu_id = bl_item.menu_id if bl_item else DEFAULT_MENU_ID_BACKLIGHT
@@ -275,7 +273,7 @@ def set_backlight(client: HisenseTvClient, level: int) -> None:
     client.backlight = clamped
 
 
-def set_brightness(client: HisenseTvClient, level: int) -> None:
+def set_brightness(client: VidaaClient, level: int) -> None:
     """Sets the TV brightness level (0–100)."""
     br_item = find_menu_item_by_name(client.picture_settings, "Brightness", DEFAULT_MENU_ID_BRIGHTNESS)
     menu_id = br_item.menu_id if br_item else DEFAULT_MENU_ID_BRIGHTNESS
@@ -284,7 +282,7 @@ def set_brightness(client: HisenseTvClient, level: int) -> None:
     client.brightness = clamped
 
 
-def set_contrast(client: HisenseTvClient, level: int) -> None:
+def set_contrast(client: VidaaClient, level: int) -> None:
     """Sets the TV contrast level (0–100)."""
     ct_item = find_menu_item_by_name(client.picture_settings, "Contrast", DEFAULT_MENU_ID_CONTRAST)
     menu_id = ct_item.menu_id if ct_item else DEFAULT_MENU_ID_CONTRAST
@@ -293,7 +291,7 @@ def set_contrast(client: HisenseTvClient, level: int) -> None:
     client.contrast = clamped
 
 
-def get_sound_settings(client: HisenseTvClient) -> None:
+def get_sound_settings(client: VidaaClient) -> None:
     """Requests current sound settings menu information from the TV."""
     if client.connected and client.mqtt_client:
         client.mqtt_client.publish(
@@ -302,22 +300,22 @@ def get_sound_settings(client: HisenseTvClient) -> None:
         )
 
 
-def set_sound_setting(
-    client: HisenseTvClient, menu_id: int, menu_value: str | int | float
-) -> None:
+def set_sound_setting(client: VidaaClient, menu_id: int, menu_value: str | int | float) -> None:
     """Changes a specific sound setting value."""
     if client.connected and client.mqtt_client:
-        payload = json.dumps({
-            "action": "notify_value_changed",
-            "menu_id": int(menu_id),
-            "menu_value": str(menu_value),
-        })
+        payload = json.dumps(
+            {
+                "action": "notify_value_changed",
+                "menu_id": int(menu_id),
+                "menu_value": str(menu_value),
+            }
+        )
         client.mqtt_client.publish(f"{client.topics.platform}actions/soundsetting", payload)
         if int(menu_id) in client.sound_settings:
             client.sound_settings[int(menu_id)].value = menu_value
 
 
-def set_sound_mode(client: HisenseTvClient, mode: str) -> None:
+def set_sound_mode(client: VidaaClient, mode: str) -> None:
     """Sets the TV sound mode preset."""
     sm_item = find_menu_item_by_name(client.sound_settings, "Sound Mode", DEFAULT_MENU_ID_SOUND_MODE)
     menu_id = sm_item.menu_id if sm_item else DEFAULT_MENU_ID_SOUND_MODE
@@ -325,7 +323,7 @@ def set_sound_mode(client: HisenseTvClient, mode: str) -> None:
     client.sound_mode = mode
 
 
-async def async_get_picture_settings(client: HisenseTvClient) -> None:
+async def async_get_picture_settings(client: VidaaClient) -> None:
     """Requests current picture settings menu information from the TV asynchronously."""
     if client.connected and client.mqtt_client:
         await client.async_publish(
@@ -334,57 +332,67 @@ async def async_get_picture_settings(client: HisenseTvClient) -> None:
         )
 
 
-async def async_set_picture_setting(
-    client: HisenseTvClient, menu_id: int, menu_value: str | int | float
-) -> None:
+async def async_set_picture_setting(client: VidaaClient, menu_id: int, menu_value: str | int | float) -> bool:
     """Changes a specific picture setting value asynchronously."""
     if client.connected and client.mqtt_client:
-        payload = json.dumps({
-            "action": "notify_value_changed",
-            "menu_id": int(menu_id),
-            "menu_value": str(menu_value),
-        })
-        await client.async_publish(f"{client.topics.platform}actions/picturesetting", payload)
-        if int(menu_id) in client.picture_settings:
+        payload = json.dumps(
+            {
+                "action": "notify_value_changed",
+                "menu_id": int(menu_id),
+                "menu_value": str(menu_value),
+            }
+        )
+        res = await client.async_publish(f"{client.topics.platform}actions/picturesetting", payload)
+        if res and int(menu_id) in client.picture_settings:
             client.picture_settings[int(menu_id)].value = menu_value
+        return res
+    return False
 
 
-async def async_set_picture_mode(client: HisenseTvClient, mode: str) -> None:
+async def async_set_picture_mode(client: VidaaClient, mode: str) -> bool:
     """Sets the TV picture mode preset asynchronously."""
     pm_item = find_menu_item_by_name(client.picture_settings, "Picture Mode", DEFAULT_MENU_ID_PICTURE_MODE)
     menu_id = pm_item.menu_id if pm_item else DEFAULT_MENU_ID_PICTURE_MODE
-    await client.async_set_picture_setting(menu_id, mode)
-    client.picture_mode = mode
+    res = await client.async_set_picture_setting(menu_id, mode)
+    if res:
+        client.picture_mode = mode
+    return res
 
 
-async def async_set_backlight(client: HisenseTvClient, level: int) -> None:
+async def async_set_backlight(client: VidaaClient, level: int) -> bool:
     """Sets the TV backlight level (0–100) asynchronously."""
     bl_item = find_menu_item_by_name(client.picture_settings, "Backlight", DEFAULT_MENU_ID_BACKLIGHT)
     menu_id = bl_item.menu_id if bl_item else DEFAULT_MENU_ID_BACKLIGHT
     clamped = max(0, min(100, int(level)))
-    await client.async_set_picture_setting(menu_id, clamped)
-    client.backlight = clamped
+    res = await client.async_set_picture_setting(menu_id, clamped)
+    if res:
+        client.backlight = clamped
+    return res
 
 
-async def async_set_brightness(client: HisenseTvClient, level: int) -> None:
+async def async_set_brightness(client: VidaaClient, level: int) -> bool:
     """Sets the TV brightness level (0–100) asynchronously."""
     br_item = find_menu_item_by_name(client.picture_settings, "Brightness", DEFAULT_MENU_ID_BRIGHTNESS)
     menu_id = br_item.menu_id if br_item else DEFAULT_MENU_ID_BRIGHTNESS
     clamped = max(0, min(100, int(level)))
-    await client.async_set_picture_setting(menu_id, clamped)
-    client.brightness = clamped
+    res = await client.async_set_picture_setting(menu_id, clamped)
+    if res:
+        client.brightness = clamped
+    return res
 
 
-async def async_set_contrast(client: HisenseTvClient, level: int) -> None:
+async def async_set_contrast(client: VidaaClient, level: int) -> bool:
     """Sets the TV contrast level (0–100) asynchronously."""
     ct_item = find_menu_item_by_name(client.picture_settings, "Contrast", DEFAULT_MENU_ID_CONTRAST)
     menu_id = ct_item.menu_id if ct_item else DEFAULT_MENU_ID_CONTRAST
     clamped = max(0, min(100, int(level)))
-    await client.async_set_picture_setting(menu_id, clamped)
-    client.contrast = clamped
+    res = await client.async_set_picture_setting(menu_id, clamped)
+    if res:
+        client.contrast = clamped
+    return res
 
 
-async def async_get_sound_settings(client: HisenseTvClient) -> None:
+async def async_get_sound_settings(client: VidaaClient) -> None:
     """Requests current sound settings menu information from the TV asynchronously."""
     if client.connected and client.mqtt_client:
         await client.async_publish(
@@ -393,25 +401,28 @@ async def async_get_sound_settings(client: HisenseTvClient) -> None:
         )
 
 
-async def async_set_sound_setting(
-    client: HisenseTvClient, menu_id: int, menu_value: str | int | float
-) -> None:
+async def async_set_sound_setting(client: VidaaClient, menu_id: int, menu_value: str | int | float) -> bool:
     """Changes a specific sound setting value asynchronously."""
     if client.connected and client.mqtt_client:
-        payload = json.dumps({
-            "action": "notify_value_changed",
-            "menu_id": int(menu_id),
-            "menu_value": str(menu_value),
-        })
-        await client.async_publish(f"{client.topics.platform}actions/soundsetting", payload)
-        if int(menu_id) in client.sound_settings:
+        payload = json.dumps(
+            {
+                "action": "notify_value_changed",
+                "menu_id": int(menu_id),
+                "menu_value": str(menu_value),
+            }
+        )
+        res = await client.async_publish(f"{client.topics.platform}actions/soundsetting", payload)
+        if res and int(menu_id) in client.sound_settings:
             client.sound_settings[int(menu_id)].value = menu_value
+        return res
+    return False
 
 
-async def async_set_sound_mode(client: HisenseTvClient, mode: str) -> None:
+async def async_set_sound_mode(client: VidaaClient, mode: str) -> bool:
     """Sets the TV sound mode preset asynchronously."""
     sm_item = find_menu_item_by_name(client.sound_settings, "Sound Mode", DEFAULT_MENU_ID_SOUND_MODE)
     menu_id = sm_item.menu_id if sm_item else DEFAULT_MENU_ID_SOUND_MODE
-    await client.async_set_sound_setting(menu_id, mode)
-    client.sound_mode = mode
-
+    res = await client.async_set_sound_setting(menu_id, mode)
+    if res:
+        client.sound_mode = mode
+    return res

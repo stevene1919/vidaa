@@ -98,9 +98,9 @@ network_device=AA:BB:CC:DD:EE:FF</modelDescription>
 async def test_client_regenerates_credentials_on_brand_mismatch():
     """Test VidaaClient regenerates credentials and clears tokens when brand mismatches client_id."""
     client = VidaaClient(
-        ip="192.168.50.25",
-        mac="e8:51:77:ec:98:1c",
-        client_id="E85177EC981C$his$123456_vidaacommon_001",
+        ip="192.168.1.125",
+        mac="e8:51:77:aa:bb:cc",
+        client_id="E85177AABBCC$his$123456_vidaacommon_001",
         username="his$1700000000",
         password="OLDPASSWORD",
         access_token="old_access_token",
@@ -121,7 +121,7 @@ async def test_flow_preserves_candidate_brand_when_upnp_lacks_brand(monkeypatch)
     hass = MagicMock(spec=HomeAssistant)
     flow = VidaaConfigFlow()
     flow.hass = hass
-    flow.ip_address = "192.168.50.12"
+    flow.ip_address = "192.168.1.100"
     flow.brand = "tos"  # Resolved during cascade or cert hinting
 
     client = MagicMock()

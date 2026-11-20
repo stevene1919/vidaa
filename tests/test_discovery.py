@@ -18,7 +18,7 @@ def test_get_tv_timestamp():
     mock_response.__enter__.return_value = mock_response
 
     with patch("urllib.request.urlopen", return_value=mock_response):
-        ts = get_tv_timestamp("192.168.50.12")
+        ts = get_tv_timestamp("192.168.1.100")
         expected_dt = email.utils.parsedate_to_datetime("Mon, 07 Sep 2026 10:24:06 GMT")
         assert ts == int(expected_dt.timestamp())
 
@@ -26,7 +26,7 @@ def test_get_tv_timestamp():
 def test_get_tv_timestamp_network_failure():
     """Test fallback to None when TV HTTP port is unreachable."""
     with patch("urllib.request.urlopen", side_effect=Exception("Connection refused")):
-        ts = get_tv_timestamp("192.168.50.12")
+        ts = get_tv_timestamp("192.168.1.100")
         assert ts is None
 
 
@@ -34,12 +34,12 @@ def test_get_arp_mac(monkeypatch):
     """Test discovering MAC address via ARP table simulation."""
     mock_arp = (
         "IP address       HW type     Flags       HW address            Mask     Device\n"
-        "192.168.50.12    0x1         0x2         e8:51:77:ec:98:1c     *        eth0\n"
+        "192.168.1.100    0x1         0x2         e8:51:77:aa:bb:cc     *        eth0\n"
     )
 
     with patch("os.path.exists", return_value=True), patch("builtins.open", mock_open(read_data=mock_arp)):
-        mac = get_arp_mac("192.168.50.12")
-        assert mac == "e8:51:77:ec:98:1c"
+        mac = get_arp_mac("192.168.1.100")
+        assert mac == "e8:51:77:aa:bb:cc"
 
 
 def test_get_device_fingerprint():
@@ -51,7 +51,7 @@ def test_get_device_fingerprint():
         <modelName>65U8N</modelName>
         <modelNumber>2.0</modelNumber>
         <manufacturer>Hisense</manufacturer>
-        <modelDescription>brand=Hisense\nplatform=1\nmacWifi=E85177EC981C\nmacEthernet=E43BC957F14F</modelDescription>
+        <modelDescription>brand=Hisense\nplatform=1\nmacWifi=E85177AABBCC\nmacEthernet=E43BC9AABBCC</modelDescription>
       </device>
     </root>"""
 
@@ -61,13 +61,13 @@ def test_get_device_fingerprint():
     mock_response.__enter__.return_value = mock_response
 
     with patch("urllib.request.urlopen", return_value=mock_response) as mock_urlopen:
-        fp = get_device_fingerprint("192.168.50.12")
+        fp = get_device_fingerprint("192.168.1.100")
         assert fp["friendly_name"] == "Living Room TV"
         assert fp["model_name"] == "65U8N"
         assert fp["model_number"] == "2.0"
         assert fp["manufacturer"] == "Hisense"
-        assert fp["mac_wifi"] == "E85177EC981C"
-        assert fp["mac_ethernet"] == "E43BC957F14F"
+        assert fp["mac_wifi"] == "E85177AABBCC"
+        assert fp["mac_ethernet"] == "E43BC9AABBCC"
         assert fp["platform"] == "1"
         expected_dt = email.utils.parsedate_to_datetime("Fri, 11 Sep 2026 12:00:00 GMT")
         assert fp["tv_timestamp"] == int(expected_dt.timestamp())
@@ -83,7 +83,7 @@ def test_get_device_fingerprint_malformed_xml():
     mock_response.__enter__.return_value = mock_response
 
     with patch("urllib.request.urlopen", return_value=mock_response):
-        fp = get_device_fingerprint("192.168.50.12")
+        fp = get_device_fingerprint("192.168.1.100")
         assert fp["friendly_name"] is None
         assert fp["model_name"] is None
 
@@ -92,7 +92,7 @@ def test_query_mdns_fingerprint_no_zeroconf():
     """Test that query_mdns_fingerprint gracefully skips and does not instantiate Zeroconf when zc=None."""
     # When zc is None, the function must not instantiate any Zeroconf object
     # (avoiding the HA deprecation warning) and return an empty fingerprint cleanly.
-    info = query_mdns_fingerprint("192.168.50.12", timeout=0.1, zc=None)
+    info = query_mdns_fingerprint("192.168.1.100", timeout=0.1, zc=None)
     assert info["model_code"] is None
     assert info["firmware_version"] is None
     assert info["serial_number"] is None
@@ -108,7 +108,7 @@ def test_parse_ssdp_discovery_generic_manufacturer():
         "friendlyName": "Toshiba TV",
         "modelName": "58A53FXVT",
         "manufacturer": "SmartTV",
-        "modelDescription": "transport_protocol=3290\nbrand=tos\nmacWifi=e85177ec981c",
+        "modelDescription": "transport_protocol=3290\nbrand=tos\nmacWifi=e85177aabbcc",
     }
     discovery_info.ssdp_headers = {"_host": "192.168.50.20"}
 
@@ -118,7 +118,7 @@ def test_parse_ssdp_discovery_generic_manufacturer():
     assert info.manufacturer == "Toshiba"
     assert info.brand == "tos"
     assert info.model == "58A53FXVT"
-    assert info.mac_address == "e8:51:77:ec:98:1c"
+    assert info.mac_address == "e8:51:77:aa:bb:cc"
 
 
 def test_normalize_brand_code():
@@ -272,7 +272,7 @@ def test_parse_ssdp_discovery_dual_mac():
     from custom_components.vidaa.protocol.discovery import parse_ssdp_discovery
 
     ssdp_info = MagicMock()
-    ssdp_info.ssdp_headers = {"_host": "192.168.50.12"}
+    ssdp_info.ssdp_headers = {"_host": "192.168.1.100"}
     ssdp_info.ssdp_udn = "uuid:hisense-tv-12345"
     ssdp_info.upnp = {
         "friendlyName": "Hisense 58A53FXVT",
@@ -282,25 +282,25 @@ def test_parse_ssdp_discovery_dual_mac():
             "vidaa_support=1\n"
             "transport_protocol=3160\n"
             "brand=his\n"
-            "macWifi=e85177ec981c\n"
-            "macEthernet=e43bc957f14f\n"
+            "macWifi=e85177aabbcc\n"
+            "macEthernet=e43bc9aabbcc\n"
             "model=58A53FXVT\n"
         ),
     }
 
     # Case 1: ARP matches ethernet
-    with patch("custom_components.vidaa.protocol.discovery.get_arp_mac", return_value="e4:3b:c9:57:f1:4f"):
+    with patch("custom_components.vidaa.protocol.discovery.get_arp_mac", return_value="e4:3b:c9:aa:bb:cc"):
         info = parse_ssdp_discovery(ssdp_info)
         assert info is not None
-        assert info.mac_address == "e4:3b:c9:57:f1:4f"
-        assert info.secondary_mac_address == "e8:51:77:ec:98:1c"
+        assert info.mac_address == "e4:3b:c9:aa:bb:cc"
+        assert info.secondary_mac_address == "e8:51:77:aa:bb:cc"
 
     # Case 2: ARP matches wifi
-    with patch("custom_components.vidaa.protocol.discovery.get_arp_mac", return_value="e8:51:77:ec:98:1c"):
+    with patch("custom_components.vidaa.protocol.discovery.get_arp_mac", return_value="e8:51:77:aa:bb:cc"):
         info = parse_ssdp_discovery(ssdp_info)
         assert info is not None
-        assert info.mac_address == "e8:51:77:ec:98:1c"
-        assert info.secondary_mac_address == "e4:3b:c9:57:f1:4f"
+        assert info.mac_address == "e8:51:77:aa:bb:cc"
+        assert info.secondary_mac_address == "e4:3b:c9:aa:bb:cc"
 
 
 def test_probe_udp_port_success():
@@ -308,17 +308,17 @@ def test_probe_udp_port_success():
     from custom_components.vidaa.protocol.discovery import probe_udp_port
 
     mock_sock = MagicMock()
-    mock_payload = b'{"devicename": "Living Room TV", "model": "58A53FXVT", "mac": "e8:51:77:ec:98:1c"}'
-    mock_sock.recvfrom.return_value = (mock_payload, ("192.168.50.12", 36671))
+    mock_payload = b'{"devicename": "Living Room TV", "model": "58A53FXVT", "mac": "e8:51:77:aa:bb:cc"}'
+    mock_sock.recvfrom.return_value = (mock_payload, ("192.168.1.100", 36671))
 
     with patch("socket.socket", return_value=mock_sock):
-        res = probe_udp_port("192.168.50.12", timeout=0.5)
+        res = probe_udp_port("192.168.1.100", timeout=0.5)
 
     assert res is not None
-    assert res["ip"] == "192.168.50.12"
+    assert res["ip"] == "192.168.1.100"
     assert res["name"] == "Living Room TV"
     assert res["model"] == "58A53FXVT"
-    assert res["mac"] == "e8:51:77:ec:98:1c"
+    assert res["mac"] == "e8:51:77:aa:bb:cc"
 
 
 def test_probe_udp_port_timeout():
@@ -329,6 +329,6 @@ def test_probe_udp_port_timeout():
     mock_sock.recvfrom.side_effect = TimeoutError()
 
     with patch("socket.socket", return_value=mock_sock):
-        res = probe_udp_port("192.168.50.12", timeout=0.1)
+        res = probe_udp_port("192.168.1.100", timeout=0.1)
 
     assert res is None

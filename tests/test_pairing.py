@@ -25,7 +25,7 @@ PROBE_PATH = "custom_components.vidaa.config_flow.async_probe_pairing_challenge"
 # ---------------------------------------------------------------------------
 def _static_client() -> VidaaClient:
     """A static-session (legacy) client with its topic paths defined."""
-    client = VidaaClient(ip="192.168.50.12", auth_profile="legacy")
+    client = VidaaClient(ip="192.168.1.100", auth_profile="legacy")
     client.client_id = "hisenseservice"
     client.username = "hisenseservice"
     client.password = "multimqttservice"
@@ -44,8 +44,8 @@ def _flow(hass: MagicMock, *, profile: str = "legacy") -> VidaaConfigFlow:
     flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
-    flow.ip_address = "192.168.50.12"
-    flow.mac_address = "e8:51:77:ec:98:1c"
+    flow.ip_address = "192.168.1.100"
+    flow.mac_address = "e8:51:77:aa:bb:cc"
     flow.auth_profile = profile
     flow.async_set_unique_id = AsyncMock(return_value=None)
     flow._abort_if_unique_id_configured = MagicMock()
@@ -99,7 +99,7 @@ async def test_static_pin_submit_publishes_authnum_without_token_wait():
 
 @pytest.mark.anyio
 async def test_dynamic_pin_submit_still_requests_token():
-    client = VidaaClient(ip="192.168.50.12", auth_profile="modern")
+    client = VidaaClient(ip="192.168.1.100", auth_profile="modern")
     client.client_id = "aa$his$BB_vidaacommon_001"
     client.update_topic_paths()
     published: list[tuple[str, object]] = []
@@ -285,7 +285,7 @@ async def test_static_pin_submit_failure_after_pin_is_not_invalid_auth(monkeypat
 # ---------------------------------------------------------------------------
 def _probe_client() -> tuple[VidaaClient, MagicMock]:
     """A static client whose MQTT layer is faked for the pairing probe."""
-    client = VidaaClient(ip="192.168.50.12", mac="e8:51:77:ec:98:1c", auth_profile="legacy")
+    client = VidaaClient(ip="192.168.1.100", mac="e8:51:77:aa:bb:cc", auth_profile="legacy")
     client.client_id = "hisenseservice"
     client.username = "hisenseservice"
     client.password = "multimqttservice"
@@ -389,13 +389,13 @@ async def test_static_reauth_disconnects_own_entry_before_probe(monkeypatch, no_
     events: list[str] = []
 
     own = MagicMock()
-    own.ip = "192.168.50.12"
-    own.mac = "e8:51:77:ec:98:1c"
+    own.ip = "192.168.1.100"
+    own.mac = "e8:51:77:aa:bb:cc"
     own.disconnect = MagicMock(side_effect=lambda: events.append("disconnect:own"))
     own.async_disconnect = AsyncMock(side_effect=lambda: events.append("disconnect:own"))
     sibling = MagicMock()
-    sibling.ip = "192.168.50.12"  # same IP, different entry
-    sibling.mac = "e8:51:77:ec:98:1d"
+    sibling.ip = "192.168.1.100"  # same IP, different entry
+    sibling.mac = "e8:51:77:aa:bb:dd"
     sibling.disconnect = MagicMock(side_effect=lambda: events.append("disconnect:sibling"))
     sibling.async_disconnect = AsyncMock(side_effect=lambda: events.append("disconnect:sibling"))
     hass.data = {DOMAIN: {"entry_1": {"client": own}, "entry_2": {"client": sibling}}}

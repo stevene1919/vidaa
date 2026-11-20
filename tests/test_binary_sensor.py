@@ -55,9 +55,7 @@ def test_deprecated_hotel_mode_registry_cleanup(mock_client, mock_entry, monkeyp
     added_sensors = []
     asyncio.run(async_setup_binary_sensors(hass, mock_entry, lambda entities: added_sensors.extend(entities)))
 
-    mock_reg.async_get_entity_id.assert_called_once_with(
-        "binary_sensor", "vidaa", f"{mock_entry.entry_id}_hotel_mode"
-    )
+    mock_reg.async_get_entity_id.assert_called_once_with("binary_sensor", "vidaa", f"{mock_entry.entry_id}_hotel_mode")
     mock_reg.async_remove.assert_called_once_with("binary_sensor.hisense_tv_hotel_mode")
     assert len(added_sensors) == 3
 

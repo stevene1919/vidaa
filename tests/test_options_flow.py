@@ -181,11 +181,11 @@ async def test_options_flow_brand_change_updates_data_and_triggers_reauth():
     entry = MagicMock(spec=ConfigEntry)
     entry.entry_id = "test_entry"
     entry.data = {
-        CONF_IP_ADDRESS: "192.168.50.12",
-        CONF_MAC_ADDRESS: "e8:51:77:ec:98:1c",
+        CONF_IP_ADDRESS: "192.168.1.100",
+        CONF_MAC_ADDRESS: "e8:51:77:aa:bb:cc",
         CONF_BRAND: "his",
         CONF_AUTH_PROFILE: "modern",
-        CONF_CLIENT_ID: "E85177EC981C$his$123456_vidaacommon_001",
+        CONF_CLIENT_ID: "E85177AABBCC$his$123456_vidaacommon_001",
         CONF_ACCESS_TOKEN: "valid_token",
     }
     entry.options = {CONF_BRAND: "his"}
@@ -217,8 +217,8 @@ async def test_options_flow_power_network_autopopulates_from_data():
     """Verify secondary MAC auto-populates from config_entry.data when not in options."""
     entry = MagicMock(spec=ConfigEntry)
     entry.data = {
-        CONF_MAC_ADDRESS: "e8:51:77:ec:98:1c",
-        "secondary_mac_address": "e4:3b:c9:57:f1:4f",
+        CONF_MAC_ADDRESS: "e8:51:77:aa:bb:cc",
+        "secondary_mac_address": "e4:3b:c9:aa:bb:cc",
     }
     entry.options = {}
 
@@ -228,12 +228,12 @@ async def test_options_flow_power_network_autopopulates_from_data():
     result = await flow.async_step_power_network()
     assert result["type"] == "form"
     assert result["step_id"] == "power_network"
-    assert result["description_placeholders"]["primary_mac"] == "e8:51:77:ec:98:1c"
+    assert result["description_placeholders"]["primary_mac"] == "e8:51:77:aa:bb:cc"
 
     # Schema contains the pre-populated secondary MAC from data
     schema = result["data_schema"].schema
     sec_mac_field = next(k for k in schema if str(k) == "secondary_mac_address")
-    assert sec_mac_field.default() == "e4:3b:c9:57:f1:4f"
+    assert sec_mac_field.default() == "e4:3b:c9:aa:bb:cc"
 
 
 @pytest.mark.anyio
@@ -241,13 +241,13 @@ async def test_options_flow_power_network_autopopulates_from_client_runtime_data
     """Verify secondary MAC auto-populates from client runtime_data if missing in data and options."""
     entry = MagicMock(spec=ConfigEntry)
     entry.data = {
-        CONF_MAC_ADDRESS: "e8:51:77:ec:98:1c",
+        CONF_MAC_ADDRESS: "e8:51:77:aa:bb:cc",
     }
     entry.options = {}
 
     mock_client = MagicMock()
-    mock_client.mac_wifi = "e8:51:77:ec:98:1c"
-    mock_client.mac_ethernet = "e4:3b:c9:57:f1:4f"
+    mock_client.mac_wifi = "e8:51:77:aa:bb:cc"
+    mock_client.mac_ethernet = "e4:3b:c9:aa:bb:cc"
 
     entry.runtime_data = MagicMock()
     entry.runtime_data.client = mock_client
@@ -259,5 +259,4 @@ async def test_options_flow_power_network_autopopulates_from_client_runtime_data
     assert result["type"] == "form"
     schema = result["data_schema"].schema
     sec_mac_field = next(k for k in schema if str(k) == "secondary_mac_address")
-    assert sec_mac_field.default() == "e4:3b:c9:57:f1:4f"
-
+    assert sec_mac_field.default() == "e4:3b:c9:aa:bb:cc"

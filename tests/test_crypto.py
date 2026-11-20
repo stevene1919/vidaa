@@ -23,10 +23,10 @@ from custom_components.vidaa.protocol import (
 
 def test_clean_mac():
     """Test normalizing MAC separators (the caller's case is preserved)."""
-    assert clean_mac("e8:51:77:ec:98:1c") == "e8:51:77:ec:98:1c"
-    assert clean_mac("e8-51-77-ec-98-1c") == "e8:51:77:ec:98:1c"
-    assert clean_mac("e85177ec981c") == "e8:51:77:ec:98:1c"
-    assert normalize_mac_address("e8:51:77:ec:98:1c") == "e8:51:77:ec:98:1c"
+    assert clean_mac("e8:51:77:aa:bb:cc") == "e8:51:77:aa:bb:cc"
+    assert clean_mac("e8-51-77-aa-bb-cc") == "e8:51:77:aa:bb:cc"
+    assert clean_mac("e85177aabbcc") == "e8:51:77:aa:bb:cc"
+    assert normalize_mac_address("e8:51:77:aa:bb:cc") == "e8:51:77:aa:bb:cc"
 
     # Random MAC generation on None or invalid
     rnd = clean_mac(None)
@@ -43,10 +43,10 @@ def test_clean_mac_preserves_case():
     The MAC case feeds the case-sensitive ``race`` hash and the ``<mac>$his$…``
     client_id; uppercasing it diverges from the reference implementations.
     """
-    assert clean_mac("e8:51:77:ec:98:1c") == "e8:51:77:ec:98:1c"
-    assert clean_mac("E8:51:77:EC:98:1C") == "E8:51:77:EC:98:1C"
-    assert clean_mac("e8-51-77-EC-98-1c") == "e8:51:77:EC:98:1c"
-    assert clean_mac("e85177EC981c") == "e8:51:77:EC:98:1c"
+    assert clean_mac("e8:51:77:aa:bb:cc") == "e8:51:77:aa:bb:cc"
+    assert clean_mac("E8:51:77:AA:BB:CC") == "E8:51:77:AA:BB:CC"
+    assert clean_mac("e8-51-77-AA-BB-cc") == "e8:51:77:AA:BB:cc"
+    assert clean_mac("e85177AABBcc") == "e8:51:77:AA:BB:cc"
 
 
 def test_generate_initial_credentials_preserves_mac_case_in_client_id():
@@ -60,7 +60,7 @@ def test_generate_initial_credentials_preserves_mac_case_in_client_id():
 
 def test_generate_initial_credentials_standard():
     """Test credential generation for standard RemoteNOW profile."""
-    mac = "E8:51:77:EC:98:1C"
+    mac = "E8:51:77:AA:BB:CC"
     ts = 1788778246
 
     client_id, username, password = generate_initial_credentials(mac=mac, timestamp=ts, auth_profile="remotenow")
@@ -79,7 +79,7 @@ def test_generate_initial_credentials_standard():
 
 def test_generate_initial_credentials_middle():
     """Test credential generation for Middle VIDAA (3000-3285) with XOR mask + Standard salt."""
-    mac = "E8:51:77:EC:98:1C"
+    mac = "E8:51:77:AA:BB:CC"
     ts = 1788778246
 
     client_id, username, password = generate_initial_credentials(mac=mac, timestamp=ts, auth_profile="middle")
@@ -95,7 +95,7 @@ def test_generate_initial_credentials_middle():
 
 def test_generate_initial_credentials_legacy():
     """Test static credential generation for legacy pre-dynamic firmware."""
-    mac = "E8:51:77:EC:98:1C"
+    mac = "E8:51:77:AA:BB:CC"
     client_id, username, password = generate_initial_credentials(mac=mac, auth_profile="legacy")
 
     assert username == "hisenseservice"
@@ -105,7 +105,7 @@ def test_generate_initial_credentials_legacy():
 
 def test_generate_initial_credentials_modern():
     """Test credential generation for Modern VIDAA 2.0 with XOR timestamp mask."""
-    mac = "E8:51:77:EC:98:1C"
+    mac = "E8:51:77:AA:BB:CC"
     ts = 1788778246
 
     client_id, username, password = generate_initial_credentials(mac=mac, timestamp=ts, auth_profile="modern")
@@ -428,14 +428,14 @@ def test_generate_initial_credentials_unique_per_tv_mac():
     from custom_components.vidaa.protocol.crypto import generate_initial_credentials
     from custom_components.vidaa.protocol.topics import build_topic_paths
 
-    client_id_1, _, _ = generate_initial_credentials(mac="E8:51:77:EC:98:1C", brand="his")
-    client_id_2, _, _ = generate_initial_credentials(mac="E4:3B:C9:57:F1:4F", brand="his")
-    client_id_toshiba, _, _ = generate_initial_credentials(mac="E8:51:77:EC:98:1C", brand="toshiba")
+    client_id_1, _, _ = generate_initial_credentials(mac="E8:51:77:AA:BB:CC", brand="his")
+    client_id_2, _, _ = generate_initial_credentials(mac="E4:3B:C9:AA:BB:CC", brand="his")
+    client_id_toshiba, _, _ = generate_initial_credentials(mac="E8:51:77:AA:BB:CC", brand="toshiba")
 
     # Different MACs produce distinct client IDs
     assert client_id_1 != client_id_2
-    assert "E8:51:77:EC:98:1C" in client_id_1
-    assert "E4:3B:C9:57:F1:4F" in client_id_2
+    assert "E8:51:77:AA:BB:CC" in client_id_1
+    assert "E4:3B:C9:AA:BB:CC" in client_id_2
 
     # Different OEM brands produce distinct client IDs
     assert client_id_1 != client_id_toshiba

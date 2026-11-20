@@ -160,7 +160,7 @@ python3 scripts/test_client.py text --text-action clear
 Broadcasts a subnet-directed magic packet:
 
 ```bash
-python3 scripts/test_client.py wake --mac E8:51:77:EC:98:1C
+python3 scripts/test_client.py wake --mac E8:51:77:AA:BB:CC
 ```
 
 ### 12. Probe UPnP MediaRenderer Services (`upnp`)

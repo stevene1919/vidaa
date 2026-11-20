@@ -43,8 +43,8 @@ async def test_reauth_flow_success(monkeypatch: pytest.MonkeyPatch) -> None:
     mock_entry = MagicMock()
     mock_entry.entry_id = "test_entry_reauth"
     mock_entry.data = {
-        CONF_IP_ADDRESS: "192.168.50.12",
-        CONF_MAC_ADDRESS: "e8:51:77:ec:98:1c",
+        CONF_IP_ADDRESS: "192.168.1.100",
+        CONF_MAC_ADDRESS: "e8:51:77:aa:bb:cc",
         "auth_profile": "modern",
     }
     hass.config_entries.async_get_entry = MagicMock(return_value=mock_entry)
@@ -92,10 +92,10 @@ async def test_reconfigure_flow_success(monkeypatch: pytest.MonkeyPatch) -> None
 
     mock_entry = MagicMock()
     mock_entry.entry_id = "test_entry_reconf"
-    mock_entry.unique_id = "e8:51:77:ec:98:1c"
+    mock_entry.unique_id = "e8:51:77:aa:bb:cc"
     mock_entry.data = {
-        CONF_IP_ADDRESS: "192.168.50.12",
-        CONF_MAC_ADDRESS: "e8:51:77:ec:98:1c",
+        CONF_IP_ADDRESS: "192.168.1.100",
+        CONF_MAC_ADDRESS: "e8:51:77:aa:bb:cc",
         "auth_profile": "legacy",
     }
     hass.config_entries.async_get_entry = MagicMock(return_value=mock_entry)
@@ -124,7 +124,7 @@ async def test_reconfigure_flow_success(monkeypatch: pytest.MonkeyPatch) -> None
 
     result_reconf = await flow.async_step_reconfigure(
         user_input={
-            CONF_IP_ADDRESS: "192.168.50.15",
+            CONF_IP_ADDRESS: "192.168.1.105",
             "auth_profile": "legacy",
         }
     )
@@ -147,7 +147,7 @@ async def test_finish_reauth_disconnects_client() -> None:
     flow.hass = hass
     mock_entry = MagicMock()
     mock_entry.entry_id = "test_entry_123"
-    mock_entry.data = {CONF_IP_ADDRESS: "192.168.50.12"}
+    mock_entry.data = {CONF_IP_ADDRESS: "192.168.1.100"}
     flow._reauth_entry = mock_entry
 
     mock_client = MagicMock()
@@ -163,7 +163,7 @@ async def test_finish_reauth_disconnects_client() -> None:
     mock_client.async_disconnect = AsyncMock()
     mock_client.disconnect = MagicMock()
     flow.client = mock_client
-    flow.ip_address = "192.168.50.12"
+    flow.ip_address = "192.168.1.100"
 
     result = await flow._async_finish_reauth(reason="reauth_successful")
     assert result["type"] == "abort"
@@ -184,7 +184,7 @@ async def test_finish_reauth_without_client() -> None:
     flow.hass = hass
     mock_entry = MagicMock()
     mock_entry.entry_id = "test_entry_456"
-    mock_entry.data = {CONF_IP_ADDRESS: "192.168.50.12"}
+    mock_entry.data = {CONF_IP_ADDRESS: "192.168.1.100"}
     flow._reauth_entry = mock_entry
     flow.client = None
 
@@ -200,10 +200,10 @@ async def test_reauth_keeps_entry_transport_settings(monkeypatch: pytest.MonkeyP
     hass = MagicMock(spec=HomeAssistant)
     entry = MagicMock()
     entry.entry_id = "legacy_entry"
-    entry.unique_id = "e8:51:77:ec:98:1c"
+    entry.unique_id = "e8:51:77:aa:bb:cc"
     entry.data = {
-        CONF_IP_ADDRESS: "192.168.50.12",
-        CONF_MAC_ADDRESS: "e8:51:77:ec:98:1c",
+        CONF_IP_ADDRESS: "192.168.1.100",
+        CONF_MAC_ADDRESS: "e8:51:77:aa:bb:cc",
         CONF_AUTH_PROFILE: "legacy",
         CONF_USE_SSL: False,
     }
@@ -222,7 +222,7 @@ async def test_reauth_keeps_entry_transport_settings(monkeypatch: pytest.MonkeyP
 
     written = hass.config_entries.async_update_entry.call_args.kwargs["data"]
     assert written[CONF_USE_SSL] is False
-    assert written[CONF_IP_ADDRESS] == "192.168.50.12"
+    assert written[CONF_IP_ADDRESS] == "192.168.1.100"
 
 
 @pytest.mark.anyio
@@ -231,10 +231,10 @@ async def test_reauth_seeds_certificates_from_entry(monkeypatch: pytest.MonkeyPa
     hass = MagicMock(spec=HomeAssistant)
     entry = MagicMock()
     entry.entry_id = "tls_entry"
-    entry.unique_id = "e8:51:77:ec:98:1c"
+    entry.unique_id = "e8:51:77:aa:bb:cc"
     entry.data = {
-        CONF_IP_ADDRESS: "192.168.50.12",
-        CONF_MAC_ADDRESS: "e8:51:77:ec:98:1c",
+        CONF_IP_ADDRESS: "192.168.1.100",
+        CONF_MAC_ADDRESS: "e8:51:77:aa:bb:cc",
         CONF_AUTH_PROFILE: "modern",
         CONF_USE_SSL: True,
         CONF_CERTFILE: "/config/ssl/hisense.crt",
@@ -267,7 +267,7 @@ async def test_reauth_success_deletes_auth_token_issue(monkeypatch: pytest.Monke
     hass = MagicMock(spec=HomeAssistant)
     entry = MagicMock()
     entry.entry_id = "issue_entry"
-    entry.data = {CONF_IP_ADDRESS: "192.168.50.12"}
+    entry.data = {CONF_IP_ADDRESS: "192.168.1.100"}
     flow = _reauth_flow(hass, entry, "issue_entry")
     flow._reauth_entry = entry
 
@@ -290,21 +290,21 @@ async def test_reconfigure_aborts_when_new_ip_belongs_to_another_tv(
     hass = MagicMock(spec=HomeAssistant)
     own_entry = MagicMock()
     own_entry.entry_id = "own_entry"
-    own_entry.unique_id = "e8:51:77:ec:98:1c"
+    own_entry.unique_id = "e8:51:77:aa:bb:cc"
     own_entry.data = {
-        CONF_IP_ADDRESS: "192.168.50.12",
-        CONF_MAC_ADDRESS: "e8:51:77:ec:98:1c",
+        CONF_IP_ADDRESS: "192.168.1.100",
+        CONF_MAC_ADDRESS: "e8:51:77:aa:bb:cc",
         CONF_AUTH_PROFILE: "legacy",
     }
     other_entry = MagicMock()
     other_entry.entry_id = "other_entry"
-    other_entry.unique_id = "e8:51:77:ec:98:2d"
+    other_entry.unique_id = "e8:51:77:aa:bb:ee"
 
     flow = _reauth_flow(hass, own_entry, "own_entry")
     hass.config_entries.async_entries = MagicMock(return_value=[own_entry, other_entry])
     monkeypatch.setattr(
         "custom_components.vidaa.flow.reauth.async_resolve_mac",
-        AsyncMock(return_value="e8:51:77:ec:98:2d"),
+        AsyncMock(return_value="e8:51:77:aa:bb:ee"),
     )
     monkeypatch.setattr(
         "custom_components.vidaa.client.VidaaClient.async_start_auth",
@@ -316,7 +316,7 @@ async def test_reconfigure_aborts_when_new_ip_belongs_to_another_tv(
     )
 
     result = await flow.async_step_reconfigure(
-        user_input={CONF_IP_ADDRESS: "192.168.50.15", CONF_AUTH_PROFILE: "legacy"}
+        user_input={CONF_IP_ADDRESS: "192.168.1.105", CONF_AUTH_PROFILE: "legacy"}
     )
 
     assert result["type"] == "abort"
@@ -334,21 +334,21 @@ async def test_reauth_confirm_disconnects_existing_running_client_before_start_a
     entry = MagicMock()
     entry.entry_id = "test_entry"
     entry.data = {
-        CONF_IP_ADDRESS: "192.168.50.12",
-        CONF_MAC_ADDRESS: "e8:51:77:ec:98:1c",
+        CONF_IP_ADDRESS: "192.168.1.100",
+        CONF_MAC_ADDRESS: "e8:51:77:aa:bb:cc",
         CONF_AUTH_PROFILE: "auto",
         CONF_USE_SSL: True,
     }
 
     running_client = MagicMock()
-    running_client.ip = "192.168.50.12"
-    running_client.mac = "e8:51:77:ec:98:1c"
+    running_client.ip = "192.168.1.100"
+    running_client.mac = "e8:51:77:aa:bb:cc"
     hass.data = {DOMAIN: {"test_entry": {"client": running_client}}}
     hass.config_entries.async_entries = MagicMock(return_value=[entry])
 
     flow = _reauth_flow(hass, entry, "test_entry")
-    flow.ip_address = "192.168.50.12"
-    flow.mac_address = "e8:51:77:ec:98:1c"
+    flow.ip_address = "192.168.1.100"
+    flow.mac_address = "e8:51:77:aa:bb:cc"
     flow.auth_profile = "auto"
     flow.use_ssl = True
 
@@ -379,7 +379,7 @@ async def test_reauth_preserves_oem_brand(monkeypatch: pytest.MonkeyPatch) -> No
     mock_entry = MagicMock()
     mock_entry.entry_id = "test_entry_toshiba"
     mock_entry.data = {
-        CONF_IP_ADDRESS: "192.168.50.25",
+        CONF_IP_ADDRESS: "192.168.1.125",
         CONF_MAC_ADDRESS: "00:11:22:33:44:55",
         CONF_BRAND: "tos",
         CONF_AUTH_PROFILE: "modern",
@@ -429,9 +429,9 @@ async def test_reauth_wake_tv_when_standby(monkeypatch: pytest.MonkeyPatch) -> N
     mock_entry = MagicMock()
     mock_entry.entry_id = "test_entry_wake"
     mock_entry.data = {
-        CONF_IP_ADDRESS: "192.168.50.12",
-        CONF_MAC_ADDRESS: "e8:51:77:ec:98:1c",
-        "secondary_mac_address": "e4:3b:c9:57:f1:4f",
+        CONF_IP_ADDRESS: "192.168.1.100",
+        CONF_MAC_ADDRESS: "e8:51:77:aa:bb:cc",
+        "secondary_mac_address": "e4:3b:c9:aa:bb:cc",
     }
     mock_entry.options = {}
     flow = _reauth_flow(hass, mock_entry, "test_entry_wake")
@@ -459,8 +459,8 @@ async def test_reauth_wake_tv_when_standby(monkeypatch: pytest.MonkeyPatch) -> N
 
     mock_wol.assert_called_once()
     called_macs = mock_wol.call_args[0][0]
-    assert "e8:51:77:ec:98:1c" in called_macs
-    assert "e4:3b:c9:57:f1:4f" in called_macs
+    assert "e8:51:77:aa:bb:cc" in called_macs
+    assert "e4:3b:c9:aa:bb:cc" in called_macs
 
 
 @pytest.mark.anyio
@@ -472,8 +472,8 @@ async def test_reauth_wake_tv_times_out(monkeypatch: pytest.MonkeyPatch) -> None
     mock_entry = MagicMock()
     mock_entry.entry_id = "test_entry_wake_timeout"
     mock_entry.data = {
-        CONF_IP_ADDRESS: "192.168.50.12",
-        CONF_MAC_ADDRESS: "e8:51:77:ec:98:1c",
+        CONF_IP_ADDRESS: "192.168.1.100",
+        CONF_MAC_ADDRESS: "e8:51:77:aa:bb:cc",
     }
     mock_entry.options = {}
     flow = _reauth_flow(hass, mock_entry, "test_entry_wake_timeout")
@@ -509,7 +509,7 @@ async def test_reauth_wake_tv_no_mac_returns_tv_not_awake(monkeypatch: pytest.Mo
     hass = MagicMock(spec=HomeAssistant)
     mock_entry = MagicMock()
     mock_entry.entry_id = "test_entry_no_mac"
-    mock_entry.data = {CONF_IP_ADDRESS: "192.168.50.12"}
+    mock_entry.data = {CONF_IP_ADDRESS: "192.168.1.100"}
     mock_entry.options = {}
     flow = _reauth_flow(hass, mock_entry, "test_entry_no_mac")
 

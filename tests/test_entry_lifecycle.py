@@ -127,10 +127,10 @@ async def test_multi_tv_services_persist_until_last_entry_unloaded(mock_entry, m
     # Create second entry double
     entry_2 = MagicMock(spec=ConfigEntry)
     entry_2.entry_id = "test_entry_2"
-    entry_2.unique_id = "e4:3b:c9:57:f1:4f"
+    entry_2.unique_id = "e4:3b:c9:aa:bb:cc"
     entry_2.data = {
-        CONF_IP_ADDRESS: "192.168.50.15",
-        CONF_MAC_ADDRESS: "e4:3b:c9:57:f1:4f",
+        CONF_IP_ADDRESS: "192.168.1.105",
+        CONF_MAC_ADDRESS: "e4:3b:c9:aa:bb:cc",
         CONF_CLIENT_ID: "client_2",
         CONF_ACCESS_TOKEN: "valid_token",
         CONF_BRAND: "his",
@@ -470,7 +470,7 @@ async def test_async_setup_entry_passes_brand_to_client(mock_entry, monkeypatch)
     hass.config_entries.async_forward_entry_setups = AsyncMock(return_value=True)
 
     mock_entry.data = {
-        "ip_address": "192.168.50.25",
+        "ip_address": "192.168.1.125",
         "mac_address": "00:11:22:33:44:55",
         "brand": "tos",
         "use_ssl": False,
@@ -520,9 +520,9 @@ async def test_setup_entry_cleans_up_disabled_platforms():
     entry.entry_id = "test_cleanup_entry"
     entry.async_on_unload = MagicMock()
     entry.data = {
-        CONF_IP_ADDRESS: "192.168.50.12",
-        CONF_MAC_ADDRESS: "e8:51:77:ec:98:1c",
-        CONF_CLIENT_ID: "E85177EC981C$his$123456_vidaacommon_001",
+        CONF_IP_ADDRESS: "192.168.1.100",
+        CONF_MAC_ADDRESS: "e8:51:77:aa:bb:cc",
+        CONF_CLIENT_ID: "E85177AABBCC$his$123456_vidaacommon_001",
         CONF_ACCESS_TOKEN: "valid_token",
         CONF_BRAND: "his",
     }
@@ -580,11 +580,11 @@ async def test_async_setup_entry_resolves_certs_in_executor():
 
     entry = MagicMock()
     entry.entry_id = "test_executor_certs"
-    entry.unique_id = "e8:51:77:ec:98:1c"
+    entry.unique_id = "e8:51:77:aa:bb:cc"
     entry.data = {
-        CONF_IP_ADDRESS: "192.168.50.12",
-        CONF_MAC_ADDRESS: "e8:51:77:ec:98:1c",
-        CONF_CLIENT_ID: "E85177EC981C$his$123456_vidaacommon_001",
+        CONF_IP_ADDRESS: "192.168.1.100",
+        CONF_MAC_ADDRESS: "e8:51:77:aa:bb:cc",
+        CONF_CLIENT_ID: "E85177AABBCC$his$123456_vidaacommon_001",
         CONF_ACCESS_TOKEN: "valid_token",
         CONF_BRAND: "his",
         CONF_USE_SSL: True,
@@ -634,10 +634,10 @@ async def test_setup_entry_prunes_retired_diagnostic_sensors():
 
     entry = MagicMock()
     entry.entry_id = "test_prune_entry"
-    entry.unique_id = "e8:51:77:ec:98:1c"
+    entry.unique_id = "e8:51:77:aa:bb:cc"
     entry.data = {
-        CONF_IP_ADDRESS: "192.168.50.12",
-        CONF_MAC_ADDRESS: "e8:51:77:ec:98:1c",
+        CONF_IP_ADDRESS: "192.168.1.100",
+        CONF_MAC_ADDRESS: "e8:51:77:aa:bb:cc",
         CONF_CLIENT_ID: "client_1",
         CONF_ACCESS_TOKEN: "token_1",
         CONF_BRAND: "his",

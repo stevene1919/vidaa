@@ -47,7 +47,7 @@ async def test_services_registration_and_send_key():
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
     mock_client = MagicMock()
-    mock_client.ip = "192.168.50.12"
+    mock_client.ip = "192.168.1.100"
     mock_client.async_send_command = AsyncMock(side_effect=mock_client.send_command)
     mock_client.async_set_picture_setting = AsyncMock(side_effect=mock_client.set_picture_setting)
     mock_client.async_set_sound_setting = AsyncMock(side_effect=mock_client.set_sound_setting)
@@ -76,7 +76,7 @@ async def test_services_registration_and_send_key():
     assert result == {
         "key": "KEY_POWER",
         "repeat": 2,
-        "targets": ["192.168.50.12"],
+        "targets": ["192.168.1.100"],
         "count": 1,
     }
 
@@ -97,7 +97,7 @@ async def test_launch_app_service_matching():
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
     mock_client = MagicMock()
-    mock_client.ip = "192.168.50.12"
+    mock_client.ip = "192.168.1.100"
     mock_client.async_launch_app = AsyncMock(side_effect=mock_client.launch_app)
     mock_client.apps = [
         {"name": "YouTube", "appId": "youtube_app_01", "url": "https://youtube.com/tv"},
@@ -157,7 +157,7 @@ async def test_launch_app_service_with_app_id_and_url_overrides():
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
     mock_client = MagicMock()
-    mock_client.ip = "192.168.50.12"
+    mock_client.ip = "192.168.1.100"
     mock_client.async_launch_app = AsyncMock(side_effect=mock_client.launch_app)
     mock_client.apps = [
         {"name": "YouTube", "appId": "3", "url": "https://youtube.com"},
@@ -221,7 +221,7 @@ async def test_picture_sound_and_text_input_services():
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
     mock_client = MagicMock()
-    mock_client.ip = "192.168.50.12"
+    mock_client.ip = "192.168.1.100"
     mock_client.async_send_command = AsyncMock(side_effect=mock_client.send_command)
     mock_client.async_set_picture_setting = AsyncMock(side_effect=mock_client.set_picture_setting)
     mock_client.async_set_sound_setting = AsyncMock(side_effect=mock_client.set_sound_setting)
@@ -281,8 +281,8 @@ def _two_tv_hass():
     """Build a hass double with one TV per area/floor and one labelled device."""
     hass = MagicMock(spec=HomeAssistant)
     client_living = MagicMock()
-    client_living.ip = "192.168.50.12"
-    client_living.mac = "e8:51:77:ec:98:1c"
+    client_living.ip = "192.168.1.100"
+    client_living.mac = "e8:51:77:aa:bb:cc"
     client_living.async_send_command = AsyncMock(side_effect=client_living.send_command)
     client_living.async_launch_app = AsyncMock(side_effect=client_living.launch_app)
     client_living.async_set_picture_setting = AsyncMock(side_effect=client_living.set_picture_setting)
@@ -290,8 +290,8 @@ def _two_tv_hass():
     client_living.async_send_text_input = AsyncMock(side_effect=client_living.send_text_input)
 
     client_kitchen = MagicMock()
-    client_kitchen.ip = "192.168.50.15"
-    client_kitchen.mac = "e8:51:77:ec:98:2d"
+    client_kitchen.ip = "192.168.1.105"
+    client_kitchen.mac = "e8:51:77:aa:bb:ee"
     client_kitchen.async_send_command = AsyncMock(side_effect=client_kitchen.send_command)
     client_kitchen.async_launch_app = AsyncMock(side_effect=client_kitchen.launch_app)
     client_kitchen.async_set_picture_setting = AsyncMock(side_effect=client_kitchen.set_picture_setting)
@@ -781,4 +781,3 @@ async def test_service_action_exceptions_when_tv_off():
     assert res_app["app"] == "YouTube"
     client_living.async_turn_on.assert_called_once()
     client_living.async_launch_app.assert_called_once()
-

@@ -20,7 +20,7 @@ PROBE_PATH = "custom_components.vidaa.config_flow.async_probe_pairing_challenge"
 # ---------------------------------------------------------------------------
 def _static_client() -> VidaaClient:
     """A static-session (legacy) client with its topic paths defined."""
-    client = VidaaClient(ip="192.168.50.12", auth_profile="legacy")
+    client = VidaaClient(ip="192.168.1.100", auth_profile="legacy")
     client.client_id = "hisenseservice"
     client.username = "hisenseservice"
     client.password = "multimqttservice"
@@ -39,8 +39,8 @@ def _flow(hass: MagicMock, *, profile: str = "legacy") -> VidaaConfigFlow:
     flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
-    flow.ip_address = "192.168.50.12"
-    flow.mac_address = "e8:51:77:ec:98:1c"
+    flow.ip_address = "192.168.1.100"
+    flow.mac_address = "e8:51:77:aa:bb:cc"
     flow.auth_profile = profile
     flow.async_set_unique_id = AsyncMock(return_value=None)
     flow._abort_if_unique_id_configured = MagicMock()
@@ -70,11 +70,11 @@ async def test_duplicate_tv_aborts_with_already_configured(monkeypatch, no_netwo
     flow._abort_if_unique_id_configured = MagicMock(side_effect=AbortFlow("already_configured"))
     monkeypatch.setattr(
         "custom_components.vidaa.flow.helpers.get_arp_mac",
-        lambda host: "e8:51:77:ec:98:1c",
+        lambda host: "e8:51:77:aa:bb:cc",
     )
 
     with pytest.raises(AbortFlow) as exc:
-        await flow.async_step_user(user_input={"ip_address": "192.168.50.12", "auth_profile": "legacy"})
+        await flow.async_step_user(user_input={"ip_address": "192.168.1.100", "auth_profile": "legacy"})
     assert exc.value.reason == "already_configured"
 
 
@@ -106,8 +106,8 @@ async def test_certs_step_does_not_swallow_abort_flow(monkeypatch, no_network_st
 async def test_duplicate_add_keeps_running_client_connected():
     hass = _hass()
     running = MagicMock()
-    running.ip = "192.168.50.12"
-    running.mac = "e8:51:77:ec:98:1c"
+    running.ip = "192.168.1.100"
+    running.mac = "e8:51:77:aa:bb:cc"
     hass.data = {DOMAIN: {"entry_1": {"client": running}}}
 
     flow = _flow(hass)
@@ -123,12 +123,12 @@ async def test_duplicate_add_keeps_running_client_connected():
 async def test_reauth_disconnects_only_its_own_client():
     hass = _hass()
     own = MagicMock()
-    own.ip = "192.168.50.12"
-    own.mac = "e8:51:77:ec:98:1c"
+    own.ip = "192.168.1.100"
+    own.mac = "e8:51:77:aa:bb:cc"
     own.async_disconnect = AsyncMock()
     sibling = MagicMock()
-    sibling.ip = "192.168.50.12"  # same IP, different entry
-    sibling.mac = "e8:51:77:ec:98:1d"
+    sibling.ip = "192.168.1.100"  # same IP, different entry
+    sibling.mac = "e8:51:77:aa:bb:dd"
     sibling.async_disconnect = AsyncMock()
     hass.data = {DOMAIN: {"entry_1": {"client": own}, "entry_2": {"client": sibling}}}
 

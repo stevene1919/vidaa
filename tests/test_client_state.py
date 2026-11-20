@@ -32,7 +32,7 @@ def test_key_aliases():
 
 def test_state_dispatch_callbacks():
     """Test state update messages trigger registered callbacks with parsed data."""
-    client = VidaaClient(ip="192.168.50.12", client_id="test_client")
+    client = VidaaClient(ip="192.168.1.100", client_id="test_client")
     client.update_topic_paths()
 
     received_state = []
@@ -80,7 +80,7 @@ def test_state_dispatch_callbacks():
 
 def test_volume_alternate_topic_dispatch():
     """Test volume update messages on alternate VIDAA firmware topics."""
-    client = VidaaClient(ip="192.168.50.12", client_id="test_client")
+    client = VidaaClient(ip="192.168.1.100", client_id="test_client")
     client.update_topic_paths()
 
     received_volume = []
@@ -112,17 +112,17 @@ def test_wake_on_lan_subnet_broadcast():
 
     with patch("socket.socket", return_value=mock_sock):
         result = VidaaClient.send_wake_on_lan(
-            mac="e8:51:77:ec:98:1c",
-            ip="192.168.50.12",
+            mac="e8:51:77:aa:bb:cc",
+            ip="192.168.1.100",
         )
         assert result is True
         assert "255.255.255.255" in sent_targets
-        assert "192.168.50.255" in sent_targets
+        assert "192.168.1.255" in sent_targets
 
 
 def test_callback_unregistration_and_safety():
     """Test callback registration, unregistration, and error isolation."""
-    client = VidaaClient(ip="192.168.50.12")
+    client = VidaaClient(ip="192.168.1.100")
     called = []
 
     def faulty_cb(data):
@@ -146,7 +146,7 @@ def test_callback_unregistration_and_safety():
 
 def test_connected_and_disconnected_callbacks():
     """Test connected and disconnected callback lifecycle."""
-    client = VidaaClient(ip="192.168.50.12")
+    client = VidaaClient(ip="192.168.1.100")
     events = []
 
     def on_conn():
@@ -173,7 +173,7 @@ def test_connected_and_disconnected_callbacks():
 
 def test_source_cycling_and_command_helpers():
     """Test cycle_source and send_command with input, source, and app prefixes."""
-    client = VidaaClient(ip="192.168.50.12", client_id="test_client")
+    client = VidaaClient(ip="192.168.1.100", client_id="test_client")
     client.change_source = MagicMock()
     client.send_key = MagicMock()
     client.launch_app = MagicMock()
@@ -234,7 +234,7 @@ def test_source_cycling_and_command_helpers():
 
 def test_volume_and_mute_state_parsing():
     """Test volume and mute parsing properly distinguishes ARC volume from mute packets."""
-    client = VidaaClient(ip="192.168.50.12", client_id="test_client")
+    client = VidaaClient(ip="192.168.1.100", client_id="test_client")
     client.update_topic_paths()
 
     mock_msg = MagicMock()
@@ -259,7 +259,7 @@ def test_volume_and_mute_state_parsing():
 
 def test_livetv_state_parsing_and_cycling():
     """Test Live TV broadcast parsing without sourcename and cycling over hardware sources."""
-    client = VidaaClient(ip="192.168.50.12", client_id="test_client")
+    client = VidaaClient(ip="192.168.1.100", client_id="test_client")
     client.update_topic_paths()
     client.change_source = MagicMock()
 
@@ -299,7 +299,7 @@ def test_apply_state_update_fake_sleep_vocabulary():
     """
     from custom_components.vidaa.tv.state import apply_state_update
 
-    client = VidaaClient(ip="192.168.50.12", client_id="cid")
+    client = VidaaClient(ip="192.168.1.100", client_id="cid")
 
     # (b) fake_sleep_0 => off
     apply_state_update(client, {"statetype": "fake_sleep_0"})
@@ -335,7 +335,7 @@ def test_device_info_telemetry_and_entity_binding():
     """Test getdeviceinfo and gettvinfo telemetry update client state and VidaaEntity device_info."""
     from custom_components.vidaa.entity import VidaaEntity
 
-    client = VidaaClient(ip="192.168.50.12", client_id="test_client")
+    client = VidaaClient(ip="192.168.1.100", client_id="test_client")
     client.update_topic_paths()
 
     # Dispatch getdeviceinfo telemetry
@@ -361,7 +361,7 @@ def test_device_info_telemetry_and_entity_binding():
     mock_entry.entry_id = "test_entry_id"
     mock_entry.title = "Living Room TV"
     mock_entry.data = {
-        "mac_address": "e8:51:77:ec:98:1c",
+        "mac_address": "e8:51:77:aa:bb:cc",
         "model": "VIDAA TV",
         "manufacturer": "SmartTV",
         "sw_version": "1.0",
@@ -380,7 +380,7 @@ def test_entity_device_info_brand_fallback():
     """Test VidaaEntity falls back to BRAND_MAP based on brand code when manufacturer is unset."""
     from custom_components.vidaa.entity import VidaaEntity
 
-    client = VidaaClient(ip="192.168.50.25", brand="loe")
+    client = VidaaClient(ip="192.168.1.125", brand="loe")
     mock_entry = MagicMock()
     mock_entry.entry_id = "test_entry_loe"
     mock_entry.title = "Loewe bild i"
@@ -421,14 +421,14 @@ def test_device_info_update_extracts_dual_mac():
     apply_device_info_update(
         client,
         {
-            "eth0": "e43bc957f14f",
-            "wlan0": "e85177ec981c",
+            "eth0": "e43bc9aabbcc",
+            "wlan0": "e85177aabbcc",
             "model_name": "58A53FXVT",
         },
     )
 
-    assert client.mac_ethernet == "e4:3b:c9:57:f1:4f"
-    assert client.mac_wifi == "e8:51:77:ec:98:1c"
+    assert client.mac_ethernet == "e4:3b:c9:aa:bb:cc"
+    assert client.mac_wifi == "e8:51:77:aa:bb:cc"
 
 
 @pytest.mark.anyio
@@ -436,7 +436,7 @@ async def test_async_send_command_text_prefixes():
     """Test async_send_command parses and dispatches text and clear commands."""
     from custom_components.vidaa.tv.actions_input import async_send_command
 
-    client = VidaaClient(ip="192.168.50.12", client_id="test_client")
+    client = VidaaClient(ip="192.168.1.100", client_id="test_client")
     client.async_send_text_input = AsyncMock()
 
     assert await async_send_command(client, "text:Inception") is True
@@ -457,7 +457,7 @@ async def test_async_send_command_text_prefixes():
 
 def test_sourcelist_with_active_signal_does_not_wake_standby_tv():
     """Test sourcelist broadcast with active HDMI signal (is_signal=1) does not wake client in standby (Issue #61)."""
-    client = VidaaClient(ip="192.168.50.12", client_id="test_client")
+    client = VidaaClient(ip="192.168.1.100", client_id="test_client")
     client.update_topic_paths()
 
     # 1. TV reports standby via fake_sleep_0

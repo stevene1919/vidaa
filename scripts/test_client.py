@@ -884,22 +884,22 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""Examples:
   # Generate Markdown diagnostics report for GitHub issues:
-  python3 test_client.py report --ip 192.168.50.12 --probe
+  python3 test_client.py report --ip 192.168.1.100 --probe
 
   # Probe picture/sound menu capabilities and dynamic options:
-  python3 test_client.py probe --ip 192.168.50.12
+  python3 test_client.py probe --ip 192.168.1.100
 
   # Quick 3-tier connectivity & MQTT broker listening probe:
-  python3 test_client.py ping --ip 192.168.50.12
+  python3 test_client.py ping --ip 192.168.1.100
 
   # Probe UPnP MediaRenderer services and actions:
-  python3 test_client.py upnp --ip 192.168.50.12
+  python3 test_client.py upnp --ip 192.168.1.100
 
   # Test raw SSL/TLS certificate connection to TV:
-  python3 test_client.py test-ssl --ip 192.168.50.12
+  python3 test_client.py test-ssl --ip 192.168.1.100
 
   # Pair with TV and save credentials:
-  python3 test_client.py auth --ip 192.168.50.12
+  python3 test_client.py auth --ip 192.168.1.100
 
   # Listen for real-time status and state updates:
   python3 test_client.py listen
@@ -911,7 +911,7 @@ def main() -> None:
   python3 test_client.py launch-app "Netflix"
 
   # Send Wake-on-LAN magic packet:
-  python3 test_client.py wake --mac E8:51:77:EC:98:1C --ip 192.168.50.12
+  python3 test_client.py wake --mac E8:51:77:AA:BB:CC --ip 192.168.1.100
 
   # Send text input to on-screen search / keyboard field:
   python3 test_client.py text "The Matrix"

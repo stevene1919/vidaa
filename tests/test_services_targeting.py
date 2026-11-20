@@ -24,12 +24,12 @@ async def test_service_target_resolution():
 
     hass = MagicMock(spec=HomeAssistant)
     client_1 = MagicMock()
-    client_1.ip = "192.168.50.12"
-    client_1.mac = "e8:51:77:ec:98:1c"
+    client_1.ip = "192.168.1.100"
+    client_1.mac = "e8:51:77:aa:bb:cc"
 
     client_2 = MagicMock()
-    client_2.ip = "192.168.50.15"
-    client_2.mac = "e8:51:77:ec:98:2d"
+    client_2.ip = "192.168.1.105"
+    client_2.mac = "e8:51:77:aa:bb:ee"
 
     hass.data = {
         DOMAIN: {
@@ -43,11 +43,11 @@ async def test_service_target_resolution():
     assert _get_target_clients(hass, call_entry) == [client_1]
 
     # 2. Target by IP
-    call_ip = ServiceCall(domain=DOMAIN, service=SERVICE_SEND_KEY, data={"ip_address": "192.168.50.15"})
+    call_ip = ServiceCall(domain=DOMAIN, service=SERVICE_SEND_KEY, data={"ip_address": "192.168.1.105"})
     assert _get_target_clients(hass, call_ip) == [client_2]
 
     # 3. Target by MAC
-    call_mac = ServiceCall(domain=DOMAIN, service=SERVICE_SEND_KEY, data={"mac": "e8:51:77:ec:98:1c"})
+    call_mac = ServiceCall(domain=DOMAIN, service=SERVICE_SEND_KEY, data={"mac": "e8:51:77:aa:bb:cc"})
     assert _get_target_clients(hass, call_mac) == [client_1]
 
     # 4. Explicit broadcast to all via entity_id="all" when multiple TVs configured
@@ -80,8 +80,8 @@ def _two_tv_hass():
     """Build a hass double with one TV per area/floor and one labelled device."""
     hass = MagicMock(spec=HomeAssistant)
     client_living = MagicMock()
-    client_living.ip = "192.168.50.12"
-    client_living.mac = "e8:51:77:ec:98:1c"
+    client_living.ip = "192.168.1.100"
+    client_living.mac = "e8:51:77:aa:bb:cc"
     client_living.async_send_command = AsyncMock(side_effect=client_living.send_command)
     client_living.async_launch_app = AsyncMock(side_effect=client_living.launch_app)
     client_living.async_set_picture_setting = AsyncMock(side_effect=client_living.set_picture_setting)
@@ -89,8 +89,8 @@ def _two_tv_hass():
     client_living.async_send_text_input = AsyncMock(side_effect=client_living.send_text_input)
 
     client_kitchen = MagicMock()
-    client_kitchen.ip = "192.168.50.15"
-    client_kitchen.mac = "e8:51:77:ec:98:2d"
+    client_kitchen.ip = "192.168.1.105"
+    client_kitchen.mac = "e8:51:77:aa:bb:ee"
     client_kitchen.async_send_command = AsyncMock(side_effect=client_kitchen.send_command)
     client_kitchen.async_launch_app = AsyncMock(side_effect=client_kitchen.launch_app)
     client_kitchen.async_set_picture_setting = AsyncMock(side_effect=client_kitchen.set_picture_setting)

@@ -118,7 +118,7 @@ If your VIDAA TV is placed on an isolated **IoT VLAN** separate from your Home A
    - SSDP multicast (`UDP 1900` to `239.255.255.250`) does not naturally cross VLAN boundaries. If you want automatic SSDP discovery across subnets, enable an **mDNS / SSDP relay** (such as `smcroute`, `igmpproxy`, or `udp-broadcast-relay-redux`) on your gateway.
    - Alternatively, simply enter the TV's IP address directly during integration setup to bypass SSDP discovery.
 4. **Cross-Subnet Wake-on-LAN (WoL)**:
-   - Standard WoL packets broadcast to `255.255.255.255`. For cross-VLAN wake-on-LAN, configure your gateway to permit **Subnet Directed Broadcast** (e.g. `192.168.50.255:9`) or use a UDP broadcast relay daemon.
+   - Standard WoL packets broadcast to `255.255.255.255`. For cross-VLAN wake-on-LAN, configure your gateway to permit **Subnet Directed Broadcast** (e.g. `192.168.1.255:9`) or use a UDP broadcast relay daemon.
 
 ---
 

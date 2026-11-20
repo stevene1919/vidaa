@@ -1,4 +1,4 @@
-"""Unit tests for HisenseUpnpClient and UPnP LAN Control services."""
+"""Unit tests for VidaaUpnpClient and UPnP LAN Control services."""
 
 from __future__ import annotations
 
@@ -74,7 +74,7 @@ async def test_upnp_probe_success(mock_session):
     cm.__aenter__.return_value = mock_resp
     mock_session.get.return_value = cm
 
-    client = HisenseUpnpClient("192.168.1.100", session=mock_session)
+    client = VidaaUpnpClient("192.168.1.100", session=mock_session)
     result = await client.async_probe()
 
     assert result is not None
@@ -91,7 +91,7 @@ async def test_upnp_probe_failure(mock_session):
     cm.__aenter__.side_effect = Exception("Connection refused")
     mock_session.get.return_value = cm
 
-    client = HisenseUpnpClient("192.168.1.100", session=mock_session)
+    client = VidaaUpnpClient("192.168.1.100", session=mock_session)
     result = await client.async_probe()
 
     assert result is None
@@ -108,7 +108,7 @@ async def test_upnp_get_volume(mock_session):
     cm.__aenter__.return_value = mock_resp
     mock_session.post.return_value = cm
 
-    client = HisenseUpnpClient("192.168.1.100", session=mock_session)
+    client = VidaaUpnpClient("192.168.1.100", session=mock_session)
     vol = await client.async_get_volume()
 
     assert vol == 25
@@ -129,7 +129,7 @@ async def test_upnp_set_volume(mock_session):
     cm.__aenter__.return_value = mock_resp
     mock_session.post.return_value = cm
 
-    client = HisenseUpnpClient("192.168.1.100", session=mock_session)
+    client = VidaaUpnpClient("192.168.1.100", session=mock_session)
     success = await client.async_set_volume(150)  # Clamps to 100
 
     assert success is True
@@ -148,7 +148,7 @@ async def test_upnp_get_mute(mock_session):
     cm.__aenter__.return_value = mock_resp
     mock_session.post.return_value = cm
 
-    client = HisenseUpnpClient("192.168.1.100", session=mock_session)
+    client = VidaaUpnpClient("192.168.1.100", session=mock_session)
     muted = await client.async_get_mute()
 
     assert muted is True
@@ -165,7 +165,7 @@ async def test_upnp_set_mute(mock_session):
     cm.__aenter__.return_value = mock_resp
     mock_session.post.return_value = cm
 
-    client = HisenseUpnpClient("192.168.1.100", session=mock_session)
+    client = VidaaUpnpClient("192.168.1.100", session=mock_session)
     success = await client.async_set_mute(False)
 
     assert success is True
@@ -184,7 +184,7 @@ async def test_upnp_get_transport_info(mock_session):
     cm.__aenter__.return_value = mock_resp
     mock_session.post.return_value = cm
 
-    client = HisenseUpnpClient("192.168.1.100", session=mock_session)
+    client = VidaaUpnpClient("192.168.1.100", session=mock_session)
     info = await client.async_get_transport_info()
 
     assert info is not None
@@ -204,7 +204,7 @@ async def test_upnp_send_lan_control(mock_session):
     cm.__aenter__.return_value = mock_resp
     mock_session.post.return_value = cm
 
-    client = HisenseUpnpClient("192.168.1.100", session=mock_session)
+    client = VidaaUpnpClient("192.168.1.100", session=mock_session)
     status, text = await client.async_send_lan_control("RemoteKey", "SendKey", "KEY_HOME")
 
     assert status == 200
@@ -216,7 +216,7 @@ async def test_upnp_send_lan_control(mock_session):
 
 @pytest.mark.anyio
 async def test_client_upnp_wrappers():
-    """Test that VidaaClient UPnP methods properly delegate to HisenseUpnpClient."""
+    """Test that VidaaClient UPnP methods properly delegate to VidaaUpnpClient."""
     tv_client = VidaaClient("192.168.1.50")
 
     with (
@@ -314,7 +314,7 @@ async def test_upnp_injected_session_retention():
     external_session.closed = False
     external_session.close = AsyncMock()
 
-    client = HisenseUpnpClient("192.168.50.12", session=external_session)
+    client = VidaaUpnpClient("192.168.1.100", session=external_session)
     assert client._session is external_session
     assert client._owns_session is False
 
@@ -325,7 +325,7 @@ async def test_upnp_injected_session_retention():
 @pytest.mark.anyio
 async def test_upnp_owned_session_closed():
     """Verify that when no session is injected, the internally created session is closed."""
-    client = HisenseUpnpClient("192.168.50.12", session=None)
+    client = VidaaUpnpClient("192.168.1.100", session=None)
     mock_internal_session = MagicMock()
     mock_internal_session.closed = False
     mock_internal_session.close = AsyncMock()
@@ -350,7 +350,7 @@ async def test_upnp_get_device_fingerprint_with_model_description(mock_session):
 brand=tos
 platform=MTK9602
 transport_protocol=3290
-macWifi=e85177ec981c
+macWifi=e85177aabbcc
 macEthernet=001122334455</modelDescription>
     </device>
 </root>
@@ -363,7 +363,7 @@ macEthernet=001122334455</modelDescription>
     cm.__aenter__.return_value = mock_resp
     mock_session.get.return_value = cm
 
-    client = HisenseUpnpClient("192.168.1.100", session=mock_session)
+    client = VidaaUpnpClient("192.168.1.100", session=mock_session)
     info = await client.async_get_device_fingerprint()
 
     assert info["friendly_name"] == "Toshiba TV"
@@ -374,7 +374,7 @@ macEthernet=001122334455</modelDescription>
     assert info["vidaa_support"] == "1"
     assert info["platform"] == "MTK9602"
     assert info["transport_protocol"] == "3290"
-    assert info["mac_wifi"] == "e85177ec981c"
+    assert info["mac_wifi"] == "e85177aabbcc"
     assert info["mac_ethernet"] == "001122334455"
 
 

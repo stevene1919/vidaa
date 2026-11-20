@@ -32,13 +32,13 @@ def test_media_player_device_info(mock_client, mock_entry):
     assert dev_info["model"] == "65U7G"
     assert dev_info["manufacturer"] == "Hisense"
     assert dev_info["sw_version"] == "V1.0"
-    assert ("mac", "e8:51:77:ec:98:1c") in dev_info["connections"]
+    assert ("mac", "e8:51:77:aa:bb:cc") in dev_info["connections"]
 
     # When secondary MAC is configured or client discovers ethernet MAC, both appear in connections
-    mock_entry.data["secondary_mac_address"] = "e4:3b:c9:57:f1:4f"
+    mock_entry.data["secondary_mac_address"] = "e4:3b:c9:aa:bb:cc"
     dev_info_dual = mp.device_info
-    assert ("mac", "e8:51:77:ec:98:1c") in dev_info_dual["connections"]
-    assert ("mac", "e4:3b:c9:57:f1:4f") in dev_info_dual["connections"]
+    assert ("mac", "e8:51:77:aa:bb:cc") in dev_info_dual["connections"]
+    assert ("mac", "e4:3b:c9:aa:bb:cc") in dev_info_dual["connections"]
 
 
 def test_media_player_availability_on_auth_failure(mock_client, mock_entry):

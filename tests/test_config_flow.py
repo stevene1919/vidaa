@@ -33,21 +33,21 @@ async def test_ssdp_discovery_vidaa_tv(monkeypatch):
     discovery_info = SsdpServiceInfo(
         ssdp_usn="uuid:12345678-1234-5678-1234-567812345678::urn:schemas-upnp-org:device:MediaRenderer:1",
         ssdp_st="urn:schemas-upnp-org:device:MediaRenderer:1",
-        ssdp_location="http://192.168.50.12:38400/MediaServer/rendererdevicedesc.xml",
-        ssdp_headers={"_host": "192.168.50.12"},
+        ssdp_location="http://192.168.1.100:38400/MediaServer/rendererdevicedesc.xml",
+        ssdp_headers={"_host": "192.168.1.100"},
         upnp={
             "friendlyName": "Living Room TV",
             "manufacturer": "Hisense",
             "modelName": "65U7G",
-            "modelDescription": "vidaa_support=1\nbrand=his\nmacWifi=e8:51:77:ec:98:1c\n",
+            "modelDescription": "vidaa_support=1\nbrand=his\nmacWifi=e8:51:77:aa:bb:cc\n",
         },
     )
 
     result = await flow.async_step_ssdp(discovery_info)
     assert result["type"] == "form"
     assert result["step_id"] == "discovery_confirm"
-    assert flow.ip_address == "192.168.50.12"
-    assert flow.mac_address == "e8:51:77:ec:98:1c"
+    assert flow.ip_address == "192.168.1.100"
+    assert flow.mac_address == "e8:51:77:aa:bb:cc"
     assert flow.model == "65U7G"
     assert flow.manufacturer == "Hisense"
     assert flow.brand == "his"
@@ -64,8 +64,8 @@ async def test_ssdp_discovery_non_vidaa_ignored():
     discovery_info = SsdpServiceInfo(
         ssdp_usn="uuid:sonos-1234::urn:schemas-upnp-org:device:MediaRenderer:1",
         ssdp_st="urn:schemas-upnp-org:device:MediaRenderer:1",
-        ssdp_location="http://192.168.50.99:1400/xml/device_description.xml",
-        ssdp_headers={"_host": "192.168.50.99"},
+        ssdp_location="http://192.168.1.199:1400/xml/device_description.xml",
+        ssdp_headers={"_host": "192.168.1.199"},
         upnp={
             "friendlyName": "Sonos Speaker",
             "manufacturer": "Sonos",
@@ -87,8 +87,8 @@ async def test_options_step_creates_entry():
     flow.hass = hass
     flow.context = {}
 
-    flow.ip_address = "192.168.50.12"
-    flow.mac_address = "e8:51:77:ec:98:1c"
+    flow.ip_address = "192.168.1.100"
+    flow.mac_address = "e8:51:77:aa:bb:cc"
     flow.discovered_title = "Hisense TV"
     flow.model = "65U7G"
     flow.manufacturer = "Hisense"
@@ -120,8 +120,8 @@ async def test_options_step_creates_entry():
 
     assert result["type"] == "create_entry"
     assert result["title"] == "Hisense TV"
-    assert result["data"][CONF_IP_ADDRESS] == "192.168.50.12"
-    assert result["data"][CONF_MAC_ADDRESS] == "e8:51:77:ec:98:1c"
+    assert result["data"][CONF_IP_ADDRESS] == "192.168.1.100"
+    assert result["data"][CONF_MAC_ADDRESS] == "e8:51:77:aa:bb:cc"
     assert result["data"][CONF_MODEL] == "65U7G"
     assert result["data"][CONF_MANUFACTURER] == "Hisense"
     assert result["data"][CONF_BRAND] == "his"
@@ -143,8 +143,8 @@ async def test_capability_probing_in_config_flow(monkeypatch):
     flow.hass = hass
     flow.context = {}
 
-    flow.ip_address = "192.168.50.12"
-    flow.mac_address = "e8:51:77:ec:98:1c"
+    flow.ip_address = "192.168.1.100"
+    flow.mac_address = "e8:51:77:aa:bb:cc"
     flow.discovered_title = "Hisense TV"
 
     mock_client = MagicMock()
@@ -181,7 +181,7 @@ async def test_user_step_auto_certs_missing_routes_to_certs(monkeypatch):
         lambda c, k: False,
     )
 
-    result = await flow.async_step_user(user_input={"ip_address": "192.168.50.12", "auth_profile": "auto"})
+    result = await flow.async_step_user(user_input={"ip_address": "192.168.1.100", "auth_profile": "auto"})
     assert result["type"] == "form"
     assert result["step_id"] == "certs"
 
@@ -196,7 +196,7 @@ async def test_user_step_explicit_model_routes_to_certs():
     flow.hass = hass
     flow.context = {}
 
-    result = await flow.async_step_user(user_input={"ip_address": "192.168.50.12", "auth_profile": "modern"})
+    result = await flow.async_step_user(user_input={"ip_address": "192.168.1.100", "auth_profile": "modern"})
     assert result["type"] == "form"
     assert result["step_id"] == "certs"
 
@@ -210,7 +210,7 @@ async def test_certs_step_submission_valid(monkeypatch):
     flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
-    flow.ip_address = "192.168.50.12"
+    flow.ip_address = "192.168.1.100"
     flow.auth_profile = "modern"
     flow.async_set_unique_id = AsyncMock(return_value=None)
     flow._abort_if_unique_id_configured = MagicMock()
@@ -259,20 +259,20 @@ async def test_zeroconf_discovery(monkeypatch):
 
     monkeypatch.setattr(
         "custom_components.vidaa.flow.helpers.get_arp_mac",
-        lambda host: "e8:51:77:ec:98:1c",
+        lambda host: "e8:51:77:aa:bb:cc",
     )
     monkeypatch.setattr(
         "custom_components.vidaa.protocol.discovery.get_arp_mac",
-        lambda host: "e8:51:77:ec:98:1c",
+        lambda host: "e8:51:77:aa:bb:cc",
     )
     monkeypatch.setattr(
         "custom_components.vidaa.tv.fingerprint.get_arp_mac",
-        lambda host: "e8:51:77:ec:98:1c",
+        lambda host: "e8:51:77:aa:bb:cc",
     )
 
     discovery_info = ZeroconfServiceInfo(
-        ip_address="192.168.50.12",
-        ip_addresses=["192.168.50.12"],
+        ip_address="192.168.1.100",
+        ip_addresses=["192.168.1.100"],
         port=36669,
         hostname="hisensetv.local.",
         type="_vidaa._tcp.local.",
@@ -283,8 +283,8 @@ async def test_zeroconf_discovery(monkeypatch):
     result = await flow.async_step_zeroconf(discovery_info)
     assert result["type"] == "form"
     assert result["step_id"] == "discovery_confirm"
-    assert flow.ip_address == "192.168.50.12"
-    assert flow.mac_address == "e8:51:77:ec:98:1c"
+    assert flow.ip_address == "192.168.1.100"
+    assert flow.mac_address == "e8:51:77:aa:bb:cc"
 
 
 @pytest.mark.anyio
@@ -341,7 +341,7 @@ async def test_certs_step_submission_invalid_pem(monkeypatch):
     flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
-    flow.ip_address = "192.168.50.12"
+    flow.ip_address = "192.168.1.100"
     flow.auth_profile = "modern"
 
     monkeypatch.setattr(
@@ -380,8 +380,8 @@ async def test_ssdp_discovery_toshiba_tv(monkeypatch):
     discovery_info = SsdpServiceInfo(
         ssdp_usn="uuid:toshiba-1234::urn:schemas-upnp-org:device:MediaRenderer:1",
         ssdp_st="urn:schemas-upnp-org:device:MediaRenderer:1",
-        ssdp_location="http://192.168.50.25:38400/MediaServer/rendererdevicedesc.xml",
-        ssdp_headers={"_host": "192.168.50.25"},
+        ssdp_location="http://192.168.1.125:38400/MediaServer/rendererdevicedesc.xml",
+        ssdp_headers={"_host": "192.168.1.125"},
         upnp={
             "friendlyName": "Toshiba 55C350",
             "manufacturer": "Toshiba",
@@ -393,7 +393,7 @@ async def test_ssdp_discovery_toshiba_tv(monkeypatch):
     result = await flow.async_step_ssdp(discovery_info)
     assert result["type"] == "form"
     assert result["step_id"] == "discovery_confirm"
-    assert flow.ip_address == "192.168.50.25"
+    assert flow.ip_address == "192.168.1.125"
     assert flow.brand == "tos"
     assert flow.manufacturer == "Toshiba"
 
@@ -430,7 +430,7 @@ async def test_manual_ip_upnp_brand_autodetect(monkeypatch):
     flow.async_set_unique_id = AsyncMock(return_value=None)
     flow._abort_if_unique_id_configured = MagicMock()
 
-    flow.ip_address = "192.168.50.50"
+    flow.ip_address = "192.168.1.150"
     flow.auth_profile = "auto"
     flow.use_ssl = True
 
@@ -481,8 +481,8 @@ async def test_ssdp_discovery_multi_tv_offers_new_tv():
 
     # Simulate existing TV 1 in config entries
     existing_entry = MagicMock()
-    existing_entry.unique_id = "e8:51:77:ec:98:1c"
-    existing_entry.data = {CONF_IP_ADDRESS: "192.168.50.12", CONF_MAC_ADDRESS: "e8:51:77:ec:98:1c"}
+    existing_entry.unique_id = "e8:51:77:aa:bb:cc"
+    existing_entry.data = {CONF_IP_ADDRESS: "192.168.1.100", CONF_MAC_ADDRESS: "e8:51:77:aa:bb:cc"}
     flow._async_current_entries = MagicMock(return_value=[existing_entry])
 
     flow.async_set_unique_id = AsyncMock(return_value=None)
@@ -492,8 +492,8 @@ async def test_ssdp_discovery_multi_tv_offers_new_tv():
     discovery_info = SsdpServiceInfo(
         ssdp_usn="uuid:87654321-4321-8765-4321-876543210000::urn:schemas-upnp-org:device:MediaRenderer:1",
         ssdp_st="urn:schemas-upnp-org:device:MediaRenderer:1",
-        ssdp_location="http://192.168.50.15:38400/MediaServer/rendererdevicedesc.xml",
-        ssdp_headers={"_host": "192.168.50.15"},
+        ssdp_location="http://192.168.1.105:38400/MediaServer/rendererdevicedesc.xml",
+        ssdp_headers={"_host": "192.168.1.105"},
         upnp={
             "friendlyName": "Bedroom TV",
             "manufacturer": "Hisense",
@@ -505,10 +505,10 @@ async def test_ssdp_discovery_multi_tv_offers_new_tv():
     result = await flow.async_step_ssdp(discovery_info)
     assert result["type"] == "form"
     assert result["step_id"] == "discovery_confirm"
-    assert flow.ip_address == "192.168.50.15"
+    assert flow.ip_address == "192.168.1.105"
     assert flow.mac_address == "aa:bb:cc:dd:ee:02"
     flow.async_set_unique_id.assert_awaited_once_with("aa:bb:cc:dd:ee:02")
-    flow._abort_if_unique_id_configured.assert_called_once_with(updates={CONF_IP_ADDRESS: "192.168.50.15"})
+    flow._abort_if_unique_id_configured.assert_called_once_with(updates={CONF_IP_ADDRESS: "192.168.1.105"})
 
 
 @pytest.mark.anyio
@@ -530,13 +530,13 @@ async def test_ssdp_discovery_dhcp_renewal_updates_ip_and_aborts():
     discovery_info = SsdpServiceInfo(
         ssdp_usn="uuid:12345678-1234-5678-1234-567812345678::urn:schemas-upnp-org:device:MediaRenderer:1",
         ssdp_st="urn:schemas-upnp-org:device:MediaRenderer:1",
-        ssdp_location="http://192.168.50.99:38400/MediaServer/rendererdevicedesc.xml",
-        ssdp_headers={"_host": "192.168.50.99"},
+        ssdp_location="http://192.168.1.199:38400/MediaServer/rendererdevicedesc.xml",
+        ssdp_headers={"_host": "192.168.1.199"},
         upnp={
             "friendlyName": "Living Room TV",
             "manufacturer": "Hisense",
             "modelName": "65U7G",
-            "modelDescription": "vidaa_support=1\nbrand=his\nmacWifi=e8:51:77:ec:98:1c\n",
+            "modelDescription": "vidaa_support=1\nbrand=his\nmacWifi=e8:51:77:aa:bb:cc\n",
         },
     )
 
@@ -544,7 +544,7 @@ async def test_ssdp_discovery_dhcp_renewal_updates_ip_and_aborts():
         await flow.async_step_ssdp(discovery_info)
 
     assert exc_info.value.reason == "already_configured"
-    flow._abort_if_unique_id_configured.assert_called_once_with(updates={CONF_IP_ADDRESS: "192.168.50.99"})
+    flow._abort_if_unique_id_configured.assert_called_once_with(updates={CONF_IP_ADDRESS: "192.168.1.199"})
 
 
 @pytest.mark.anyio
@@ -558,15 +558,15 @@ async def test_ssdp_discovery_duplicate_ip_aborts_without_mac():
     flow.context = {}
 
     existing_entry = MagicMock()
-    existing_entry.data = {CONF_IP_ADDRESS: "192.168.50.12"}
+    existing_entry.data = {CONF_IP_ADDRESS: "192.168.1.100"}
     flow._async_current_entries = MagicMock(return_value=[existing_entry])
     flow.async_set_unique_id = AsyncMock()
 
     discovery_info = SsdpServiceInfo(
         ssdp_usn="uuid:dummy::urn:schemas-upnp-org:device:MediaRenderer:1",
         ssdp_st="urn:schemas-upnp-org:device:MediaRenderer:1",
-        ssdp_location="http://192.168.50.12:38400/MediaServer/rendererdevicedesc.xml",
-        ssdp_headers={"_host": "192.168.50.12"},
+        ssdp_location="http://192.168.1.100:38400/MediaServer/rendererdevicedesc.xml",
+        ssdp_headers={"_host": "192.168.1.100"},
         upnp={
             "friendlyName": "Living Room TV",
             "manufacturer": "Hisense",
@@ -591,7 +591,7 @@ async def test_user_step_legacy_profile_without_certs_proceeds(monkeypatch):
 
     monkeypatch.setattr(
         "custom_components.vidaa.flow.user.async_resolve_mac",
-        AsyncMock(return_value="e8:51:77:ec:98:1c"),
+        AsyncMock(return_value="e8:51:77:aa:bb:cc"),
     )
     monkeypatch.setattr(
         "custom_components.vidaa.config_flow.VidaaConfigFlow._async_init_client_and_auth",

@@ -256,9 +256,7 @@ class TvPowerActionsMixin:
         """Powers on or wakes the TV safely and idempotently."""
         turn_on_tv(self, mac_targets=mac_targets)  # type: ignore[arg-type]
 
-    async def async_turn_on(
-        self, mac_targets: list[str] | None = None, timeout: float = DEFAULT_WOL_TIMEOUT
-    ) -> bool:
+    async def async_turn_on(self, mac_targets: list[str] | None = None, timeout: float = DEFAULT_WOL_TIMEOUT) -> bool:
         """Powers on or wakes the TV safely and idempotently asynchronously."""
         return await async_turn_on_tv(self, mac_targets=mac_targets, timeout=timeout)  # type: ignore[arg-type]
 

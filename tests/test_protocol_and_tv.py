@@ -55,12 +55,12 @@ def test_wake_on_lan_utilities() -> None:
         mock_socket.return_value.__enter__.return_value = mock_sock_instance
 
         # Single valid MAC
-        res = send_wake_on_lan("E8:51:77:EC:98:1C", ip="192.168.50.12")
+        res = send_wake_on_lan("E8:51:77:AA:BB:CC", ip="192.168.1.100")
         assert res is True
         assert mock_sock_instance.sendto.called
 
         # Multiple MACs
-        res_multi = send_wake_on_lan(["E8:51:77:EC:98:1C", "E8:51:77:EC:98:1D"])
+        res_multi = send_wake_on_lan(["E8:51:77:AA:BB:CC", "E8:51:77:EC:98:1D"])
         assert res_multi is True
 
 
@@ -92,7 +92,7 @@ def test_apply_mqtt_tls() -> None:
 
 def test_perform_token_refresh_validation() -> None:
     # Missing parameters returns None immediately
-    assert perform_token_refresh(ip="192.168.50.12", client_id="", username="", refresh_token="") is None
+    assert perform_token_refresh(ip="192.168.1.100", client_id="", username="", refresh_token="") is None
 
 
 @pytest.mark.anyio
@@ -139,7 +139,7 @@ async def test_perform_token_refresh_subscriptions() -> None:
         patch("custom_components.vidaa.protocol.auth.build_mqtt_ssl_context"),
     ):
         await async_perform_token_refresh(
-            ip="192.168.50.12",
+            ip="192.168.1.100",
             client_id="test_client_id",
             username="his$123",
             refresh_token="test_refresh_token",
@@ -194,7 +194,7 @@ def test_settings_item_and_probe_report() -> None:
     report = probe_tv_features_and_report(
         client=mock_client,
         ping_result={"device_info": {"model_name": "TestTV"}, "tcp_port_open": True, "tls_handshake": True},
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         wait_time=0.01,
     )
     assert "TestTV" in report
@@ -206,7 +206,7 @@ def test_dispatch_incoming_mqtt_message() -> None:
     from custom_components.vidaa.protocol.topics import TopicPaths
 
     mock_client = MagicMock()
-    mock_client.ip = "192.168.50.12"
+    mock_client.ip = "192.168.1.100"
     mock_client.topics = TopicPaths(
         ui="hisense_ui/",
         platform="hisense_platform/",
@@ -254,7 +254,7 @@ async def test_test_tv_ssl_connection_unauthenticated():
         patch("asyncio.open_connection", return_value=(mock_reader, mock_writer)),
         patch("custom_components.vidaa.protocol.auth.build_mqtt_ssl_context"),
     ):
-        res = await async_test_tv_ssl_connection("192.168.50.12")
+        res = await async_test_tv_ssl_connection("192.168.1.100")
         assert res["connected"] is True
         assert res["tls_version"] == "TLSv1.3"
         assert res["cipher"] == "TLS_AES_256_GCM_SHA384"
@@ -297,7 +297,7 @@ async def test_ping_tv_client_cert_tracking():
         ),
         patch("custom_components.vidaa.tv.fingerprint.get_device_fingerprint", return_value={}),
     ):
-        res = await async_ping_tv("192.168.50.12")
+        res = await async_ping_tv("192.168.1.100")
         assert res["tcp_port_open"] is True
         assert res["tls_handshake"] is True
         assert res["client_cert_presented"] is False
@@ -305,7 +305,7 @@ async def test_ping_tv_client_cert_tracking():
 
 def test_on_connect_subscribes_client_own_mobile_push_tree() -> None:
     """F8-leg3: the live session must subscribe the client's own mobile/<cid>/# tree."""
-    client = VidaaClient(ip="192.168.50.12", client_id="cid", username="his$1", access_token="tok")
+    client = VidaaClient(ip="192.168.1.100", client_id="cid", username="his$1", access_token="tok")
     mqtt_mock = MagicMock()
     client.mqtt_client = mqtt_mock
     with patch.object(client, "query_initial_state"):
@@ -322,7 +322,7 @@ def test_on_connect_subscribes_client_own_mobile_push_tree() -> None:
 
 def test_query_initial_state_requests_capability() -> None:
     """F7-leg3: query_initial_state must publish ui_service/actions/capability (empty payload)."""
-    client = VidaaClient(ip="192.168.50.12", client_id="cid")
+    client = VidaaClient(ip="192.168.1.100", client_id="cid")
     mqtt_mock = MagicMock()
     client.mqtt_client = mqtt_mock
     client.connected = True
@@ -342,7 +342,7 @@ async def test_set_volume_and_async_set_volume() -> None:
 
     from custom_components.vidaa.tv.actions_media import async_set_volume, set_volume
 
-    client = VidaaClient(ip="192.168.50.12", client_id="cid")
+    client = VidaaClient(ip="192.168.1.100", client_id="cid")
     client.connected = True
     mqtt_mock = MagicMock()
     client.mqtt_client = mqtt_mock
@@ -368,7 +368,7 @@ async def test_async_turn_on_tv_reconnect_race_skips_key_power_when_already_awak
 
     from custom_components.vidaa.tv.actions_power import async_turn_on_tv
 
-    client = VidaaClient(ip="192.168.50.12", client_id="cid")
+    client = VidaaClient(ip="192.168.1.100", client_id="cid")
     client.connected = False
     client.is_on = False
     client.has_active_signal = False
@@ -388,7 +388,7 @@ async def test_async_turn_on_tv_reconnect_race_skips_key_power_when_already_awak
     client.async_ensure_connected = AsyncMock(side_effect=fake_ensure_connected)
 
     with patch("custom_components.vidaa.tv.actions_power.asyncio.sleep", side_effect=fake_sleep):
-        res = await async_turn_on_tv(client, mac_targets=["e8:51:77:ec:98:1c"])
+        res = await async_turn_on_tv(client, mac_targets=["e8:51:77:aa:bb:cc"])
 
     assert res is True
     assert client.is_on is True
@@ -403,7 +403,7 @@ async def test_async_turn_on_tv_reconnect_sends_key_power_when_still_in_standby(
 
     from custom_components.vidaa.tv.actions_power import async_turn_on_tv
 
-    client = VidaaClient(ip="192.168.50.12", client_id="cid")
+    client = VidaaClient(ip="192.168.1.100", client_id="cid")
     client.connected = False
     client.is_on = False
     client.has_active_signal = False
@@ -417,7 +417,7 @@ async def test_async_turn_on_tv_reconnect_sends_key_power_when_still_in_standby(
     client.async_ensure_connected = AsyncMock(side_effect=fake_ensure_connected)
 
     with patch("custom_components.vidaa.tv.actions_power.asyncio.sleep", new_callable=AsyncMock):
-        res = await async_turn_on_tv(client, mac_targets=["e8:51:77:ec:98:1c"])
+        res = await async_turn_on_tv(client, mac_targets=["e8:51:77:aa:bb:cc"])
 
     assert res is True
     assert client.is_on is True
@@ -431,9 +431,9 @@ async def test_async_turn_on_tv_defaults_to_client_mac_and_secondary_mac_when_ta
     from custom_components.vidaa.tv.actions_power import async_turn_on_tv
 
     client = VidaaClient(
-        ip="192.168.50.12",
-        mac="e8:51:77:ec:98:1c",
-        secondary_mac="e4:3b:c9:57:f1:4f",
+        ip="192.168.1.100",
+        mac="e8:51:77:aa:bb:cc",
+        secondary_mac="e4:3b:c9:aa:bb:cc",
         client_id="cid",
     )
     client.connected = True
@@ -443,8 +443,8 @@ async def test_async_turn_on_tv_defaults_to_client_mac_and_secondary_mac_when_ta
     await async_turn_on_tv(client, mac_targets=None)
 
     client.send_wake_on_lan.assert_called_once_with(
-        ["e8:51:77:ec:98:1c", "e4:3b:c9:57:f1:4f"],
-        ip="192.168.50.12",
+        ["e8:51:77:aa:bb:cc", "e4:3b:c9:aa:bb:cc"],
+        ip="192.168.1.100",
     )
 
 
@@ -454,8 +454,8 @@ async def test_async_turn_on_tv_returns_false_and_preserves_off_state_on_timeout
     from custom_components.vidaa.tv.actions_power import async_turn_on_tv
 
     client = VidaaClient(
-        ip="192.168.50.12",
-        mac="e8:51:77:ec:98:1c",
+        ip="192.168.1.100",
+        mac="e8:51:77:aa:bb:cc",
         client_id="cid",
     )
     client.connected = False
@@ -463,7 +463,7 @@ async def test_async_turn_on_tv_returns_false_and_preserves_off_state_on_timeout
     client.send_wake_on_lan = MagicMock(return_value=True)
     client.async_ensure_connected = AsyncMock(return_value=False)
 
-    res = await async_turn_on_tv(client, mac_targets=["e8:51:77:ec:98:1c"], timeout=0.1)
+    res = await async_turn_on_tv(client, mac_targets=["e8:51:77:aa:bb:cc"], timeout=0.1)
 
     assert res is False
     assert client.is_on is False
@@ -474,7 +474,7 @@ async def test_async_turn_on_tv_returns_false_and_preserves_off_state_on_timeout
 @pytest.mark.anyio
 async def test_client_async_wait_until_awake_resolves_and_times_out() -> None:
     """Verify async_wait_until_awake reacts to wake event and handles timeouts cleanly."""
-    client = VidaaClient(ip="192.168.50.12", client_id="cid")
+    client = VidaaClient(ip="192.168.1.100", client_id="cid")
     client.connected = False
     client.is_on = False
 
@@ -504,8 +504,7 @@ async def test_client_async_wait_until_awake_resolves_and_times_out() -> None:
 @pytest.mark.anyio
 async def test_client_nudge_reconnect_signals_event() -> None:
     """Verify nudge_reconnect signals the reconnect event to wake the supervisor loop."""
-    client = VidaaClient(ip="192.168.50.12", client_id="cid")
+    client = VidaaClient(ip="192.168.1.100", client_id="cid")
     assert client._reconnect_event.is_set() is False
     client.nudge_reconnect()
     assert client._reconnect_event.is_set() is True
-

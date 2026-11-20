@@ -42,7 +42,7 @@ async def test_async_migrate_entry_v1_to_v2():
     mock_entry.version = 1
     mock_entry.minor_version = 1
     mock_entry.domain = LEGACY_DOMAIN
-    mock_entry.data = {"ip_address": "192.168.50.12"}
+    mock_entry.data = {"ip_address": "192.168.1.100"}
     mock_entry.options = {}
 
     # Mock entity registry
@@ -103,7 +103,7 @@ async def test_async_migrate_entry_v2_1_to_v2_2_legacy_ssl():
     mock_entry.minor_version = 1
     mock_entry.domain = DOMAIN
     mock_entry.data = {
-        "ip_address": "192.168.50.12",
+        "ip_address": "192.168.1.100",
         "auth_profile": "legacy",
         "use_ssl": False,
     }
@@ -115,7 +115,7 @@ async def test_async_migrate_entry_v2_1_to_v2_2_legacy_ssl():
     hass.config_entries.async_update_entry.assert_called_once_with(
         mock_entry,
         data={
-            "ip_address": "192.168.50.12",
+            "ip_address": "192.168.1.100",
             "auth_profile": "legacy",
             "use_ssl": True,
         },
@@ -139,7 +139,7 @@ async def test_legacy_service_aliases(caplog):
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
     mock_client = MagicMock()
-    mock_client.ip = "192.168.50.12"
+    mock_client.ip = "192.168.1.100"
     mock_client.async_send_command = AsyncMock()
     hass.data[DOMAIN] = {"entry_1": {"client": mock_client}}
 

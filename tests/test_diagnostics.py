@@ -20,8 +20,8 @@ async def test_diagnostics_redaction():
     entry.version = 1
     entry.title = "Living Room TV"
     entry.data = {
-        "ip_address": "192.168.50.12",
-        "mac_address": "e8:51:77:ec:98:1c",
+        "ip_address": "192.168.1.100",
+        "mac_address": "e8:51:77:aa:bb:cc",
         "auth_profile": "modern",
         "password": "supersecretpassword",
         "access_token": "secret_access_token_12345",
@@ -63,7 +63,7 @@ async def test_diagnostics_redaction():
     assert diag["entry"]["data"]["refresh_token"] == "**REDACTED**"
     assert diag["entry"]["data"]["accesstoken"] == "**REDACTED**"
     assert diag["entry"]["data"]["refreshtoken"] == "**REDACTED**"
-    assert diag["entry"]["data"]["ip_address"] == "192.168.50.12"
+    assert diag["entry"]["data"]["ip_address"] == "192.168.1.100"
 
     assert diag["client"]["connected"] is True
     assert diag["client"]["source"] == "HDMI 1"
@@ -100,8 +100,8 @@ async def test_diagnostics_for_unloaded_entry_does_not_raise():
 @pytest.mark.anyio
 async def test_diagnostics_redacts_fingerprint_and_topic_client_id():
     """[F12-leg2/F8-leg6] MAC/serial values and MAC-derived topics must never leak."""
-    mac = "e8:51:77:ec:98:1c"
-    client_id = "e85177ec981c"
+    mac = "e8:51:77:aa:bb:cc"
+    client_id = "e85177aabbcc"
     serial = "SN-9471-ABCD"
 
     hass = MagicMock(spec=HomeAssistant)
@@ -110,7 +110,7 @@ async def test_diagnostics_redacts_fingerprint_and_topic_client_id():
     entry.domain = DOMAIN
     entry.version = 1
     entry.title = "Living Room TV"
-    entry.data = {"ip_address": "192.168.50.12"}
+    entry.data = {"ip_address": "192.168.1.100"}
     entry.options = {}
 
     mock_client = MagicMock()
@@ -171,7 +171,7 @@ async def test_diagnostics_clock_offset_and_pii_redaction():
     entry.entry_id = "test_entry"
     entry.title = "Test TV"
     entry.data = {
-        CONF_IP_ADDRESS: "192.168.50.12",
+        CONF_IP_ADDRESS: "192.168.1.100",
         "secondary_mac_address": "aa:bb:cc:dd:ee:ff",
         "mac": "11:22:33:44:55:66",
         "uuid": "urn:uuid:12345-abcde",

@@ -14,7 +14,7 @@ from custom_components.vidaa.protocol.dispatcher import (
 
 def _create_test_client() -> VidaaClient:
     """Create a client with initialized topics for dispatcher testing."""
-    client = VidaaClient(ip="192.168.50.12", client_id="hisenseservice", auth_profile="legacy")
+    client = VidaaClient(ip="192.168.1.100", client_id="hisenseservice", auth_profile="legacy")
     client.update_topic_paths()
     return client
 
@@ -205,7 +205,7 @@ def test_auth_token_message_masks_tokens_in_debug_logs(caplog) -> None:
 
     with patch("aiomqtt.Client", FakeAiomqttClient), caplog.at_level(logging.DEBUG):
         result = perform_token_refresh(
-            ip="192.168.50.12",
+            ip="192.168.1.100",
             client_id="test_client",
             username="user_123",
             refresh_token="some_refresh_token",

@@ -14,7 +14,7 @@ def test_check_and_refresh_token_not_expired():
     """Test token refresh is skipped when token is still within validity window."""
     now = int(time.time())
     client = VidaaClient(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         client_id="test_client",
         access_token="valid_token",
         access_token_time=now - 3600,  # 1 hour old (valid for 48h)
@@ -33,7 +33,7 @@ def test_check_and_refresh_token_valid_within_12_hours_does_not_refresh():
     now = int(time.time())
     # 2-day duration (172800s), issued 40 hours ago -> 8 hours (28800s) remaining
     client = VidaaClient(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         client_id="test_client",
         access_token="valid_token",
         access_token_time=now - (40 * 3600),
@@ -50,7 +50,7 @@ def test_check_and_refresh_token_valid_within_12_hours_does_not_refresh():
 def test_check_and_refresh_token_missing_metadata_does_not_refresh():
     """Test token refresh is skipped when metadata (time or duration) is missing."""
     client = VidaaClient(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         client_id="test_client",
         access_token="valid_token",
         access_token_time=0,
@@ -66,7 +66,7 @@ async def test_check_and_refresh_token_expired():
     """Test token refresh is triggered when token has expired (>48 hours)."""
     now = int(time.time())
     client = VidaaClient(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         client_id="test_client",
         username="test_client",
         access_token="old_token",
@@ -91,7 +91,7 @@ def test_check_and_refresh_token_network_error_resilience():
     """Test token refresh catches network / socket errors gracefully without crashing."""
     now = int(time.time())
     client = VidaaClient(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         client_id="test_client",
         access_token="old_token",
         access_token_time=now - (3 * 86400),
@@ -113,7 +113,7 @@ def test_check_and_refresh_token_network_error_resilience():
 
 def test_auth_failed_and_token_refreshed_callback_dispatches():
     """Test auth_failed and token_refreshed dispatch callbacks pass the client instance."""
-    client = VidaaClient(ip="192.168.50.12")
+    client = VidaaClient(ip="192.168.1.100")
 
     auth_failed_calls = []
     token_refreshed_calls = []
@@ -141,7 +141,7 @@ async def test_on_connect_rc4_with_valid_refresh_token_triggers_background_refre
     """Test rc=4 connection rejection with valid refresh token starts background task and does not dispatch auth_failed immediately."""
     now = int(time.time())
     client = VidaaClient(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         refresh_token="valid_refresh_token",
         refresh_token_time=now - 86400,  # 1 day old (valid 30 days)
         refresh_token_duration=30,
@@ -162,7 +162,7 @@ def test_refresh_failure_with_valid_refresh_token_suppresses_auth_failed():
     """Test failed background refresh (e.g. TV in standby) suppresses auth_failed if refresh token is still unexpired."""
     now = int(time.time())
     client = VidaaClient(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         refresh_token="valid_refresh_token",
         refresh_token_time=now - 86400,  # 1 day old (valid 30 days)
         refresh_token_duration=30,
@@ -179,7 +179,7 @@ def test_refresh_failure_with_expired_refresh_token_dispatches_auth_failed():
     """Test failed background refresh when refresh token IS expired (>30 days) dispatches auth_failed."""
     now = int(time.time())
     client = VidaaClient(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         refresh_token="expired_refresh_token",
         refresh_token_time=now - (31 * 86400),  # 31 days old (expired)
         refresh_token_duration=30,
@@ -196,7 +196,7 @@ def test_proactive_token_refresh_triggers_within_12_hours():
     """Test proactive token refresh triggers renewal when access token has <12h remaining."""
     now = int(time.time())
     client = VidaaClient(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         access_token="expiring_soon_token",
         access_token_time=now - (40 * 3600),  # 40 hours old (8h left on 48h token)
         access_token_duration=2,
@@ -217,7 +217,7 @@ def test_proactive_token_refresh_deferred_in_standby():
     """Proactive refresh must not drop the working connection while the TV is in standby if refresh_in_standby=False."""
     now = int(time.time())
     client = VidaaClient(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         access_token="expiring_soon_token",
         access_token_time=now - (40 * 3600),
         access_token_duration=2,
@@ -238,7 +238,7 @@ def test_proactive_token_refresh_deferred_in_standby():
 def _standby_client(access_age_hours: float, refresh_in_standby: bool) -> VidaaClient:
     now = int(time.time())
     client = VidaaClient(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         access_token="token",
         access_token_time=int(now - access_age_hours * 3600),
         access_token_duration=2,
@@ -286,7 +286,7 @@ def test_token_watch_refreshes_in_standby_when_enabled():
 async def test_refresh_tokens_restores_connection_on_failure():
     """A failed refresh (TV in standby) must reconnect with the current access token."""
     client = VidaaClient(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         client_id="cid",
         username="his$1",
         access_token="still_valid",
@@ -320,7 +320,7 @@ def test_is_token_expired_with_clock_offset():
 
 def test_sync_clock_and_clock_drift_callback():
     """Test VidaaClient.sync_clock updates offset and dispatches callback."""
-    client = VidaaClient(ip="192.168.50.12")
+    client = VidaaClient(ip="192.168.1.100")
     host_now = int(time.time())
     mock_tv_ts = host_now - 500000
 
@@ -345,7 +345,7 @@ def test_check_and_refresh_token_respects_clock_offset():
     token_time = tv_now - 3600
 
     client = VidaaClient(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         client_id="test_client",
         access_token="valid_token",
         access_token_time=token_time,
@@ -366,7 +366,7 @@ def test_check_and_refresh_token_respects_clock_offset():
 async def test_token_refresh_failure_honors_clock_offset():
     """Verify background token refresh failure evaluates refresh token expiry with clock_offset."""
     client = MagicMock()
-    client.ip = "192.168.50.12"
+    client.ip = "192.168.1.100"
     client.refresh_token = "valid_refresh_token"
     # Hardware clock is 100 days in the past (clock_offset = -8,640,000)
     client.clock_offset = -8640000
@@ -390,7 +390,7 @@ async def test_token_refresh_failure_honors_clock_offset():
 @pytest.mark.anyio
 async def test_async_sync_clock_fallback_uses_thread():
     """Test async_sync_clock falls back to synchronous fn in a thread without blocking (Issue #59)."""
-    client = VidaaClient(ip="192.168.50.12")
+    client = VidaaClient(ip="192.168.1.100")
     host_now = int(time.time())
     mock_tv_ts = host_now - 100
 

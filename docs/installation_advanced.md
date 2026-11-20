@@ -136,19 +136,19 @@ pip install aiomqtt cryptography defusedxml
 
 ```bash
 # Full diagnostic report (ping, TLS cipher, UPnP, clock drift, and auth probe)
-python3 scripts/test_client.py report --ip 192.168.50.12 --probe
+python3 scripts/test_client.py report --ip 192.168.1.100 --probe
 
 # Quick 3-tier connectivity ping
-python3 scripts/test_client.py ping --ip 192.168.50.12
+python3 scripts/test_client.py ping --ip 192.168.1.100
 
 # Inspect UPnP / DLNA device services & clock drift
-python3 scripts/test_client.py upnp --ip 192.168.50.12
+python3 scripts/test_client.py upnp --ip 192.168.1.100
 
 # Test raw SSL/TLS certificate negotiation
-python3 scripts/test_client.py test-ssl --ip 192.168.50.12 --cert certs/cert.pem --key certs/key.pem
+python3 scripts/test_client.py test-ssl --ip 192.168.1.100 --cert certs/cert.pem --key certs/key.pem
 
 # Interactive PIN pairing test
-python3 scripts/test_client.py auth --ip 192.168.50.12 --profile auto
+python3 scripts/test_client.py auth --ip 192.168.1.100 --profile auto
 ```
 
 > For full CLI command arguments and streaming options, see the **[CLI Testing & Diagnostic Tools Guide](cli_tools.md)**.

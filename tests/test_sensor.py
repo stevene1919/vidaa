@@ -102,8 +102,8 @@ async def test_sensor_entities(mock_client, mock_entry):
     mock_client.device_name = "Bedroom VIDAA TV"
     s_name._handle_device_info({"friendly_name": "Bedroom VIDAA TV"})
     assert s_name.native_value == "Bedroom VIDAA TV"
-    assert s_name.extra_state_attributes["ip_address"] == "192.168.50.12"
-    assert s_name.extra_state_attributes["mac_address"] == "e8:51:77:ec:98:1c"
+    assert s_name.extra_state_attributes["ip_address"] == "192.168.1.100"
+    assert s_name.extra_state_attributes["mac_address"] == "e8:51:77:aa:bb:cc"
 
     # Test Clock Drift Sensor
     s_drift = VidaaClockDriftSensor(mock_client, mock_entry)
@@ -195,7 +195,7 @@ def test_session_status_sensor_masks_client_id_and_applies_offset():
     client.connected = True
     client.use_ssl = True
     client.auth_profile = "modern"
-    client.client_id = "E85177EC981C$his$123456_vidaacommon_001"
+    client.client_id = "E85177AABBCC$his$123456_vidaacommon_001"
     client.clock_offset = 3600
     client.access_token_time = 1700000000
     client.access_token_duration = 2
@@ -209,7 +209,7 @@ def test_session_status_sensor_masks_client_id_and_applies_offset():
     attrs = sensor.extra_state_attributes
 
     # client_id is masked
-    assert attrs["client_id"] == "E85177EC..._001"
+    assert attrs["client_id"] == "E85177AA..._001"
     assert "paired_at" in attrs
     assert "access_token_expires_at" in attrs
 

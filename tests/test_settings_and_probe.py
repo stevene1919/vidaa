@@ -102,10 +102,10 @@ def test_probe_tv_features_and_report(tmp_path) -> None:
     }
 
     report = generate_markdown_report(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         ping_result=ping_data,
         probe_result=probe_res,
-        mac="E8:51:77:EC:98:1C",
+        mac="E8:51:77:AA:BB:CC",
         version="1.2.0",
     )
 
@@ -118,9 +118,9 @@ def test_probe_tv_features_and_report(tmp_path) -> None:
 
     # Test load & save credentials
     creds_file = str(tmp_path / "test_creds.json")
-    save_credentials_file(creds_file, {"ip_address": "192.168.50.12", "client_id": "test_id"})
+    save_credentials_file(creds_file, {"ip_address": "192.168.1.100", "client_id": "test_id"})
     loaded = load_credentials_file(creds_file)
-    assert loaded["ip_address"] == "192.168.50.12"
+    assert loaded["ip_address"] == "192.168.1.100"
     assert loaded["client_id"] == "test_id"
 
 
@@ -137,7 +137,7 @@ def test_create_client_from_creds_passes_cert_paths_by_keyword(tmp_path) -> None
     key.write_text("KEY")
 
     client = create_client_from_creds(
-        {"ip_address": "192.168.50.12"},
+        {"ip_address": "192.168.1.100"},
         certfile=str(cert),
         keyfile=str(key),
         auth_profile="modern",
@@ -171,7 +171,7 @@ def test_report_no_false_rejection_when_tv_unreachable() -> None:
         ip="192.0.2.1",
         ping_result=ping_data,
         probe_result=None,
-        mac="E8:51:77:EC:98:1C",
+        mac="E8:51:77:AA:BB:CC",
         version="1.2.0",
     )
 
@@ -197,10 +197,10 @@ def test_report_warns_on_real_rejection() -> None:
     }
 
     report = generate_markdown_report(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         ping_result=ping_data,
         probe_result=None,
-        mac="E8:51:77:EC:98:1C",
+        mac="E8:51:77:AA:BB:CC",
         version="1.2.0",
     )
 

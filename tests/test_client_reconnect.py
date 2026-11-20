@@ -12,7 +12,7 @@ from custom_components.vidaa.client import VidaaClient
 @pytest.mark.anyio
 async def test_ensure_connected_rate_limiting_and_cleanup():
     """Test async_ensure_connected rate limits reconnection attempts."""
-    client = VidaaClient(ip="192.168.50.12", client_id="test_client", username="u", access_token="t")
+    client = VidaaClient(ip="192.168.1.100", client_id="test_client", username="u", access_token="t")
     client.connected = False
 
     with (
@@ -31,7 +31,7 @@ async def test_ensure_connected_rate_limiting_and_cleanup():
 
 def test_on_connect_rc5_no_refresh_token():
     """Test rc=5 connection rejection without refresh token stops loop and dispatches auth_failed without spawning thread."""
-    client = VidaaClient(ip="192.168.50.12")
+    client = VidaaClient(ip="192.168.1.100")
     mock_mqtt = MagicMock()
     mock_auth_failed = MagicMock()
     client.register_auth_failed_callback(mock_auth_failed)
@@ -45,7 +45,7 @@ def test_on_connect_rc5_no_refresh_token():
 
 def test_on_connect_rc5_pairing_future():
     """Test rc=5 connection rejection during active pairing sets exception on auth_future and stops loop."""
-    client = VidaaClient(ip="192.168.50.12")
+    client = VidaaClient(ip="192.168.1.100")
     mock_mqtt = MagicMock()
 
     loop = asyncio.new_event_loop()
@@ -63,7 +63,7 @@ def test_on_connect_rc5_pairing_future():
 async def test_rejected_connection_schedules_delayed_reconnect():
     """On rc 5 inside the backoff window a reconnect is scheduled instead of stranding the client."""
     client = VidaaClient(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         client_id="cid",
         username="his$1",
         access_token="expired",
@@ -97,7 +97,7 @@ def test_broker_rejection_threshold_triggers_auth_failed():
     """Consecutive broker rejections (rc: 4/5) beyond threshold trigger auth_failed callback."""
     now = int(time.time())
     client = VidaaClient(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         refresh_token="valid_refresh",
         refresh_token_time=now - 3600,
         refresh_token_duration=30,
@@ -123,7 +123,7 @@ def test_broker_rejection_mqtt5_reason_code_134_triggers_auth_failed():
     """MQTT v5 reason code 134 (Bad authentication data) is treated identically to rc: 4."""
     now = int(time.time())
     client = VidaaClient(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         refresh_token="valid_refresh",
         refresh_token_time=now - 3600,
         refresh_token_duration=30,
@@ -144,7 +144,7 @@ def test_broker_rejection_threshold_not_reached_suppresses_auth_failed():
     """Transient rejections below the threshold do not fire auth_failed."""
     now = int(time.time())
     client = VidaaClient(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         refresh_token="valid_refresh",
         refresh_token_time=now - 3600,
         refresh_token_duration=30,
@@ -165,7 +165,7 @@ def test_standby_refresh_timeout_preserves_backoff_without_auth_failed():
     """Standby gettoken timeout (connect rc: 0) must NOT increment broker rejection count."""
     now = int(time.time())
     client = VidaaClient(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         refresh_token="valid_refresh",
         refresh_token_time=now - 3600,
         refresh_token_duration=30,
@@ -187,7 +187,7 @@ def test_broker_rejection_counter_resets_on_successful_refresh():
     """A successful token refresh must reset _rejected_refresh_failures back to 0."""
     now = int(time.time())
     client = VidaaClient(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         refresh_token="valid_refresh",
         refresh_token_time=now - 3600,
         refresh_token_duration=30,
@@ -205,7 +205,7 @@ def test_broker_rejection_counter_resets_on_successful_refresh():
 @pytest.mark.anyio
 async def test_token_watch_restarts_after_stop():
     """stop_token_watch's one-way latch must be cleared on restart."""
-    client = VidaaClient(ip="192.168.50.12", client_id="cid", username="his$1", access_token="tok")
+    client = VidaaClient(ip="192.168.1.100", client_id="cid", username="his$1", access_token="tok")
     client._start_token_watch()
     assert client._token_watch is not None
     try:
@@ -224,7 +224,7 @@ def test_proactive_refresh_noop_does_not_clear_inflight_flag():
     """A no-op proactive refresh must not clobber another task's refreshing_token."""
     now = int(time.time())
     client = VidaaClient(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         client_id="cid",
         username="his$1",
         access_token="fresh_token",
@@ -241,7 +241,7 @@ def test_proactive_refresh_noop_does_not_clear_inflight_flag():
 @pytest.mark.anyio
 async def test_on_connect_tracks_query_timer_and_disconnect_cancels_it():
     """The query_initial_state task must be stored and cancelled by async_disconnect()."""
-    client = VidaaClient(ip="192.168.50.12", client_id="cid", username="his$1", access_token="tok")
+    client = VidaaClient(ip="192.168.1.100", client_id="cid", username="his$1", access_token="tok")
     client.mqtt_client = MagicMock()
     with patch.object(client, "async_query_initial_state"):
         client._on_connect(client.mqtt_client, None, None, 0)
@@ -258,7 +258,7 @@ async def test_on_connect_tracks_query_timer_and_disconnect_cancels_it():
 @pytest.mark.anyio
 async def test_connect_and_run_is_serialized_by_reconnect_lock():
     """async_connect_and_run must hold _reconnect_lock so concurrent callers cannot race."""
-    client = VidaaClient(ip="192.168.50.12", client_id="cid", username="his$1", access_token="tok")
+    client = VidaaClient(ip="192.168.1.100", client_id="cid", username="his$1", access_token="tok")
     done = asyncio.Event()
 
     with (
@@ -288,7 +288,7 @@ async def test_refresh_tokens_unbinds_callbacks_before_teardown():
     """async_refresh_tokens must tear down previous session before refreshing."""
     now = int(time.time())
     client = VidaaClient(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         client_id="cid",
         username="his$1",
         access_token="at",
@@ -323,7 +323,7 @@ async def test_refresh_tokens_unbinds_callbacks_before_teardown():
 @pytest.mark.anyio
 async def test_disconnect_debounce_cancels_on_quick_reconnect():
     """Verify disconnect debounce delays dispatch and cancels if reconnected within window."""
-    client = VidaaClient(ip="192.168.50.12", client_id="cid", username="u", access_token="at")
+    client = VidaaClient(ip="192.168.1.100", client_id="cid", username="u", access_token="at")
     client.connected = True
     loop = asyncio.get_running_loop()
     client._loop = loop
@@ -422,7 +422,7 @@ async def test_mqtt_session_adapter_close_drains_queued_futures():
 @pytest.mark.anyio
 async def test_async_publish_and_subscribe_resilience_on_disconnect():
     """Verify ConnectionManagerMixin.async_publish and async_subscribe return False on closed or timed-out session."""
-    client = VidaaClient(ip="192.168.50.12", client_id="cid", username="u", access_token="at")
+    client = VidaaClient(ip="192.168.1.100", client_id="cid", username="u", access_token="at")
     client.connected = True
     loop = asyncio.get_running_loop()
     client._loop = loop
@@ -452,7 +452,7 @@ async def test_async_publish_and_subscribe_resilience_on_disconnect():
 @pytest.mark.anyio
 async def test_handle_disconnected_fails_pending_queries():
     """Verify _handle_disconnected immediately fails any pending async_query futures with ConnectionError."""
-    client = VidaaClient(ip="192.168.50.12", client_id="cid", username="u", access_token="at")
+    client = VidaaClient(ip="192.168.1.100", client_id="cid", username="u", access_token="at")
     client.connected = True
     loop = asyncio.get_running_loop()
     client._loop = loop
@@ -474,7 +474,7 @@ async def test_auth_rejection_clears_mqtt_task_and_prevents_stale_reconnect():
     """Verify auth rejection clears _mqtt_task and failed refresh does not attempt stale reconnect."""
     now = int(time.time())
     client = VidaaClient(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         client_id="cid",
         username="u",
         access_token="expired_tok",
@@ -533,7 +533,7 @@ async def test_auth_rejection_recovery_triggers_connect_on_success():
     """Verify that when token refresh succeeds following auth rejection, connection is established with new credentials."""
     now = int(time.time())
     client = VidaaClient(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         client_id="cid",
         username="u",
         access_token="old_tok",
@@ -574,7 +574,7 @@ async def test_auth_rejection_max_attempts_cancels_retry_and_dispatches_auth_fai
     """Verify repeated broker rejections cancel any scheduled retry tasks and fire auth_failed callback."""
     now = int(time.time())
     client = VidaaClient(
-        ip="192.168.50.12",
+        ip="192.168.1.100",
         client_id="cid",
         username="u",
         access_token="old_tok",

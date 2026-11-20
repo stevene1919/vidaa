@@ -113,7 +113,7 @@ async def test_media_player_turn_on_targets_both_mac_interfaces(mock_client, moc
     """Wake-on-LAN broadcasts to both primary and secondary MAC addresses to support Wi-Fi and wired Ethernet."""
     from custom_components.vidaa.const import CONF_SECONDARY_MAC_ADDRESS
 
-    mock_entry.data[CONF_SECONDARY_MAC_ADDRESS] = "e4:3b:c9:57:f1:4f"
+    mock_entry.data[CONF_SECONDARY_MAC_ADDRESS] = "e4:3b:c9:aa:bb:cc"
     mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
     mock_client.auth_failed = False
     mock_client.async_turn_on = AsyncMock(return_value=True)
@@ -122,8 +122,8 @@ async def test_media_player_turn_on_targets_both_mac_interfaces(mock_client, moc
 
     mock_client.async_turn_on.assert_awaited_once()
     woken_macs = mock_client.async_turn_on.await_args[0][0]
-    assert "e8:51:77:ec:98:1c" in woken_macs
-    assert "e4:3b:c9:57:f1:4f" in woken_macs
+    assert "e8:51:77:aa:bb:cc" in woken_macs
+    assert "e4:3b:c9:aa:bb:cc" in woken_macs
 
 
 @pytest.mark.anyio
@@ -376,8 +376,8 @@ async def test_media_player_actions_raise_when_tv_off(mock_client, mock_entry):
 @pytest.mark.anyio
 async def test_media_player_turn_on_targets_both_primary_and_secondary_mac(mock_client, mock_entry):
     """Test async_turn_on collects both primary MAC and secondary MAC for WoL broadcast."""
-    mock_entry.data["mac_address"] = "e8:51:77:ec:98:1c"
-    mock_entry.data["secondary_mac_address"] = "e4:3b:c9:57:f1:4f"
+    mock_entry.data["mac_address"] = "e8:51:77:aa:bb:cc"
+    mock_entry.data["secondary_mac_address"] = "e4:3b:c9:aa:bb:cc"
     mock_entry.options["enable_wol"] = True
 
     mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
@@ -387,7 +387,7 @@ async def test_media_player_turn_on_targets_both_primary_and_secondary_mac(mock_
 
     await mp.async_turn_on()
 
-    mock_client.async_turn_on.assert_awaited_once_with(["e8:51:77:ec:98:1c", "e4:3b:c9:57:f1:4f"])
+    mock_client.async_turn_on.assert_awaited_once_with(["e8:51:77:aa:bb:cc", "e4:3b:c9:aa:bb:cc"])
 
 
 @pytest.mark.anyio
@@ -420,5 +420,3 @@ async def test_media_player_play_media_auto_wakes_and_handles_wake_failure(mock_
         await mp.async_play_media("app", "Netflix")
     assert exc_info.value.translation_key == "turn_on_failed"
     mock_client.async_turn_on.assert_awaited_once()
-
-

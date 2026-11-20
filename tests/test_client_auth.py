@@ -10,7 +10,7 @@ from custom_components.vidaa.client import VidaaClient
 
 def test_legacy_static_auth():
     """Test legacy static authentication profile initializes static credentials without PIN."""
-    client = VidaaClient(ip="192.168.50.12", auth_profile="legacy")
+    client = VidaaClient(ip="192.168.1.100", auth_profile="legacy")
 
     # Run async start auth for legacy
     asyncio.run(client.async_start_auth())
@@ -46,7 +46,7 @@ async def test_legacy_static_ssl_without_client_certs():
 
 def test_probe_auth_methods():
     """Test probing various auth algorithms returns structured capability dict."""
-    client = VidaaClient(ip="192.168.50.12")
+    client = VidaaClient(ip="192.168.1.100")
 
     fake_results = {
         "legacy_static": {"rc": 0, "supported": True},
@@ -69,7 +69,7 @@ def test_probe_auth_methods():
 @pytest.mark.anyio
 async def test_async_start_auth_auto_fallback_on_rc5():
     """Test auto profile fallback from modern to middle when modern gets rc 5 rejection."""
-    client = VidaaClient(ip="192.168.50.12", auth_profile="auto")
+    client = VidaaClient(ip="192.168.1.100", auth_profile="auto")
 
     calls = []
 
@@ -94,7 +94,7 @@ async def test_async_start_auth_auto_fallback_on_rc5():
 @pytest.mark.anyio
 async def test_async_start_auth_full_cascade_to_legacy():
     """Test auto profile cascades all dynamic profiles (modern, middle, remotenow) when all fail."""
-    client = VidaaClient(ip="192.168.50.12", auth_profile="auto")
+    client = VidaaClient(ip="192.168.1.100", auth_profile="auto")
 
     calls = []
 
@@ -135,7 +135,7 @@ async def test_async_probe_tv_auth_methods_passes_brand():
     mock_aiomqtt.ProtocolVersion = MagicMock()
 
     with patch.dict(sys.modules, {"aiomqtt": mock_aiomqtt}):
-        results = await async_probe_tv_auth_methods("192.168.50.12", brand="tos")
+        results = await async_probe_tv_auth_methods("192.168.1.100", brand="tos")
 
     assert results["legacy_static"]["supported"] is True
     assert results["modern_dynamic"]["supported"] is True
@@ -175,7 +175,7 @@ async def test_async_probe_tv_auth_methods_toptro_rejection_diagnostics():
     mock_aiomqtt_exc.MqttConnectError = MockRejectionError
 
     with patch.dict(sys.modules, {"aiomqtt": mock_aiomqtt, "aiomqtt.exceptions": mock_aiomqtt_exc}):
-        results = await async_probe_tv_auth_methods("192.168.50.15", brand="tpo", timestamp=1700000000)
+        results = await async_probe_tv_auth_methods("192.168.1.105", brand="tpo", timestamp=1700000000)
 
     assert results["brand"] == "tpo"
     assert results["timestamp"] == 1700000000
@@ -191,7 +191,7 @@ async def test_async_probe_tv_auth_methods_toptro_rejection_diagnostics():
 
 def test_client_auth_failed_lifecycle():
     """Test auth_failed flag toggling on dispatch and connection."""
-    client = VidaaClient(ip="192.168.50.12")
+    client = VidaaClient(ip="192.168.1.100")
     assert client.auth_failed is False
 
     cb = MagicMock()

@@ -33,7 +33,7 @@ def test_remote_device_info(mock_client, mock_entry):
     assert rem_info["identifiers"] == {(DOMAIN, "test_entry_id"), (LEGACY_DOMAIN, "test_entry_id")}
     assert rem_info["model"] == "65U7G"
     assert rem_info["manufacturer"] == "Hisense"
-    assert ("mac", "e8:51:77:ec:98:1c") in rem_info["connections"]
+    assert ("mac", "e8:51:77:aa:bb:cc") in rem_info["connections"]
 
 
 def test_remote_availability_on_auth_failure(mock_client, mock_entry):
@@ -248,4 +248,3 @@ async def test_remote_action_exceptions_when_tv_off(mock_client, mock_entry):
     # 3. Power command is permitted even when off
     await rem.async_send_command(["KEY_POWER"])
     mock_client.async_send_command.assert_called_with("KEY_POWER")
-

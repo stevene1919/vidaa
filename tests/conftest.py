@@ -1053,8 +1053,8 @@ def mock_entry(mock_client):
     entry.entry_id = "test_entry_id"
     entry.title = "Living Room TV"
     entry.data = {
-        "ip_address": "192.168.50.12",
-        "mac_address": "e8:51:77:ec:98:1c",
+        "ip_address": "192.168.1.100",
+        "mac_address": "e8:51:77:aa:bb:cc",
         "auth_profile": "modern",
         "model": "65U7G",
         "manufacturer": "Hisense",
@@ -1076,7 +1076,7 @@ def mock_client():
     from custom_components.vidaa.tv.actions import turn_off_tv, turn_on_tv
 
     client = MagicMock()
-    client.ip = "192.168.50.12"
+    client.ip = "192.168.1.100"
     client.connected = True
     client.is_on = True
     client.auth_profile = "modern"

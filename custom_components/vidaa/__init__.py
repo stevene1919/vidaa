@@ -166,10 +166,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     if entry.version == 2 and getattr(entry, "minor_version", 1) < 2:
         new_data = dict(entry.data)
-        if (
-            new_data.get(CONF_AUTH_PROFILE) in ("legacy", "static")
-            and new_data.get(CONF_USE_SSL) is False
-        ):
+        if new_data.get(CONF_AUTH_PROFILE) in ("legacy", "static") and new_data.get(CONF_USE_SSL) is False:
             new_data[CONF_USE_SSL] = True
             _LOGGER.info(
                 "Migrated legacy static config entry '%s' to TLS (use_ssl=True) without client certificates",

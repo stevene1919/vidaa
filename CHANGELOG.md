@@ -14,28 +14,25 @@ If this integration makes controlling your smart home entertainment a breeze, co
 
 ### 🌟 What's New & Highlights
 
-- **Standard Remote Platform**:
-  - The `remote` entity is now an always-loaded core platform alongside `media_player`. The redundant `enable_remote` configuration toggle has been retired, ensuring fast navigation keys and sequence actions are available out of the box without extra setup.
+- **Always-On Standard Remote Platform**:
+  - The `remote` entity is now an always-loaded standard core platform alongside `media_player`. The redundant `enable_remote` configuration toggle has been retired, making navigation keys and sequence actions available out of the box without extra setup.
 - **Instant Reactive Wake & Auto-Wake Readiness**:
   - **Zero-Delay Wake Detection**: Waking your TV now resolves instantly using reactive event listeners (`async_wait_until_awake`) triggered directly by connection and telemetry events, replacing arbitrary polling loops.
   - **Smarter Auto-Wake on Playback & App Launch**: Selecting an input source, launching an app, or playing media while the TV is asleep automatically wakes the TV and waits until it is fully awake before dispatching commands.
-  - **No More "Ghost" Power States**: If Wake-on-LAN times out or the TV is unplugged, Home Assistant no longer falsely marks the TV as turned on. Power state stays strictly synchronized with real hardware state.
   - **Early Reconnect Nudging**: Dispatching a wake signal immediately wakes the connection supervisor from backoff sleep, connecting to the TV the moment its network interface initializes.
-- **Passive Wake Detection & Older Hisense Compatibility**:
-  - **Instant Boot Telemetry**: Leverages passive `volumechange` and `tvwake` MQTT broadcasts to detect TV wakeups in under 500ms after boot, even before user interactions occur ([#71](https://github.com/stevene1919/vidaa/issues/71)).
+- **Passive Boot Telemetry & Older Hisense Compatibility**:
+  - **Sub-Second Boot Telemetry**: Leverages passive `volumechange` and `tvwake` MQTT broadcasts to detect TV wakeups in under 500ms after boot, even before user interactions occur ([#71](https://github.com/stevene1919/vidaa/issues/71)).
   - **Older Hisense TV Compatibility**: Older models using static credentials (such as the Hisense B7100 series) now connect securely over TLS without needing custom certificate files ([#71](https://github.com/stevene1919/vidaa/issues/71)).
-- **A Cleaner Remote & Dashboard Experience**:
-  - **Unified Power Button**: We removed the separate Power On and Power Off buttons on cards ([#55](https://github.com/stevene1919/vidaa/issues/55)). You now have a single, clean power button that works just like your physical remote.
-  - **No More "Ghost" Toggles**: Dashboard switches and buttons will no longer flip back and forth if your TV is sleeping or turned off at the wall. Home Assistant now checks if the TV is truly awake before changing states on your screen.
+- **Cleaner Dashboard & Control Experience**:
+  - **Unified Power Button**: Restored a single, clean power button (`mdi:power-standby`) on cards, eliminating separate Power On and Power Off buttons ([#55](https://github.com/stevene1919/vidaa/issues/55)).
+  - **No More "Ghost" Toggles or Power Desyncs**: Dashboard switches, buttons, and media player states will no longer flip optimistically or bounce when the TV is sleeping or turned off at the wall. If Wake-on-LAN times out or the TV is offline, Home Assistant cleanly preserves the off state and surfaces actionable feedback rather than assuming the TV turned on.
   - **Fixed Remote Key Presses**: Fixed an issue where repeating keys or rapid button clicks on the remote entity could fail ([#70](https://github.com/stevene1919/vidaa/issues/70)).
   - **Streamlined Attributes**: Hotel Mode is now cleanly exposed as an attribute on your TV's media player entity, avoiding clutter from unnecessary standalone binary sensors.
-- **Helpful, Clear Alerts (No More Silent Failures)**:
-  - If your TV is turned off, unplugged, or disconnected and an action or automation runs, Home Assistant will now clearly tell you (e.g. *"TV offline: Device unreachable"*) instead of failing silently.
-  - If your TV loses its pairing after an ungraceful power outage or firmware update, the TV entity will cleanly show as **Unavailable** and an **Authentication Problem** indicator will turn on to let you know right away.
-- **Easy Reconnecting & Simple Re-pairing**:
-  - **Force Reconnect Button**: If your Wi-Fi dropped out or you restarted your router, clicking **Force Reconnect** immediately retries the connection without waiting around. If the TV is unreachable, it tells you immediately instead of showing a false green checkmark.
-  - **Start Re-authentication Button**: If you ever need to re-pair your TV, this button creates an item under **Settings → System → Repairs** and sends you a notification with a direct link to it so you can finish pairing.
-- **Smarter TV Turn-On (Wi-Fi + Network Cable)**:
+- **Helpful Alerts & Native Repairs**:
+  - **Action Exceptions**: If your TV is turned off, unplugged, or disconnected and an action or automation runs, Home Assistant clearly surfaces the error (e.g. *"TV offline: Device unreachable"*) instead of failing silently.
+  - **Start Re-authentication Button**: If your TV ever loses its pairing after an ungraceful power outage or firmware update, this button creates an item under **Settings → System → Repairs** and sends you a notification with a direct link to finish pairing.
+  - **Force Reconnect Button**: Instantly retries the connection without waiting for backoff timers, surfacing actionable errors if the TV is unreachable.
+- **Smarter Dual-Interface Wake-on-LAN**:
   - Wake-on-LAN is now enabled by default. If your TV uses Wi-Fi but also has a network cable plugged in, Home Assistant automatically extracts both addresses from UPnP descriptors and broadcasts WoL packets to both interfaces simultaneously.
   - Always-on background standby token renewal is enabled by default to prevent session loss during extended standby.
 
@@ -52,7 +49,7 @@ If this integration makes controlling your smart home entertainment a breeze, co
   - Retired `enable_remote` options and config toggle, standardizing `remote` as an unconditionally loaded platform alongside `media_player`.
   - Maintained `CONF_ENABLE_REMOTE` as a deprecated constant for backward compatibility.
   - Cleaned up option schemas, descriptions, tooltips, and localization strings across all 12 supported languages.
-- **Passive Wake Detection & Standby Power Synchronization**:
+- **Passive Wake Detection & Command Guards**:
   - Subscribed to `volumechange` and `tvwake` topics during boot; TVs broadcast volume telemetry ~500ms after boot, triggering instant wake state transitions from deep standby.
   - Guarded against initial state race conditions by waiting for state resolution on reconnect before sending power keys.
   - Guarded against volume, playback controls, and service calls when TV is powered off or offline.

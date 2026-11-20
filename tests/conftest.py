@@ -3,7 +3,7 @@
 import os
 import sys
 import types
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -1037,6 +1037,10 @@ def isolate_host_network_environment(monkeypatch):
         return real_exists(path)
 
     monkeypatch.setattr("os.path.exists", mock_exists)
+    monkeypatch.setattr(
+        "custom_components.vidaa.flow.reauth.ReauthFlowMixin._async_port_open",
+        AsyncMock(return_value=True),
+    )
 
 
 @pytest.fixture

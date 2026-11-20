@@ -34,17 +34,6 @@ def _reauth_flow(hass: MagicMock, entry: MagicMock, entry_id: str) -> VidaaConfi
     return flow
 
 
-@pytest.fixture(autouse=True)
-def mock_reauth_port_open(monkeypatch: pytest.MonkeyPatch):
-    """By default in reauth flow tests, assume TV port 36669 is open."""
-    mock = AsyncMock(return_value=True)
-    monkeypatch.setattr(
-        "custom_components.vidaa.flow.reauth.ReauthFlowMixin._async_port_open",
-        mock,
-    )
-    return mock
-
-
 @pytest.mark.anyio
 async def test_reauth_flow_success(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test reauth flow prompts confirmation, triggers client auth, submits PIN, and updates entry."""

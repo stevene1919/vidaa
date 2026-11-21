@@ -1,5 +1,5 @@
 name: "🐛 Bug Report"
-description: "Report an issue, defect, or unexpected behavior with Hisense VIDAA TV"
+description: "Report an issue, defect, or unexpected behavior with VIDAA Smart TV"
 title: "[BUG]: "
 labels: ["bug"]
 body:
@@ -42,8 +42,8 @@ body:
     id: integration_version
     attributes:
       label: "Integration Version"
-      description: "Exact version installed (check in HACS → Hisense VIDAA TV or manifest.json)."
-      placeholder: "e.g. v3.3.0"
+      description: "Exact version installed (check in HACS → VIDAA Smart TV or manifest.json)."
+      placeholder: "e.g. v3.6.0"
     validations:
       required: true
 

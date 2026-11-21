@@ -6,6 +6,9 @@ body:
   - type: markdown
     attributes:
       value: |
+        > [!CAUTION]
+        > **Out-of-Scope Notice:** Issues regarding **HACS / marketplace installation** or requests for **SSL certificate extraction / private keys** are out of scope for this repository and will be closed.
+
         ### 🧪 Diagnostic Testing
         Before opening a bug report, running the built-in diagnostic tool against your TV's IP address can often pinpoint the exact issue (firmware compatibility, certificate error, or network block).
 
@@ -19,9 +22,13 @@ body:
   - type: checkboxes
     id: prerequisites
     attributes:
-      label: "Prerequisites & Health Checks"
+      label: "Prerequisites & Scope Acknowledgement"
       description: "Please confirm the following baseline checks before submitting:"
       options:
+        - label: "This issue is NOT related to HACS / marketplace setup, download errors, or GitHub token limits (refer to official HACS documentation)."
+          required: true
+        - label: "This issue is NOT a request for SSL certificate files, certificate extraction assistance, or SSL debugging (review [docs/certificates.md](https://github.com/stevene1919/hisense_vidaa/blob/main/docs/certificates.md))."
+          required: true
         - label: "The TV / projector is powered ON and connected to the same local network / subnet as Home Assistant."
           required: true
         - label: "The TV / projector is reachable from Home Assistant on port 36669 (TCP/TLS) and port 38400 (HTTP/TCP)."

@@ -1,5 +1,8 @@
-blank_issues_enabled: true
+blank_issues_enabled: false
 contact_links:
-  - name: Community Discussion & Questions
-    url: https://github.com/stevene1919/hisense_vidaa/discussions
-    about: Ask questions, share tips, or discuss ideas with the community.
+  - name: 🔐 Certificate & Key Documentation
+    url: https://github.com/stevene1919/hisense_vidaa/blob/main/docs/certificates.md
+    about: Setup and configuration instructions for SSL certificates and keys.
+  - name: 🔧 Troubleshooting & Diagnostics
+    url: https://github.com/stevene1919/hisense_vidaa/blob/main/docs/troubleshooting.md
+    about: Common connection diagnostics, port checks, and known limitations.

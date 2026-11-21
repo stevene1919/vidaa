@@ -2,6 +2,13 @@ name: 🚀 Feature Request
 description: Suggest an idea or feature for this integration.
 labels: [enhancement]
 body:
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: "Scope Check"
+      options:
+        - label: "This is a feature or enhancement request, NOT a support question, HACS setup problem, or SSL certificate assistance."
+          required: true
   - type: textarea
     id: problem
     attributes:

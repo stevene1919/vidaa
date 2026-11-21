@@ -165,7 +165,9 @@ class ReauthFlowMixin:
             return False
 
         _LOGGER.info("[%s] TV not reachable on port 36669; sending Wake-on-LAN before reauth", self.ip_address)
-        await self.hass.async_add_executor_job(partial(wol.send_wake_on_lan, list(dict.fromkeys(macs)), ip=self.ip_address))
+        await self.hass.async_add_executor_job(
+            partial(wol.send_wake_on_lan, list(dict.fromkeys(macs)), ip=self.ip_address)
+        )
 
         deadline = time.monotonic() + REAUTH_WAKE_TIMEOUT
         while time.monotonic() < deadline:

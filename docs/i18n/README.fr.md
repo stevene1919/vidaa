@@ -8,6 +8,8 @@
   <a href="README.ru.md"><img src="https://img.shields.io/badge/🇷🇺_Русский-gray?style=flat-square" alt="Русский"></a>
   <a href="README.uk.md"><img src="https://img.shields.io/badge/🇺🇦_Українська-gray?style=flat-square" alt="Українська"></a>
   <a href="README.zh-CN.md"><img src="https://img.shields.io/badge/🇨🇳_简体中文-gray?style=flat-square" alt="简体中文"></a>
+  <a href="README.es.md"><img src="https://img.shields.io/badge/🇪🇸_Español-gray?style=flat-square" alt="Español"></a>
+  <a href="README.pl.md"><img src="https://img.shields.io/badge/🇵🇱_Polski-gray?style=flat-square" alt="Polski"></a>
 </p>
 
 [![HACS](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/default)
@@ -32,10 +34,10 @@ Cliquez sur le bouton ci-dessous (ou recherchez **VIDAA Smart TV** dans Marketpl
 
 [![Ouvrir Marketplace (HACS)](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
 
-### 2️⃣ Déposer le fichier de clé (`client_mobile_android.p12` ou `El.p12`)
-Les téléviseurs VIDAA nécessitent une négociation TLS mutuelle sur le port 36669. Copiez le fichier universel **`client_mobile_android.p12`** (ou `El.p12`) dans le dossier **`/config/ssl/`** de Home Assistant.
-- Téléchargez l'application gratuite **VIDAA Smart TV** (APK) dans votre navigateur, renommez `.apk` en `.zip` et extrayez `res/raw/client_mobile_android.p12` (ou `res/El.p12`).
-- *Aucun appareil Android ou émulateur n'est requis !*
+### 2️⃣ Certificats Clients (Téléversement en 1 Clic ou Emplacement Manuel)
+Les téléviseurs VIDAA nécessitent une négociation TLS mutuelle sur le port 36669.
+- **✨ Téléversement en 1 Clic (Recommandé) :** Lors de la configuration, Home Assistant vérifie automatiquement la présence de certificats. S'ils sont absents, téléversez simplement le fichier de l'application officielle (`.apk` ou `.xapk`), un trousseau PKCS#12 (`client_mobile_android.p12`, `El.p12`, `3R.p12`, `toshiba.p12`) ou un paquet `.pem` combiné directement depuis votre navigateur ! Home Assistant extrait, décrypte et enregistre les certificats automatiquement.
+- **Emplacement Manuel et Chemins Personnalisés :** Vous pouvez également déposer `client_mobile_android.p12`, `El.p12`, `3R.p12` ou `hisense.crt` + `hisense.key` dans `/config/ssl/` (détection automatique) ou saisir des chemins manuels dans le dialogue de configuration.
 
 > [!TIP]
 > **Besoin d'instructions pas à pas ?**  
@@ -74,6 +76,7 @@ Prend officiellement en charge **tous les téléviseurs sous VIDAA OS** (appaira
 ## ✨ Fonctionnalités Principales
 
 - **Contrôle 100 % Local sur le LAN (`iot_class: local_push`)** : Zéro dépendance au cloud, fonctionne dans des VLANs IoT isolés.
+- **Téléversement Facile des Certificats via le Navigateur** : Importez des paquets d'applications officiels (`.apk`/`.xapk`), des fichiers PKCS#12 (`.p12`/`.pfx`) ou des trousseaux `.pem` directement dans l'interface Home Assistant avec extraction en mémoire, déchiffrement du mot de passe et détection automatique de la marque, sans terminal ni partage Samba.
 - **Lecteur Multimédia (`media_player`)** : Allumage/extinction, volume, sélection des sources, changement de chaîne, lancement d'applications et touches contextuelles (zapping en direct, navigation de pistes dans les applications).
 - **Réglages Image & Son (`select` & `number`)** : Modes d'image (`Standard`, `Cinéma`, `Dynamique`, `Sport`, `Filmmaker`), luminosité, contraste et rétroéclairage ; modes audio et sortie sonore.
 - **Télécommande Dédiée (`remote`)** : Flèches directionnelles, pavé numérique, menu, touches de couleur et répétition de touches configurable.
@@ -85,7 +88,7 @@ Prend officiellement en charge **tous les téléviseurs sous VIDAA OS** (appaira
 
 | Guide | Description |
 | :--- | :--- |
-| 🔰 **[Guide de démarrage pour débutants](../quick_start_beginners.md)** | Instructions pas à pas avec extraction facile de `El.p12`. |
+| 🔰 **[Guide de démarrage pour débutants](../quick_start_beginners.md)** | Configuration en 2 minutes pour débutants par glisser-déposer dans le navigateur. |
 | ⚙️ **[Configuration et Options](../parameters.md)** | Référence complète de tous les paramètres et menus de configuration. |
 | ⚡ **[Paramètres d'Alimentation et de Veille](../power_and_standby_settings.md)** | Comportement de veille, démarrage rapide et préservation des jetons d'appairage. |
 | 📱 **[Tableaux de Bord et Cartes Lovelace](../lovelace_cards.md)** | Cartes de télécommande, cartes à boutons et modèles d'interface. |

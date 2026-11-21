@@ -68,14 +68,15 @@ Starting in version **3.6.1**, the configuration flow includes a native file upl
 3. Select or drag & drop any supported archive:
    - Android APK: `com.universal.remote.multi.apk`
    - Android XAPK bundle: `VIDAA Smart TV.xapk`
-   - PKCS#12 keystore: `client_mobile_android.p12`, `El.p12`, `3R.p12`, `toshiba.p12`
-   - Combined PEM bundle: `.pem`, `.crt`
+   - PKCS#12 keystore: `client_mobile_android.p12`, `El.p12`, `3R.p12`, or `toshiba.p12`
+   - Combined PEM bundle: `hisense_bundle.pem` (a single `.pem` containing both `-----BEGIN CERTIFICATE-----` and `-----BEGIN PRIVATE KEY-----`)
 4. **In-Memory Extraction Pipeline**:
    - The archive is inspected in memory with zero-footprint temporary disk buffering.
    - Archive members are checked against known PKCS#12 candidate paths:
      - `res/raw/client_mobile_android.p12`
-     - `res/El.p12`
-     - `res/3R.p12`
+     - `res/El.p12` (modern primary obfuscated name)
+     - `res/3R.p12` (modern secondary obfuscated name)
+     - Any wildcard `.p12` / `.pfx` archive found inside the APK
      - `assets/` / nested `.apk` containers (for `.xapk` bundles)
    - Decryption is attempted against known vendor passwords (`186e990688070325a1c4b0ce275d2388`, `multiremote`, and empty `""`).
    - The resulting PEM keypair is written to `/config/.storage/vidaa/certs/` and the temporary archive is instantly purged.
@@ -88,12 +89,31 @@ If you prefer managing files directly via File Editor, Studio Code Server, or Sa
 
 1. Place your keypair or `.p12` bundle into `/config/ssl/`.
 2. Supported file formats:
-   - **PKCS#12 Archive**: `client_mobile_android.p12` or `El.p12` *(auto-decrypted on startup)*.
-   - **Split PEM Keypair**: `hisense.crt` and `hisense.key` (or `vidaa_client.pem` and `vidaa_client.key`).
+   - **PKCS#12 Archive**: `client_mobile_android.p12`, `El.p12`, or `3R.p12` *(auto-decrypted on startup)*.
+   - **Split PEM Keypair**: `hisense.crt` and `hisense.key` (or `vidaa_2024_cert.pem` and `vidaa_2024_key.pem`).
 3. Set appropriate permissions on the private key:
    ```bash
    chmod 600 /config/ssl/hisense.key
    ```
+4. When you click **Add Integration → VIDAA Smart TV**, Home Assistant auto-discovers these files and proceeds directly to IP address entry!
+
+---
+
+### Method C: Manual Path Entry in Config Flow (Advanced)
+
+On the initial file upload screen, you can check:
+☑️ **`Configure manual certificate paths instead`**
+
+Clicking **Submit** opens the manual certificate configuration dialog, allowing you to specify custom filesystem paths:
+- **Certificate file path:** e.g. `/config/ssl/hisense.crt` (or `/config/ssl/vidaa_2024_cert.pem`)
+- **Private key file path:** e.g. `/config/ssl/hisense.key` (or `/config/ssl/vidaa_2024_key.pem`)
+- **Use SSL:** Enabled (mTLS)
+
+> [!NOTE]
+> **Container vs Host Paths**:
+> If running Home Assistant in Docker or Home Assistant OS, ensure paths are entered from the perspective of the Home Assistant container (e.g. `/config/ssl/hisense.crt`), rather than the external host OS path (such as `/opt/homeassistant/ssl/...` or `/opt/usb/...`).
+
+Home Assistant verifies that the files exist, validates that the private key matches the certificate public key, and pairs with the TV.
 
 ---
 

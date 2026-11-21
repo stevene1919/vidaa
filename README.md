@@ -8,6 +8,8 @@
   <a href="docs/i18n/README.ru.md"><img src="https://img.shields.io/badge/🇷🇺_Русский-gray?style=flat-square" alt="Русский"></a>
   <a href="docs/i18n/README.uk.md"><img src="https://img.shields.io/badge/🇺🇦_Українська-gray?style=flat-square" alt="Українська"></a>
   <a href="docs/i18n/README.zh-CN.md"><img src="https://img.shields.io/badge/🇨🇳_简体中文-gray?style=flat-square" alt="简体中文"></a>
+  <a href="docs/i18n/README.es.md"><img src="https://img.shields.io/badge/🇪🇸_Español-gray?style=flat-square" alt="Español"></a>
+  <a href="docs/i18n/README.pl.md"><img src="https://img.shields.io/badge/🇵🇱_Polski-gray?style=flat-square" alt="Polski"></a>
 </p>
 
 [![HACS](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/default)
@@ -40,8 +42,8 @@ Click the one-click button below (or search **VIDAA Smart TV** in Marketplace (H
 
 ### 2️⃣ Client Certificates (Native UI Upload or Manual Placement)
 VIDAA TVs enforce mutual TLS on port 36669.
-- **✨ 1-Click UI Upload (Recommended):** During setup, Home Assistant checks for certificates automatically. If missing, simply upload the official VIDAA / RemoteNOW Android app package (`.apk` or `.xapk`) or an extracted keystore (`.p12` / `.pem`) directly from your browser! Home Assistant extracts, validates, and stores the certificates automatically.
-- **Manual Placement (Legacy):** Alternatively, drop `client_mobile_android.p12`, `El.p12`, or `hisense.crt` + `hisense.key` into `/config/ssl/` or `/config/.storage/vidaa/certs/`.
+- **✨ 1-Click UI Upload (Recommended):** During setup, Home Assistant checks for certificates automatically. If missing, simply upload the official companion app package (`.apk` or `.xapk`), an extracted PKCS#12 keystore (`client_mobile_android.p12`, `El.p12`, `3R.p12`, `toshiba.p12`), or a combined `.pem` bundle directly from your browser! Home Assistant extracts, validates, and stores the certificates automatically.
+- **Manual Placement & Custom Paths:** Alternatively, drop `client_mobile_android.p12`, `El.p12`, `3R.p12`, or `hisense.crt` + `hisense.key` into `/config/ssl/` (auto-detected), or select manual path configuration in the setup dialog.
 
 > [!TIP]
 > **Need a step-by-step walkthrough?**  
@@ -90,6 +92,7 @@ This integration officially supports **any smart TV running VIDAA OS** (pairing 
 ## ✨ Features
 
 - **100% Local LAN Control (`iot_class: local_push`)**: Connects directly to the TV's hardware MQTT broker over your local network with **zero cloud dependencies**, zero external API calls, and full support for isolated IoT VLANs (WAN blocked). All cryptographic authentication logic is implemented in **100% native Python** with zero compiled binary dependencies.
+- **Seamless Browser Certificate & App Uploader**: Upload official vendor `.apk`/`.xapk` packages, PKCS#12 bundles (`.p12`/`.pfx`), or combined `.pem` files directly through the Home Assistant web interface with automatic in-memory extraction, password decryption, brand auto-hinting, and zero terminal or Samba setup required.
 - **Local Push Updates**: Instant feedback for power state, volume, mute, source input, and active app.
 - **Media Player Platform**: Full power toggle, volume stepping, input source switcher, dynamic app artwork, deep linking, and configurable media transport controls. Exposes `MediaPlayerDeviceClass.TV` for native Apple HomeKit and iOS Control Center virtual remote integration. Includes **context-aware track controls** (steps channels on Live TV, skips tracks on apps/HDMI), channel name tuning via `play_media`, and user-customizable source list filtering (`CONF_SOURCES`).
 - **Pluggable Turn-On Automations (`device_trigger`)**: Intercepts `media_player.turn_on` via standard Home Assistant `PluggableAction` triggers, enabling custom power-on sequences (smart plugs, relays, IR blasters) with automatic fallback to native WoL and MQTT power keys.
@@ -107,7 +110,7 @@ For deep technical details, configuration parameters, and dashboard templates, r
 
 | Guide | Description |
 | :--- | :--- |
-| 🔰 **[Beginner's Quick Start Guide](docs/quick_start_beginners.md)** | 3-minute, zero-jargon setup guide for first-time users (extracting `El.p12` and pairing). |
+| 🔰 **[Beginner's Quick Start Guide](docs/quick_start_beginners.md)** | 2-minute, zero-jargon setup guide for first-time users (browser drag-and-drop upload and pairing). |
 | ⚙️ **[Configuration & Options Parameters](docs/parameters.md)** | Complete reference for all initial setup fields and Options Flow parameters across all tabs. |
 | ⚡ **[TV Power, Standby & Network Settings](docs/power_and_standby_settings.md)** | Model settings (VIDAA U4–U8, 2024+), two-tier standby architecture, and preventing token loss. |
 | 📱 **[Lovelace Remote Cards & Dashboards](docs/lovelace_cards.md)** | Australian EN2G30H 12-app remote, Classic FTA, Button Card, and Android TV Card templates. |

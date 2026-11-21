@@ -8,6 +8,8 @@
   <a href="README.ru.md"><img src="https://img.shields.io/badge/🇷🇺_Русский-gray?style=flat-square" alt="Русский"></a>
   <a href="README.uk.md"><img src="https://img.shields.io/badge/🇺🇦_Українська-gray?style=flat-square" alt="Українська"></a>
   <a href="README.zh-CN.md"><img src="https://img.shields.io/badge/🇨🇳_简体中文-blue?style=flat-square" alt="简体中文"></a>
+  <a href="README.es.md"><img src="https://img.shields.io/badge/🇪🇸_Español-gray?style=flat-square" alt="Español"></a>
+  <a href="README.pl.md"><img src="https://img.shields.io/badge/🇵🇱_Polski-gray?style=flat-square" alt="Polski"></a>
 </p>
 
 [![HACS](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/default)
@@ -32,10 +34,10 @@
 
 [![打开 Marketplace (HACS)](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
 
-### 2️⃣ 放置证书密钥文件 (`client_mobile_android.p12` 或 `El.p12`)
-VIDAA 电视要求在 36669 端口进行双向 TLS 认证。将通用秘钥文件 **`client_mobile_android.p12`**（或 `El.p12`）放置在 Home Assistant 的 **`/config/ssl/`** 目录中。
-- 在浏览器中下载免费的 **VIDAA Smart TV** 应用安装包（APK），将扩展名 `.apk` 重命名为 `.zip`，解压提取其中的 `res/raw/client_mobile_android.p12`（若被混淆则为 `res/El.p12`）。
-- *无需任何 Android 设备或模拟器！*
+### 2️⃣ 客户端证书（浏览器一键上传或手动放置）
+VIDAA 电视要求在 36669 端口进行双向 TLS 认证。
+- **✨ 浏览器一键上传（推荐）：** 添加集成时，Home Assistant 会自动检查本地证书。若未检测到，只需在浏览器中直接上传官方安装包（`.apk` 或 `.xapk`）、PKCS#12 密钥包（`client_mobile_android.p12`、`El.p12`、`3R.p12`、`toshiba.p12`）或合并的 `.pem` 文件！Home Assistant 将在内存中全自动解压、解密并安全保存证书。
+- **手动放置与自定义路径：** 您也可以将 `client_mobile_android.p12`、`El.p12`、`3R.p12` 或 `hisense.crt` + `hisense.key` 放置于 `/config/ssl/`（系统自动发现），或在配置界面中勾选并指定自定义文件路径。
 
 > [!TIP]
 > **需要图文分步指导？**  
@@ -74,6 +76,7 @@ VIDAA 电视要求在 36669 端口进行双向 TLS 认证。将通用秘钥文�
 ## ✨ 核心特性
 
 - **100% 局域网本地控制 (`iot_class: local_push`)**：完全脱机运行，无云端依赖，支持隔离的 IoT VLAN。
+- **便捷的浏览器证书与 App 上传管线**：直接在 Home Assistant 网页端上传官方 `.apk`/`.xapk` 包、PKCS#12 密钥库（`.p12`/`.pfx`）或 `.pem` 证书，支持全内存解压、内置密码解密与品牌自动识别，完全无需命令行或 Samba 共享。
 - **媒体播放器 (`media_player`)**：开关机、音量调节、输入源切换、频道切换、应用快速启动及上下文按键（电视模式换台、应用内切歌）。
 - **画质与音效调节 (`select` 与 `number`)**：图像模式（`标准`、`影院`、`动态`、`体育`、`Filmmaker`）、亮度、对比度与背光微调；声音模式与音频输出设备切换。
 - **专用虚拟遥控器 (`remote`)**：方向导航键、数字键、主页/菜单、四色按键及自定义长按连发。
@@ -85,7 +88,7 @@ VIDAA 电视要求在 36669 端口进行双向 TLS 认证。将通用秘钥文�
 
 | 文档指南 | 说明 |
 | :--- | :--- |
-| 🔰 **[新手快速入门指南](../quick_start_beginners.md)** | 图文分步指导与 `El.p12` 提取教程。 |
+| 🔰 **[新手快速入门指南](../quick_start_beginners.md)** | 2 分钟极速新手指南，浏览器拖拽上传即配对。 |
 | ⚙️ **[配置与选项说明](../parameters.md)** | 所有配置参数与选项菜单详解。 |
 | ⚡ **[电源与待机设置](../power_and_standby_settings.md)** | 待机模式、快速开机与防止配对令牌失效配置。 |
 | 📱 **[Lovelace 仪表盘与卡片](../lovelace_cards.md)** | 遥控器卡片、快捷按钮与界面范例。 |

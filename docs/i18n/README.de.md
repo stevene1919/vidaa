@@ -8,6 +8,8 @@
   <a href="README.ru.md"><img src="https://img.shields.io/badge/🇷🇺_Русский-gray?style=flat-square" alt="Русский"></a>
   <a href="README.uk.md"><img src="https://img.shields.io/badge/🇺🇦_Українська-gray?style=flat-square" alt="Українська"></a>
   <a href="README.zh-CN.md"><img src="https://img.shields.io/badge/🇨🇳_简体中文-gray?style=flat-square" alt="简体中文"></a>
+  <a href="README.es.md"><img src="https://img.shields.io/badge/🇪🇸_Español-gray?style=flat-square" alt="Español"></a>
+  <a href="README.pl.md"><img src="https://img.shields.io/badge/🇵🇱_Polski-gray?style=flat-square" alt="Polski"></a>
 </p>
 
 [![HACS](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/default)
@@ -32,10 +34,10 @@ Klicken Sie auf den Button unten (oder suchen Sie in Marketplace (HACS) nach **V
 
 [![Marketplace (HACS) öffnen](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
 
-### 2️⃣ Schlüsseldatei (`client_mobile_android.p12` oder `El.p12`) hinterlegen
-VIDAA-Fernseher erfordern gegenseitiges TLS auf Port 36669. Kopieren Sie die universelle Datei **`client_mobile_android.p12`** (oder `El.p12`) in Ihr Home Assistant-Verzeichnis **`/config/ssl/`**.
-- Laden Sie die kostenlose öffentliche **VIDAA Smart TV**-App (APK) im Browser herunter, benennen Sie `.apk` in `.zip` um und entpacken Sie `res/raw/client_mobile_android.p12` (oder `res/El.p12`).
-- *Kein Android-Gerät oder Emulator erforderlich!*
+### 2️⃣ Client-Zertifikate (1-Klick Browser-Upload oder manuelle Ablage)
+VIDAA-Fernseher erfordern gegenseitiges TLS auf Port 36669.
+- **✨ 1-Klick Browser-Upload (Empfohlen):** Bei der Ersteinrichtung prüft Home Assistant automatisch auf Zertifikate. Falls keine vorhanden sind, laden Sie einfach das offizielle App-Paket (`.apk` oder `.xapk`), eine PKCS#12-Schlüsseldatei (`client_mobile_android.p12`, `El.p12`, `3R.p12`, `toshiba.p12`) oder ein `.pem`-Paket direkt über Ihren Browser hoch! Home Assistant entpackt, entschlüsselt und speichert die Zertifikate vollautomatisch.
+- **Manuelle Ablage & Eigene Pfade:** Alternativ können Sie `client_mobile_android.p12`, `El.p12`, `3R.p12` oder `hisense.crt` + `hisense.key` in `/config/ssl/` ablegen (wird automatisch erkannt) oder manuelle Pfade im Einrichtungsdialog angeben.
 
 > [!TIP]
 > **Schritt-für-Schritt-Anleitung gesucht?**  
@@ -74,6 +76,7 @@ Unterstützt offiziell **alle Smart-TVs mit VIDAA OS** (Kopplung per **4-stellig
 ## ✨ Wichtigste Funktionen
 
 - **100 % Lokale LAN-Steuerung (`iot_class: local_push`)**: Vollständig lokal, keine Cloud-Abhängigkeit, funktioniert in isolierten IoT-VLANs.
+- **Komfortabler Browser-Upload für Zertifikate**: Laden Sie offizielle App-Pakete (`.apk`/`.xapk`), PKCS#12-Schlüsseldateien (`.p12`/`.pfx`) oder `.pem`-Bundles direkt über die Home Assistant-Weboberfläche hoch – mit automatischer Extraktion im Arbeitsspeicher, Kennwort-Entschlüsselung und Marken-Erkennung ganz ohne Terminal- oder Samba-Befehle.
 - **Mediaplayer**: Ein-/Ausschalten, Lautstärkeregelung, Eingangsquellen, Senderumschaltung, App-Start und kontextsensitive Tasten (Senderwechsel im Live-TV, Titelsprung in Apps).
 - **Bild & Tonjustierung (`select` & `number`)**: Bildmodi (`Standard`, `Kino`, `Dynamisch`, `Sport`, `Filmmaker`) und Helligkeit/Kontrast/Hintergrundbeleuchtung einstellen; Tonmodi und Tonausgabe umschalten.
 - **Dedizierte Fernbedienung (`remote`)**: Steuerkreuz-Navigation, Zifferntasten, Menü, Farbtasten und konfigurierbare Tastenwiederholung.
@@ -85,7 +88,7 @@ Unterstützt offiziell **alle Smart-TVs mit VIDAA OS** (Kopplung per **4-stellig
 
 | Leitfaden | Beschreibung |
 | :--- | :--- |
-| 🔰 **[Einsteiger-Schnellstart](../quick_start_beginners.md)** | Schritt-für-Schritt-Anleitung mit `El.p12`-Extraktion. |
+| 🔰 **[Einsteiger-Schnellstart](../quick_start_beginners.md)** | 2-Minuten-Anleitung für Ersteinrichter mit Drag-and-Drop-Upload im Browser. |
 | ⚙️ **[Konfiguration & Optionen](../parameters.md)** | Vollständige Parameter-Referenz für alle Einstellungsmenüs. |
 | ⚡ **[Strom- & Standby-Einstellungen](../power_and_standby_settings.md)** | Standby-Verhalten, Schnellstart und Schutz vor Token-Verlust. |
 | 📱 **[Lovelace Dashboards & Karten](../lovelace_cards.md)** | Fernbedienungs-Karten, Button-Cards und Dashboard-Vorlagen. |

@@ -1,0 +1,516 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Skonfiguruj telewizor VIDAA Smart TV",
+        "description": "Wprowadź adres IP telewizora VIDAA.",
+        "data": {
+          "ip_address": "Adres IP",
+          "auth_profile": "Profil uwierzytelniania / certyfikatu",
+          "brand": "Marka telewizora (ekosystem VIDAA OS)"
+        }
+      },
+      "discovery_confirm": {
+        "title": "Wykryto telewizor VIDAA Smart TV",
+        "description": "Czy chcesz skonfigurować {name} pod adresem {ip_address}?"
+      },
+      "auth": {
+        "title": "Wprowadź kod PIN z telewizora",
+        "description": "Na ekranie telewizora powinien pojawić się 4-cyfrowy kod PIN. Wprowadź go poniżej.",
+        "data": {
+          "pin_code": "Kod PIN"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Ponowne uwierzytelnienie telewizora VIDAA",
+        "description": "Home Assistant musi ponownie sparować się z telewizorem VIDAA ({ip_address}). Naciśnij Prześlij: jeśli telewizor jest w trybie czuwania, Home Assistant spróbuje go wybudzić, a następnie na ekranie pojawi się kod PIN."
+      },
+      "reconfigure": {
+        "title": "Zmień konfigurację telewizora VIDAA Smart TV",
+        "description": "Zaktualizuj ustawienia połączenia lub sparuj ponownie telewizor VIDAA.",
+        "data": {
+          "ip_address": "Adres IP",
+          "auth_profile": "Profil uwierzytelniania / certyfikatu",
+          "brand": "Marka telewizora (ekosystem VIDAA OS)"
+        }
+      },
+      "upload": {
+        "title": "Prześlij certyfikat klienta lub aplikację",
+        "description": "Telewizory VIDAA wymagają certyfikatów klienta TLS do bezpiecznej komunikacji. Prześlij oficjalny pakiet aplikacji VIDAA / RemoteNOW (.apk / .xapk) lub wyodrębniony magazyn kluczy (.p12 / .pfx / .pem / .crt). Home Assistant automatycznie wyodrębni i zabezpieczy certyfikaty.",
+        "data": {
+          "cert_file": "Pakiet aplikacji lub plik magazynu kluczy",
+          "manual_paths": "Wprowadź ścieżki do plików ręcznie"
+        }
+      },
+      "certs": {
+        "title": "Certyfikaty klienta",
+        "description": "Skonfiguruj certyfikaty klienta TLS/SSL do komunikacji z telewizorem VIDAA Smart TV. Umieść certyfikaty w {cert_dir} ({cert_file} i {key_file}).",
+        "data": {
+          "use_ssl": "Użyj szyfrowanego połączenia SSL/TLS",
+          "certfile": "Ścieżka do pliku certyfikatu (.crt / .pem)",
+          "keyfile": "Ścieżka do pliku klucza prywatnego (.key / .pem)"
+        }
+      },
+      "options": {
+        "title": "Funkcje i opcje urządzenia",
+        "description": "Dostosuj funkcje telewizora VIDAA Smart TV.",
+        "data": {
+          "enable_wol": "Włącz Wake-on-LAN (WoL)",
+          "include_apps_in_sources": "Uwzględnij aplikacje strumieniowe na liście źródeł",
+          "enable_media_controls": "Włącz sterowanie odtwarzaniem multimediów",
+          "enable_picture_controls": "Włącz sterowanie trybem obrazu i kalibracją",
+          "enable_sound_controls": "Włącz selektor trybów dźwięku",
+          "enable_audio_only": "Włącz przełącznik tylko audio (wyłączony ekran)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Nie udało się połączyć z telewizorem.",
+      "tv_not_awake": "Telewizor nie odpowiedział. Włącz go pilotem, poczekaj na pojawienie się obrazu i naciśnij Prześlij ponownie.",
+      "invalid_auth": "Nieprawidłowy kod PIN. Spróbuj ponownie.",
+      "certs_not_found": "Nie znaleziono pliku certyfikatu lub klucza prywatnego pod wskazaną ścieżką. Sprawdź lokalizację pliku i uprawnienia.",
+      "unknown": "Wystąpił nieznany błąd.",
+      "invalid_ssl_cert": "Walidacja certyfikatu SSL lub klucza prywatnego nie powiodła się. Upewnij się, że pliki są w poprawnym formacie PEM lub PKCS#12 i pasują do siebie.",
+      "invalid_cert_archive": "Nie udało się wyodrębnić prawidłowego magazynu kluczy VIDAA z przesłanego pliku. Sprawdź plik APK lub P12.",
+      "file_too_large": "Przesłany plik przekracza limit rozmiaru 150 MB.",
+      "no_p12_found": "W przesłanym archiwum nie znaleziono zgodnego magazynu kluczy VIDAA PKCS#12.",
+      "p12_decrypt_failed": "Nie udało się odszyfrować magazynu kluczy. Nie można zweryfikować hasła do archiwum.",
+      "invalid_pem_bundle": "Przesłany plik PEM/CRT musi zawierać zarówno certyfikat, jak i niezaszyfrowany klucz prywatny."
+    },
+    "abort": {
+      "reauth_successful": "Ponowne uwierzytelnienie powiodło się.",
+      "reconfigure_successful": "Zmiana konfiguracji powiodła się.",
+      "already_configured": "To urządzenie jest już skonfigurowane.",
+      "not_vidaa_tv": "Wykryte urządzenie nie jest zgodnym telewizorem VIDAA Smart TV."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opcje VIDAA Smart TV",
+        "description": "Wybierz kategorię opcji do skonfigurowania:",
+        "menu_options": {
+          "power_network": "⚡ Zasilanie i sieć",
+          "playback_sources": "📺 Odtwarzanie i źródła",
+          "features_remote": "🎛️ Encje i pilot",
+          "security": "🔒 Połączenie i bezpieczeństwo"
+        }
+      },
+      "power_network": {
+        "title": "Opcje zasilania i sieci",
+        "description": "Skonfiguruj włączanie Wake-on-LAN oraz pomocniczy interfejs sieciowy (Wi-Fi lub Ethernet). Aktywny główny adres MAC: {primary_mac}.",
+        "data": {
+          "enable_wol": "Włącz Wake-on-LAN (WoL)",
+          "secondary_mac_address": "Pomocniczy adres MAC (Wi-Fi lub Ethernet)"
+        },
+        "data_description": {
+          "enable_wol": "Wysyła pakiety Magic Packet, aby wybudzić telewizor z głębokiego uśpienia lub trybu czuwania, gdy interfejsy sieciowe są wyłączone.",
+          "secondary_mac_address": "Wprowadź adres MAC drugiego fizycznego interfejsu sieciowego telewizora (np. Ethernet, jeśli połączono przez Wi-Fi, lub odwrotnie). Pakiety WoL będą wysyłane jednocześnie na oba adresy MAC."
+        }
+      },
+      "playback_sources": {
+        "title": "Odtwarzanie i źródła",
+        "description": "Skonfiguruj źródła wejściowe, listę aplikacji i elementy sterujące odtwarzaniem multimediów.",
+        "data": {
+          "include_apps_in_sources": "Uwzględnij aplikacje strumieniowe na liście źródeł",
+          "sources": "Włączone źródła i aplikacje",
+          "enable_media_controls": "Włącz sterowanie odtwarzaniem multimediów",
+          "enable_cec_names": "Pokazuj nazwy podłączonych urządzeń HDMI-CEC",
+          "playback_debounce": "Czas stabilizacji stanu odtwarzania / filtr drgań (sekundy)"
+        },
+        "data_description": {
+          "include_apps_in_sources": "Wyświetla zainstalowane aplikacje strumieniowe (Netflix, YouTube, Prime Video itp.) obok fizycznych wejść HDMI na liście źródeł odtwarzacza multimedialnego.",
+          "sources": "Wybierz wejścia i aplikacje wyświetlane na liście wyboru źródeł. Pozostaw puste lub wybierz wszystkie, aby wyświetlić każde wykryte źródło.",
+          "enable_media_controls": "Udostępnia przyciski sterowania multimediami (Odtwarzaj, Wstrzymaj, Zatrzymaj, Poprzedni, Następny) na karcie odtwarzacza multimedialnego.",
+          "enable_cec_names": "Zastępuje ogólne etykiety wejść, takie jak „HDMI 2”, nazwami aktywnych urządzeń zgłaszanymi przez HDMI-CEC (np. „PlayStation 5”, „Apple TV”).",
+          "playback_debounce": "Czas w sekundach na odfiltrowanie krótkotrwałych zmian stanu podczas uruchamiania lub buforowania aplikacji strumieniowych."
+        }
+      },
+      "features_remote": {
+        "title": "Encje i pilot",
+        "description": "Skonfiguruj przełączniki encji, kalibrację obrazu, profile dźwięku i opóźnienia klawiszy pilota.",
+        "data": {
+          "enable_picture_controls": "Włącz sterowanie trybem obrazu i kalibracją",
+          "enable_sound_controls": "Włącz selektor trybów dźwięku",
+          "enable_audio_only": "Włącz przełącznik tylko audio (wyłączony ekran)",
+          "key_delay": "Opóźnienie naciśnięcia klawisza pilota (sekundy)",
+          "key_repeat": "Liczba powtórzeń naciśnięcia klawisza"
+        },
+        "data_description": {
+          "enable_picture_controls": "Tworzy encje selektora trybu obrazu oraz suwaków podświetlenia, jasności i kontrastu. Wyłączenie usuwa te encje z Home Assistant.",
+          "enable_sound_controls": "Tworzy encję selektora profili korektora dźwięku (Standardowy, Teatr, Muzyka, Mowa, Nocny, Sport).",
+          "enable_audio_only": "Tworzy przełącznik wyłączający ekran przy zachowaniu aktywnego dźwięku (idealne do muzyki, radia i podcastów).",
+          "key_delay": "Opóźnienie między kolejnymi naciśnięciami klawiszy podczas wysyłania sekwencji przycisków lub poleceń automatyzacji.",
+          "key_repeat": "Liczba transmisji naciśnięcia klawisza na polecenie, gdy nie określono jawnej liczby powtórzeń."
+        }
+      },
+      "security": {
+        "title": "Połączenie i bezpieczeństwo",
+        "description": "Wybierz markę OEM telewizora, profil uwierzytelniania, szyfrowanie i opcjonalne certyfikaty klienta.",
+        "data": {
+          "auth_profile": "Profil uwierzytelniania i certyfikatu",
+          "brand": "Producent / marka telewizora",
+          "use_ssl": "Użyj szyfrowanego połączenia SSL/TLS",
+          "cert_file": "Prześlij nowy certyfikat lub aplikację (.apk / .p12 / .pem)",
+          "certfile": "Ścieżka do pliku certyfikatu (.crt / .pem / .p12)",
+          "keyfile": "Ścieżka do pliku klucza prywatnego (.key / .pem)"
+        },
+        "data_description": {
+          "auth_profile": "Wybierz protokół szyfrowania i parowania. Opcja „Automatyczne wykrywanie” negocjuje parametry na podstawie modelu i wersji oprogramowania telewizora.",
+          "brand": "Wybierz markę producenta telewizora, aby załadować specyficzne dla OEM tematy MQTT i identyfikatory klienta. Używaj „Automatyczne wykrywanie”, chyba że parowanie się nie powiedzie.",
+          "use_ssl": "Włącza szyfrowanie TLS/SSL na porcie 36669. Wymagane dla wszystkich nowoczesnych telewizorów VIDAA (VIDAA U4+). Wyłączaj tylko dla starszego oprogramowania sprzed 2022 roku na porcie 3160.",
+          "cert_file": "Prześlij zaktualizowany pakiet APK, XAPK lub magazyn kluczy .p12, aby wyodrębnić i zainstalować nowe certyfikaty w pamięci Home Assistant."
+        }
+      }
+    },
+    "error": {
+      "certs_not_found": "Nie znaleziono pliku certyfikatu lub klucza prywatnego pod wskazaną ścieżką. Sprawdź lokalizację pliku i uprawnienia.",
+      "invalid_ssl_cert": "Walidacja certyfikatu SSL lub klucza prywatnego nie powiodła się. Upewnij się, że pliki są w poprawnym formacie PEM lub PKCS#12 i pasują do siebie.",
+      "invalid_mac": "Nieprawidłowy adres MAC. Musi to być 12-cyfrowy adres szesnastkowy (np. AA:BB:CC:DD:EE:FF).",
+      "invalid_cert_archive": "Nie udało się wyodrębnić prawidłowego magazynu kluczy VIDAA z przesłanego pliku. Sprawdź plik APK lub P12.",
+      "file_too_large": "Przesłany plik przekracza limit rozmiaru 150 MB.",
+      "no_p12_found": "W przesłanym archiwum nie znaleziono zgodnego magazynu kluczy VIDAA PKCS#12.",
+      "p12_decrypt_failed": "Nie udało się odszyfrować magazynu kluczy. Nie można zweryfikować hasła do archiwum.",
+      "invalid_pem_bundle": "Przesłany plik PEM/CRT musi zawierać zarówno certyfikat, jak i niezaszyfrowany klucz prywatny."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "session_status": {
+        "name": "Status sesji"
+      },
+      "active_app": {
+        "name": "Aktywna aplikacja"
+      },
+      "active_source": {
+        "name": "Aktywne źródło"
+      },
+      "reported_name": {
+        "name": "Zgłoszona nazwa"
+      },
+      "clock_drift": {
+        "name": "Dryf zegara"
+      }
+    },
+    "binary_sensor": {
+      "mqtt_connected": {
+        "name": "Połączenie MQTT"
+      },
+      "in_use": {
+        "name": "W użyciu"
+      },
+      "auth_problem": {
+        "name": "Problem z uwierzytelnieniem"
+      }
+    },
+    "button": {
+      "force_reconnect": {
+        "name": "Wymuś ponowne połączenie"
+      },
+      "sync_clock": {
+        "name": "Synchronizuj zegar"
+      },
+      "probe_capabilities": {
+        "name": "Badaj możliwości urządzenia"
+      },
+      "trigger_reauth": {
+        "name": "Rozpocznij ponowne uwierzytelnienie"
+      }
+    },
+    "select": {
+      "picture_mode": {
+        "name": "Tryb obrazu"
+      },
+      "sound_mode": {
+        "name": "Tryb dźwięku"
+      }
+    },
+    "number": {
+      "backlight": {
+        "name": "Podświetlenie"
+      },
+      "brightness": {
+        "name": "Jasność"
+      },
+      "contrast": {
+        "name": "Kontrast"
+      }
+    },
+    "switch": {
+      "audio_only": {
+        "name": "Tylko dźwięk"
+      },
+      "debug_logging": {
+        "name": "Rejestrowanie debugowania"
+      }
+    }
+  },
+  "services": {
+    "send_key": {
+      "name": "Wyślij klawisz",
+      "description": "Wyślij naciśnięcie klawisza lub sekwencję naciśnięć klawiszy do telewizora.",
+      "fields": {
+        "key": {
+          "name": "Klawisz",
+          "description": "Kod klawisza do wysłania (np. KEY_POWER, KEY_HOME, KEY_VOLUMEUP)."
+        },
+        "repeat": {
+          "name": "Powtórzenie",
+          "description": "Liczba powtórzeń naciśnięcia klawisza."
+        },
+        "delay": {
+          "name": "Opóźnienie",
+          "description": "Opóźnienie w sekundach między powtórzonymi naciśnięciami klawiszy."
+        }
+      }
+    },
+    "send_key_sequence": {
+      "name": "Wyślij sekwencję klawiszy",
+      "description": "Wyślij sekwencję poleceń pilota z konfigurowalnym opóźnieniem między klawiszami.",
+      "fields": {
+        "sequence": {
+          "name": "Sekwencja klawiszy",
+          "description": "Lista kodów klawiszy lub klawisze oddzielone przecinkami do wysłania sekwencyjnego (np. [\"home\", \"down\", \"ok\"])."
+        },
+        "delay": {
+          "name": "Opóźnienie",
+          "description": "Opóźnienie w sekundach między każdym kolejnym naciśnięciem klawisza."
+        }
+      }
+    },
+    "change_channel": {
+      "name": "Zmień kanał",
+      "description": "Bezpośrednio dostrój do numerycznego kanału telewizyjnego, wysyłając sekwencję cyfr.",
+      "fields": {
+        "channel": {
+          "name": "Numer kanału",
+          "description": "Numer kanału do wybrania (np. 701, 10, 7)."
+        },
+        "confirm": {
+          "name": "Potwierdź",
+          "description": "Wyślij OK/Enter natychmiast po cyfrach, aby dostroić bez czekania na limit czasu telewizora."
+        },
+        "delay": {
+          "name": "Opóźnienie",
+          "description": "Opóźnienie w sekundach między cyframi."
+        }
+      }
+    },
+    "launch_app": {
+      "name": "Uruchom aplikację",
+      "description": "Uruchom aplikację Smart TV według nazwy lub bezpośredniego adresu URL.",
+      "fields": {
+        "app": {
+          "name": "Nazwa aplikacji lub URL",
+          "description": "Nazwa aplikacji lub adres URL precyzyjnego linku. Opcjonalne, gdy podano identyfikator aplikacji."
+        },
+        "app_id": {
+          "name": "Identyfikator aplikacji",
+          "description": "Opcjonalny identyfikator aplikacji telewizyjnej, który ma być użyty zamiast identyfikatora z listy aplikacji."
+        },
+        "app_name": {
+          "name": "Nadpisanie nazwy aplikacji",
+          "description": "Opcjonalna nazwa aplikacji do uwzględnienia w żądaniu uruchomienia."
+        },
+        "url": {
+          "name": "Adres URL uruchomienia",
+          "description": "Opcjonalny adres URL lub precyzyjny link przekazywany do aplikacji."
+        }
+      }
+    },
+    "set_picture_setting": {
+      "name": "Ustaw parametr obrazu",
+      "description": "Zmień określone ustawienie menu obrazu telewizora lub parametr kalibracji.",
+      "fields": {
+        "menu_id": {
+          "name": "ID menu",
+          "description": "Numeryczny identyfikator menu (np. 91 dla trybu obrazu, 92 dla podświetlenia, 93 dla jasności, 94 dla kontrastu)."
+        },
+        "menu_value": {
+          "name": "Wartość menu",
+          "description": "Wartość ustawienia lub nazwa trybu predefiniowanego."
+        }
+      }
+    },
+    "set_sound_setting": {
+      "name": "Ustaw parametr dźwięku",
+      "description": "Zmień określone ustawienie menu dźwięku telewizora lub profil korektora.",
+      "fields": {
+        "menu_id": {
+          "name": "ID menu",
+          "description": "Numeryczny identyfikator menu (np. 1 dla trybu dźwięku)."
+        },
+        "menu_value": {
+          "name": "Wartość menu",
+          "description": "Nazwa lub wartość trybu dźwięku."
+        }
+      }
+    },
+    "send_text_input": {
+      "name": "Wyślij tekst",
+      "description": "Wyślij tekst wirtualnej klawiatury do aktywnego pola wprowadzania na ekranie lub paska wyszukiwania przeglądarki.",
+      "fields": {
+        "text": {
+          "name": "Tekst",
+          "description": "Ciąg tekstowy do wprowadzenia."
+        },
+        "action": {
+          "name": "Działanie",
+          "description": "Typ działania wprowadzania (insert, replace, clear)."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "ambiguous_target": {
+      "message": "Skonfigurowano wiele telewizorów VIDAA Smart TV. Określ docelowy telewizor lub użyj „all”, aby skierować polecenie do wszystkich telewizorów."
+    },
+    "no_target_device": {
+      "message": "Nie znaleziono pasującego telewizora VIDAA Smart TV dla określonego celu wywołania usługi."
+    },
+    "auth_required": {
+      "message": "Wymagane uwierzytelnienie: sparuj ponownie telewizor w Ustawienia > Integracje."
+    },
+    "turn_on_failed": {
+      "message": "Błąd Wake-on-LAN: telewizor się nie wybudził."
+    },
+    "not_connected": {
+      "message": "Telewizor offline: urządzenie nieosiągalne."
+    },
+    "send_key_failed": {
+      "message": "Nie udało się wysłać klawisza {key}: {error}"
+    },
+    "empty_key_sequence": {
+      "message": "Sekwencja musi zawierać co najmniej jeden klawisz."
+    },
+    "send_key_sequence_failed": {
+      "message": "Nie udało się wysłać klawisza sekwencji {key}: {error}"
+    },
+    "invalid_channel_digits": {
+      "message": "Kanał {channel} nie zawiera prawidłowych cyfr."
+    },
+    "change_channel_digit_failed": {
+      "message": "Nie udało się wysłać cyfry kanału {digit}: {error}"
+    },
+    "change_channel_confirm_failed": {
+      "message": "Nie udało się wysłać klawisza potwierdzenia kanału: {error}"
+    },
+    "launch_app_failed": {
+      "message": "Nie udało się uruchomić aplikacji {app_name}: {error}"
+    },
+    "set_picture_setting_failed": {
+      "message": "Nie udało się ustawić parametru obrazu (menu_id={menu_id}): {error}"
+    },
+    "set_sound_setting_failed": {
+      "message": "Nie udało się ustawić parametru dźwięku (menu_id={menu_id}): {error}"
+    },
+    "send_text_input_failed": {
+      "message": "Nie udało się wysłać tekstu: {error}"
+    },
+    "device_config_entry_not_loaded": {
+      "message": "Integracja VIDAA dla urządzenia {device_id} nie jest załadowana."
+    },
+    "device_not_valid": {
+      "message": "Urządzenie {device_id} nie jest prawidłowym urządzeniem VIDAA."
+    },
+    "invalid_entity_id": {
+      "message": "Encja {entity_id} nie jest prawidłową encją VIDAA."
+    },
+    "unhandled_trigger_type": {
+      "message": "Typ wyzwalacza {trigger_type} nie jest obsługiwany."
+    },
+    "device_off": {
+      "message": "Nie można wykonać działania: telewizor jest obecnie wyłączony."
+    }
+  },
+  "selector": {
+    "auth_profile": {
+      "options": {
+        "auto": "Automatyczne wykrywanie (zalecane)",
+        "modern": "VIDAA 2.0 / 2024+ (vidaa_2024)",
+        "middle": "VIDAA 1.5 / Średnie (3000–3285)",
+        "remotenow": "RemoteNOW / 2018–2023 (standard)",
+        "legacy": "Starsze statyczne (przed 2022 / statyczne dane logowania)"
+      }
+    },
+    "brand": {
+      "options": {
+        "auto": "Automatyczne wykrywanie (zalecane)",
+        "his": "Hisense",
+        "tos": "Toshiba",
+        "loe": "Loewe",
+        "tpv": "TPV / Philips / AOC",
+        "shp": "Sharp",
+        "jvc": "JVC",
+        "sch": "Schneider",
+        "aka": "Akai",
+        "bek": "Beko",
+        "tel": "Telefunken",
+        "bus": "Bush",
+        "vic": "Vizio",
+        "phi": "Philco",
+        "nob": "Noblex",
+        "san": "Sansei",
+        "rca": "RCA",
+        "sin": "Sinotec",
+        "ves": "Vestel",
+        "bra": "Brandt",
+        "met": "Metz",
+        "lei": "Leica",
+        "tpo": "TOPTRO"
+      }
+    }
+  },
+  "issues": {
+    "legacy_folder_detected": {
+      "title": "Wykryto stary folder integracji",
+      "description": "Integracja została pomyślnie zaktualizowana do VIDAA Smart TV (`{new_domain}`). Stary folder `custom_components/{legacy_domain}` jest nadal obecny na dysku. Usuń `custom_components/{legacy_domain}` i zrestartuj Home Assistant, aby uniknąć potencjalnych konfliktów."
+    },
+    "certificate_missing": {
+      "title": "Brakujące certyfikaty klienta VIDAA",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Zweryfikuj certyfikaty klienta",
+            "description": "Po skopiowaniu plików hisense.crt i hisense.key do /config/ssl lub /ssl prześlij ten formularz w celu weryfikacji."
+          }
+        },
+        "error": {
+          "certificates_still_missing": "Certyfikaty są nadal niedostępne. Upewnij się, że pliki hisense.crt i hisense.key istnieją."
+        }
+      }
+    },
+    "auth_token_invalidated": {
+      "title": "VIDAA TV: Wymagane ponowne uwierzytelnienie",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Sparuj ponownie z telewizorem VIDAA",
+            "description": "Home Assistant nie może już uwierzytelnić się w telewizorze VIDAA ({ip_address}). Broker telewizora odrzucił zapisane tokeny dostępu i odświeżania (zwykle dzieje się tak po aktualizacji oprogramowania układowego lub twardym wyłączeniu zasilania).\n\nKliknij **Prześlij**, aby rozpocząć proces parowania. Upewnij się, że telewizor jest włączony (nie w trybie czuwania) — na ekranie pojawi się kod PIN."
+          }
+        }
+      }
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "vidaa.turn_on": "Żądanie włączenia urządzenia"
+    }
+  },
+  "triggers": {
+    "turn_on": {
+      "description": "Wyzwala, gdy nadejdzie żądanie włączenia jednego lub więcej telewizorów VIDAA Smart TV.",
+      "fields": {
+        "device_id": {
+          "description": "Telewizory do nasłuchiwania. Wymagane jest co najmniej jedno urządzenie lub encja.",
+          "name": "Urządzenia"
+        },
+        "entity_id": {
+          "description": "Odtwarzacze multimedialne TV do nasłuchiwania. Wymagane jest co najmniej jedno urządzenie lub encja.",
+          "name": "Encje"
+        }
+      },
+      "name": "Włącz"
+    }
+  }
+}

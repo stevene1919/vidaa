@@ -58,8 +58,8 @@ def resolve_ca_certificate(
     config_dir: str | None = None,
 ) -> str | None:
     """Resolves CA certificate path for optional server certificate validation."""
-    if ca_path and os.path.isfile(ca_path):
-        return os.path.abspath(ca_path)
+    if ca_path:
+        return os.path.abspath(ca_path) if os.path.isfile(ca_path) else None
 
     if search_dirs is None:
         search_dirs = _get_default_search_dirs(config_dir)

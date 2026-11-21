@@ -17,7 +17,7 @@
 [![GitHub Release](https://img.shields.io/github/v/release/stevene1919/vidaa)](https://github.com/stevene1919/vidaa/releases)
 [![Support on Ko-fi](https://img.shields.io/badge/Support%20on-Ko--fi-FF5E5B?style=flat&logo=ko-fi&logoColor=white)](https://ko-fi.com/stevene_)
 
-[![打开 Home Assistant 并在 HACS 中打开该仓库。](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
+[![打开 Home Assistant 并在 HACS 中打开该仓库。](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=vidaa&category=integration)
 
 专为运行 **VIDAA OS** 操作系统的智能电视和投影仪（海信 Hisense、东芝 Toshiba、Loewe、飞利浦 Philips、夏普 Sharp、JVC、TOPTRO 及合作授权品牌）打造的 Home Assistant 原生集成。
 
@@ -32,7 +32,7 @@
 ### 1️⃣ 通过 Marketplace (HACS) 安装
 点击下方按钮（或在 Marketplace (HACS) 中搜索 **VIDAA Smart TV** → 集成 → 下载）：
 
-[![打开 Marketplace (HACS)](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
+[![打开 Marketplace (HACS)](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=vidaa&category=integration)
 
 ### 2️⃣ 客户端证书（浏览器一键上传或手动放置）
 VIDAA 电视要求在 36669 端口进行双向 TLS 认证。

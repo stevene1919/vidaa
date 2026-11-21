@@ -80,7 +80,7 @@ This release introduces native UI certificate uploads and an automated, zero-fri
 <summary>🛠️ <b>Full Technical Details & Refactoring</b> (Click to expand)</summary>
 
 - **Manifest**: Added `file_upload` to `dependencies` in `manifest.json`.
-- **Protocol**: Implemented `extract_and_install_certs` and `_extract_p12_bytes_from_archive` in `protocol/certs.py`.
+- **Protocol**: Implemented `extract_and_install_certs` and `_extract_p12_bytes_from_archive` in `protocol/cert_extract.py`.
 - **Search Resolution**: Prioritized `/config/.storage/vidaa/certs` ahead of `/config/ssl` in `_get_default_search_dirs()`.
 - **Config Flow**: Added `async_step_upload` with `FileSelector` in `flow/certs.py`, seamlessly routing to TV pairing or falling back to manual path entry.
 - **Options Flow**: Added certificate replacement upload support to `async_step_security`.

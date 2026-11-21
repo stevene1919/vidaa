@@ -56,11 +56,11 @@
         }
       },
       "upload": {
-        "title": "Upload Client Certificate or App",
-        "description": "VIDAA TVs require TLS client certificates for secure communication. Upload the official VIDAA / RemoteNOW Android app package (.apk / .xapk) or an extracted keystore (.p12 / .pfx / .pem / .crt). Home Assistant will extract and secure the certificates automatically.",
+        "title": "Client-Zertifikat oder App hochladen",
+        "description": "VIDAA-Fernseher erfordern TLS-Client-Zertifikate für die sichere Kommunikation. Lade das offizielle VIDAA / RemoteNOW Android-App-Paket (.apk / .xapk) oder einen extrahierten Keystore (.p12 / .pfx / .pem / .crt) hoch. Home Assistant extrahiert und sichert die Zertifikate automatisch.",
         "data": {
-          "cert_file": "Application Package or Keystore File",
-          "manual_paths": "Enter file paths manually instead"
+          "cert_file": "Anwendungspaket oder Keystore-Datei",
+          "manual_paths": "Dateipfade stattdessen manuell eingeben"
         }
       }
     },
@@ -70,12 +70,12 @@
       "certs_not_found": "Zertifikats- oder private Schlüsseldatei wurde am angegebenen Pfad nicht gefunden. Bitte Dateipfad und Berechtigungen prüfen.",
       "unknown": "Ein unbekannter Fehler ist aufgetreten.",
       "invalid_ssl_cert": "SSL-Zertifikat oder privater Schlüssel ungültig. Bitte prüfen, ob die Dateien im unverschlüsselten PEM- oder unterstützten PKCS#12-Format vorliegen und zusammenpassen.",
-      "tv_not_awake": "The TV did not respond. Turn it on with the remote, wait until the picture appears, then press Submit again.",
-      "invalid_cert_archive": "Could not extract a valid VIDAA certificate keystore from the uploaded file. Please verify the APK or P12 file.",
-      "file_too_large": "The uploaded file exceeds the 150 MB size limit.",
-      "no_p12_found": "No compatible VIDAA PKCS#12 keystore was found inside the uploaded archive.",
-      "p12_decrypt_failed": "Failed to decrypt the certificate keystore. The archive password could not be verified.",
-      "invalid_pem_bundle": "Uploaded PEM/CRT file must contain both a certificate and an unencrypted private key."
+      "tv_not_awake": "Der Fernseher hat nicht geantwortet. Schalte ihn mit der Fernbedienung ein, warte, bis das Bild erscheint, und klicke erneut auf Absenden.",
+      "invalid_cert_archive": "Aus der hochgeladenen Datei konnte kein gültiger VIDAA-Zertifikatsspeicher extrahiert werden. Bitte APK- oder P12-Datei überprüfen.",
+      "file_too_large": "Die hochgeladene Datei überschreitet das Größenlimit von 150 MB.",
+      "no_p12_found": "Im hochgeladenen Archiv wurde kein kompatibler VIDAA PKCS#12-Keystore gefunden.",
+      "p12_decrypt_failed": "Entschlüsselung des Zertifikatsspeichers fehlgeschlagen. Das Archivpasswort konnte nicht verifiziert werden.",
+      "invalid_pem_bundle": "Die hochgeladene PEM/CRT-Datei muss sowohl ein Zertifikat als auch einen unverschlüsselten privaten Schlüssel enthalten."
     },
     "abort": {
       "reauth_successful": "Neu-Authentifizierung war erfolgreich.",
@@ -137,7 +137,7 @@
           "certfile": "Zertifikatsdateipfad (.crt / .pem / .p12)",
           "keyfile": "Privater Schlüsseldateipfad (.key / .pem)",
           "brand": "TV-OEM-Marke",
-          "cert_file": "Upload New Certificate or App (.apk / .p12 / .pem)"
+          "cert_file": "Neues Zertifikat oder neue App hochladen (.apk / .p12 / .pem)"
         }
       }
     },
@@ -145,11 +145,12 @@
       "certs_not_found": "Zertifikats- oder private Schlüsseldatei wurde am angegebenen Pfad nicht gefunden. Bitte Dateipfad und Berechtigungen prüfen.",
       "invalid_ssl_cert": "SSL-Zertifikat oder privater Schlüssel ungültig. Bitte prüfen, ob die Dateien im unverschlüsselten PEM- oder unterstützten PKCS#12-Format vorliegen und zusammenpassen.",
       "invalid_mac": "Ungültige MAC-Adresse. Muss eine 12-stellige Hexadezimaladresse sein (z. B. AA:BB:CC:DD:EE:FF).",
-      "invalid_cert_archive": "Could not extract a valid VIDAA certificate keystore from the uploaded file. Please verify the APK or P12 file.",
-      "file_too_large": "The uploaded file exceeds the 150 MB size limit.",
-      "no_p12_found": "No compatible VIDAA PKCS#12 keystore was found inside the uploaded archive.",
-      "p12_decrypt_failed": "Failed to decrypt the certificate keystore. The archive password could not be verified.",
-      "invalid_pem_bundle": "Uploaded PEM/CRT file must contain both a certificate and an unencrypted private key."
+      "invalid_cert_archive": "Aus der hochgeladenen Datei konnte kein gültiger VIDAA-Zertifikatsspeicher extrahiert werden. Bitte APK- oder P12-Datei überprüfen.",
+      "file_too_large": "Die hochgeladene Datei überschreitet das Größenlimit von 150 MB.",
+      "no_p12_found": "Im hochgeladenen Archiv wurde kein kompatibler VIDAA PKCS#12-Keystore gefunden.",
+      "p12_decrypt_failed": "Entschlüsselung des Zertifikatsspeichers fehlgeschlagen. Das Archivpasswort konnte nicht verifiziert werden.",
+      "invalid_pem_bundle": "Die hochgeladene PEM/CRT-Datei muss sowohl ein Zertifikat als auch einen unverschlüsselten privaten Schlüssel enthalten.",
+      "tv_not_awake": "Der Fernseher hat nicht geantwortet. Schalte ihn mit der Fernbedienung ein, warte, bis das Bild erscheint, und klicke erneut auf Absenden."
     }
   },
   "entity": {

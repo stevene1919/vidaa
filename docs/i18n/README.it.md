@@ -17,7 +17,7 @@
 [![GitHub Release](https://img.shields.io/github/v/release/stevene1919/vidaa)](https://github.com/stevene1919/vidaa/releases)
 [![Support on Ko-fi](https://img.shields.io/badge/Support%20on-Ko--fi-FF5E5B?style=flat&logo=ko-fi&logoColor=white)](https://ko-fi.com/stevene_)
 
-[![Apri l'istanza di Home Assistant e apri il repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
+[![Apri l'istanza di Home Assistant e apri il repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=vidaa&category=integration)
 
 Integrazione nativa di Home Assistant per Smart TV e proiettori con sistema operativo **VIDAA OS** (Hisense, Toshiba, Loewe, Philips, Sharp, JVC, TOPTRO e marchi partner).
 
@@ -32,7 +32,7 @@ La configurazione richiede meno di 3 minuti in 3 semplici passaggi:
 ### 1️⃣ Installazione tramite Marketplace (HACS)
 Fai clic sul pulsante qui sotto (o cerca **VIDAA Smart TV** in Marketplace (HACS) → Integrazioni → Scarica):
 
-[![Apri Marketplace (HACS)](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
+[![Apri Marketplace (HACS)](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=vidaa&category=integration)
 
 ### 2️⃣ Certificati Client (Caricamento in 1 Clic o Posizionamento Manuale)
 I televisori VIDAA richiedono la crittografia reciproca TLS sulla porta 36669.

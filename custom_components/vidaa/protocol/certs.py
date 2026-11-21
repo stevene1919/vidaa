@@ -99,6 +99,13 @@ def validate_ssl_certs(certfile: str | None, keyfile: str | None) -> tuple[bool,
     if not check_certs_exist(certfile, keyfile):
         return False, "certs_not_found"
 
+    # If certfile is a PKCS#12 bundle, extract or validate via extract_pkcs12_to_pem
+    if certfile and (certfile.lower().endswith(".p12") or certfile.lower().endswith(".pfx")):
+        extracted = extract_pkcs12_to_pem(certfile)
+        if not extracted:
+            return False, "invalid_ssl_cert: failed to extract PKCS#12 bundle"
+        certfile, keyfile = extracted
+
     # Try validating via Python SSLContext
     try:
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)

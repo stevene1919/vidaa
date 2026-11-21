@@ -291,7 +291,9 @@ def extract_and_install_certs(
     if not private_key or not certificate:
         raise ValueError("Failed to decrypt PKCS#12 keystore from uploaded file")
 
-    dest.mkdir(parents=True, exist_ok=True)
+    dest.mkdir(mode=0o700, parents=True, exist_ok=True)
+    with contextlib.suppress(OSError):
+        dest.chmod(0o700)
     crt_path = dest / "hisense.crt"
     key_path = dest / "hisense.key"
 

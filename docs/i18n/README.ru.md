@@ -17,7 +17,7 @@
 [![GitHub Release](https://img.shields.io/github/v/release/stevene1919/vidaa)](https://github.com/stevene1919/vidaa/releases)
 [![Support on Ko-fi](https://img.shields.io/badge/Support%20on-Ko--fi-FF5E5B?style=flat&logo=ko-fi&logoColor=white)](https://ko-fi.com/stevene_)
 
-[![Откройте Home Assistant и перейдите в репозиторий HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
+[![Откройте Home Assistant и перейдите в репозиторий HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=vidaa&category=integration)
 
 Официальная интеграция Home Assistant для смарт-телевизоров и проекторов на базе **VIDAA OS** (Hisense, Toshiba, Loewe, Philips, Sharp, JVC, TOPTRO и брендов-партнеров).
 
@@ -32,7 +32,7 @@
 ### 1️⃣ Установка через Marketplace (HACS)
 Нажмите кнопку ниже (или найдите **VIDAA Smart TV** в Marketplace (HACS) → Интеграции → Скачать):
 
-[![Открыть Marketplace (HACS)](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
+[![Открыть Marketplace (HACS)](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=vidaa&category=integration)
 
 ### 2️⃣ Клиентские сертификаты (Загрузка в 1 клик через браузер или ручное размещение)
 Телевизорам VIDAA требуется взаимное шифрование TLS на порту 36669.

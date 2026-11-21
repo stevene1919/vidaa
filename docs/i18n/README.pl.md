@@ -14,7 +14,7 @@
 
 [![HACS](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/default)
 [![Documentation](https://img.shields.io/badge/docs-stevene.enuff.com-blue.svg)](https://stevene.enuff.com/vidaa)
-[![GitHub Release](https://img.shields.io/github/v/release/stevene1919/hisense_vidaa)](https://github.com/stevene1919/hisense_vidaa/releases)
+[![GitHub Release](https://img.shields.io/github/v/release/stevene1919/vidaa)](https://github.com/stevene1919/vidaa/releases)
 
 Natywna integracja Home Assistant dla inteligentnych telewizorów i projektorów z systemem **VIDAA OS** (Hisense, Toshiba, Loewe, Philips, Sharp, JVC, TOPTRO i marek partnerskich).
 
@@ -29,7 +29,7 @@ Konfiguracja telewizora zajmuje mniej niż 2 minuty w 3 prostych krokach:
 ### 1️⃣ Instalacja przez Marketplace (HACS)
 Kliknij poniższy przycisk (lub wyszukaj **VIDAA Smart TV** w Marketplace (HACS) → Integracje → Pobierz):
 
-[![Otwórz Marketplace (HACS)](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
+[![Otwórz Marketplace (HACS)](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=vidaa&category=integration)
 
 ### 2️⃣ Certyfikaty klienta (Wygodne przesyłanie w przeglądarce lub ręczne umieszczenie)
 Telewizory VIDAA wymagają obustronnego szyfrowania TLS na porcie 36669.

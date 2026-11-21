@@ -5,16 +5,31 @@ from __future__ import annotations
 import asyncio
 import logging
 import ssl
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
 from homeassistant import config_entries
+
+try:
+    from homeassistant.components.file_upload import process_uploaded_file
+except ImportError:
+    from contextlib import contextmanager
+
+    @contextmanager
+    def process_uploaded_file(hass, file_id):
+        yield Path(file_id)
+
+
 from homeassistant.data_entry_flow import AbortFlow
+from homeassistant.helpers import selector
 
 from ..const import (
     BRAND_MAP,
+    CONF_CERT_FILE,
     CONF_CERTFILE,
     CONF_KEYFILE,
+    CONF_MANUAL_PATHS,
     CONF_USE_SSL,
     DEFAULT_BRAND,
     DEFAULT_USE_SSL,
@@ -22,6 +37,7 @@ from ..const import (
 from ..protocol import (
     check_certs_exist,
     detect_brand_from_cert_paths,
+    extract_and_install_certs,
     extract_pkcs12_to_pem,
     get_profile_default_cert_paths,
     validate_ssl_certs,
@@ -70,6 +86,87 @@ class CertsFlowMixin:
                     self.manufacturer = BRAND_MAP[brand_hint]
             return True
         return False
+
+    async def async_step_upload(
+        self: VidaaConfigFlow, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Handle certificate file upload step."""
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            if user_input.get(CONF_MANUAL_PATHS):
+                return await self.async_step_certs()
+
+            uploaded_file_id = user_input.get(CONF_CERT_FILE)
+            if not uploaded_file_id:
+                errors["base"] = "invalid_cert_archive"
+            else:
+                try:
+                    storage_dir = (
+                        Path(self.hass.config.path(".storage", "vidaa", "certs"))
+                        if hasattr(self, "hass") and hasattr(self.hass, "config")
+                        else Path("/config/.storage/vidaa/certs")
+                    )
+
+                    def _extract(file_id: str, dest: Path) -> tuple[str, str]:
+                        if hasattr(self, "hass") and self.hass and "file_upload" in getattr(self.hass, "data", {}):
+                            with process_uploaded_file(self.hass, file_id) as uploaded_path:
+                                return extract_and_install_certs(uploaded_path, dest)
+                        return extract_and_install_certs(Path(file_id), dest)
+
+                    if hasattr(self, "hass") and self.hass:
+                        extracted = await self.hass.async_add_executor_job(_extract, uploaded_file_id, storage_dir)
+                    else:
+                        loop = asyncio.get_running_loop()
+                        extracted = await loop.run_in_executor(None, _extract, uploaded_file_id, storage_dir)
+
+                    self.certfile, self.keyfile = extracted
+                    self.use_ssl = True
+                except ValueError as ex:
+                    _LOGGER.warning("[%s] Failed to extract certificates from upload: %s", self.ip_address, ex)
+                    err_msg = str(ex).lower()
+                    if "size limit" in err_msg:
+                        errors["base"] = "file_too_large"
+                    elif "decrypt" in err_msg:
+                        errors["base"] = "p12_decrypt_failed"
+                    elif "no vidaa pkcs#12" in err_msg:
+                        errors["base"] = "no_p12_found"
+                    else:
+                        errors["base"] = "invalid_cert_archive"
+                except Exception as ex:
+                    _LOGGER.warning("[%s] Unexpected error during certificate extraction: %s", self.ip_address, ex)
+                    errors["base"] = "invalid_cert_archive"
+
+            if not errors:
+                brand_hint = detect_brand_from_cert_paths(self.certfile, self.keyfile)
+                if brand_hint and getattr(self, "brand", DEFAULT_BRAND) == DEFAULT_BRAND:
+                    self.brand = brand_hint
+                    if brand_hint in BRAND_MAP:
+                        self.manufacturer = BRAND_MAP[brand_hint]
+                try:
+                    return await self._async_init_client_and_auth()
+                except AbortFlow:
+                    raise
+                except ssl.SSLError as e:
+                    _LOGGER.warning("[%s] SSL handshake failed after cert upload: %s", self.ip_address, e)
+                    errors["base"] = "invalid_ssl_cert"
+                except Exception as e:
+                    _LOGGER.warning("[%s] Failed to connect after cert upload: %s", self.ip_address, e)
+                    errors["base"] = "cannot_connect"
+
+        upload_schema = vol.Schema(
+            {
+                vol.Required(CONF_CERT_FILE): selector.FileSelector(
+                    selector.FileSelectorConfig(accept=".apk,.xapk,.p12,.pfx,.pem,.crt")
+                ),
+                vol.Optional(CONF_MANUAL_PATHS, default=False): bool,
+            }
+        )
+
+        return self.async_show_form(
+            step_id="upload",
+            data_schema=upload_schema,
+            errors=errors,
+        )
 
     async def async_step_certs(
         self: VidaaConfigFlow, user_input: dict[str, Any] | None = None

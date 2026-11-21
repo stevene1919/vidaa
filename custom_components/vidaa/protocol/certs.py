@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import logging
 import os
+import zipfile
+from pathlib import Path
 
 try:
+    from cryptography import x509
     from cryptography.hazmat.primitives import serialization
     from cryptography.hazmat.primitives.serialization import pkcs12
 
@@ -17,6 +22,7 @@ _LOGGER = logging.getLogger(__name__)
 
 KNOWN_P12_PASSWORDS = [
     b"186e990688070325a1c4b0ce275d2388",
+    b"multiremote",
     b"",
     None,
     b"remote",
@@ -24,11 +30,27 @@ KNOWN_P12_PASSWORDS = [
     b"123456",
 ]
 
+P12_CANDIDATES: tuple[str, ...] = (
+    "res/raw/client_mobile_android.p12",
+    "res/El.p12",
+    "res/raw/El.p12",
+    "res/raw/el.p12",
+    "res/3R.p12",
+    "res/raw/3R.p12",
+    "assets/client_mobile_android.p12",
+    "assets/El.p12",
+)
+
+MAX_UPLOAD_SIZE = 150 * 1024 * 1024  # 150 MB safety limit
+
 __all__ = [
     "HAS_CRYPTOGRAPHY",
     "KNOWN_P12_PASSWORDS",
+    "MAX_UPLOAD_SIZE",
+    "P12_CANDIDATES",
     "check_certs_exist",
     "detect_brand_from_cert_paths",
+    "extract_and_install_certs",
     "extract_pkcs12_to_pem",
     "get_profile_default_cert_paths",
     "resolve_ca_certificate",
@@ -95,6 +117,8 @@ def validate_ssl_certs(certfile: str | None, keyfile: str | None) -> tuple[bool,
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         context.check_hostname = False
         context.verify_mode = ssl.CERT_NONE
+        with contextlib.suppress(ssl.SSLError):
+            context.set_ciphers("DEFAULT:@SECLEVEL=1")
         context.load_cert_chain(certfile=certfile, keyfile=keyfile)
         return True, None
     except ssl.SSLError as err:
@@ -232,19 +256,185 @@ def extract_pkcs12_to_pem(
         return None
 
 
+def _extract_p12_bytes_from_archive(file_path: Path) -> bytes:
+    """Extract PKCS#12 bytes from an APK, nested XAPK, or raw P12 archive."""
+    if not zipfile.is_zipfile(file_path):
+        return file_path.read_bytes()
+
+    with zipfile.ZipFile(file_path, "r") as archive:
+        for member in archive.infolist():
+            name = member.filename
+            if name.startswith(("/", "\\")) or ".." in Path(name).parts:
+                raise ValueError(f"Insecure file path detected in archive: {name}")
+
+        names = archive.namelist()
+        lower_names = {n.lower(): n for n in names}
+
+        # Check direct candidate paths
+        for candidate in P12_CANDIDATES:
+            if candidate.lower() in lower_names:
+                return archive.read(lower_names[candidate.lower()])
+
+        # Check for any .p12/.pfx files in archive
+        for name in names:
+            if name.lower().endswith((".p12", ".pfx")) and not name.startswith("__MACOSX"):
+                return archive.read(name)
+
+        # Check nested APKs (e.g. XAPK / APKS bundle)
+        for name in names:
+            if name.lower().endswith(".apk") and not name.startswith("__MACOSX"):
+                try:
+                    inner_bytes = archive.read(name)
+                    if zipfile.is_zipfile(io.BytesIO(inner_bytes)):
+                        with zipfile.ZipFile(io.BytesIO(inner_bytes), "r") as inner_apk:
+                            for inner_member in inner_apk.infolist():
+                                iname = inner_member.filename
+                                if iname.startswith(("/", "\\")) or ".." in Path(iname).parts:
+                                    continue
+                            inner_lower = {n.lower(): n for n in inner_apk.namelist()}
+                            for candidate in P12_CANDIDATES:
+                                if candidate.lower() in inner_lower:
+                                    return inner_apk.read(inner_lower[candidate.lower()])
+                            for inner_name in inner_apk.namelist():
+                                if inner_name.lower().endswith((".p12", ".pfx")) and not inner_name.startswith(
+                                    "__MACOSX"
+                                ):
+                                    return inner_apk.read(inner_name)
+                except Exception as ex:
+                    _LOGGER.debug("Skipping unreadable nested APK '%s': %s", name, ex)
+                    continue
+
+    raise ValueError("No VIDAA PKCS#12 keystore found in uploaded archive")
+
+
+def extract_and_install_certs(
+    uploaded_path: Path | str,
+    target_dir: Path | str,
+    password: str | bytes | None = None,
+) -> tuple[str, str]:
+    """Unpack PKCS#12 or PEM certificates from uploaded file and persist PEMs to target_dir.
+
+    Returns:
+        tuple[certfile_path, keyfile_path]
+    Raises:
+        ValueError: If extraction, decryption, or validation fails.
+    """
+    if not HAS_CRYPTOGRAPHY:
+        raise ValueError("Cryptography library is required for certificate extraction")
+
+    src = Path(uploaded_path)
+    dst = Path(target_dir)
+
+    if not src.is_file():
+        raise ValueError(f"Uploaded file not found: {src}")
+
+    if src.stat().st_size > MAX_UPLOAD_SIZE:
+        raise ValueError(f"Uploaded file exceeds maximum limit of {MAX_UPLOAD_SIZE // (1024 * 1024)} MB")
+
+    raw_data = src.read_bytes()
+    private_key = None
+    certificate = None
+
+    # Check if user directly uploaded unencrypted PEM containing both cert and key
+    if b"-----BEGIN CERTIFICATE-----" in raw_data and (
+        b"-----BEGIN PRIVATE KEY-----" in raw_data
+        or b"-----BEGIN RSA PRIVATE KEY-----" in raw_data
+        or b"-----BEGIN EC PRIVATE KEY-----" in raw_data
+    ):
+        try:
+            cert_marker = b"-----BEGIN CERTIFICATE-----"
+            key_marker = None
+            for km in (
+                b"-----BEGIN PRIVATE KEY-----",
+                b"-----BEGIN RSA PRIVATE KEY-----",
+                b"-----BEGIN EC PRIVATE KEY-----",
+            ):
+                if km in raw_data:
+                    key_marker = km
+                    break
+            if cert_marker and key_marker:
+                cert_start = raw_data.find(cert_marker)
+                cert_end = raw_data.find(b"-----END CERTIFICATE-----") + len(b"-----END CERTIFICATE-----")
+                cert_pem = raw_data[cert_start:cert_end].strip()
+
+                key_start = raw_data.find(key_marker)
+                end_marker = key_marker.replace(b"BEGIN", b"END")
+                key_end = raw_data.find(end_marker) + len(end_marker)
+                key_pem = raw_data[key_start:key_end].strip()
+
+                certificate = x509.load_pem_x509_certificate(cert_pem)
+                private_key = serialization.load_pem_private_key(key_pem, password=None)
+        except Exception as e:
+            _LOGGER.debug("Failed parsing direct PEM upload: %s", e)
+
+    if not private_key or not certificate:
+        p12_bytes = _extract_p12_bytes_from_archive(src)
+
+        passwords_to_try: list[bytes | None] = []
+        if password is not None:
+            passwords_to_try.append(password.encode("utf-8") if isinstance(password, str) else password)
+        passwords_to_try.extend(KNOWN_P12_PASSWORDS)
+
+        for pwd in passwords_to_try:
+            try:
+                k, c, _ = pkcs12.load_key_and_certificates(p12_bytes, pwd)
+                if k and c:
+                    private_key = k
+                    certificate = c
+                    break
+            except Exception as ex:
+                _LOGGER.debug("P12 candidate decryption failed: %s", ex)
+                continue
+
+    if not private_key or not certificate:
+        raise ValueError("Failed to decrypt PKCS#12 keystore from uploaded file")
+
+    dst.mkdir(parents=True, exist_ok=True)
+    with contextlib.suppress(OSError):
+        os.chmod(dst, 0o700)
+
+    crt_path = dst / "hisense.crt"
+    key_path = dst / "hisense.key"
+
+    cert_bytes = certificate.public_bytes(serialization.Encoding.PEM)
+    key_bytes = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.TraditionalOpenSSL,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+
+    crt_path.write_bytes(cert_bytes)
+    key_path.write_bytes(key_bytes)
+
+    with contextlib.suppress(OSError):
+        os.chmod(key_path, 0o600)
+
+    # Validate written certificates in SSLContext
+    valid, err_reason = validate_ssl_certs(str(crt_path), str(key_path))
+    if not valid:
+        crt_path.unlink(missing_ok=True)
+        key_path.unlink(missing_ok=True)
+        raise ValueError(f"Extracted certificates failed SSL validation: {err_reason}")
+
+    return str(crt_path), str(key_path)
+
+
 def _get_default_search_dirs() -> list[str]:
     """Build list of candidate certificate search paths, scanning upwards to repo root."""
     search_dirs = [
+        "/config/.storage/vidaa/certs",
+        "/config/.storage/vidaa",
         "/config/ssl",
         "/ssl",
         "/config/certs",
         "/config",
+        os.path.join(os.getcwd(), ".storage", "vidaa", "certs"),
         os.path.join(os.getcwd(), "ssl"),
         os.path.join(os.getcwd(), "certs"),
     ]
     cur = os.path.dirname(os.path.abspath(__file__))
     while cur and cur != os.path.dirname(cur):
-        for sub in ("ssl", "certs"):
+        for sub in (".storage/vidaa/certs", "ssl", "certs"):
             candidate = os.path.join(cur, sub)
             if os.path.isdir(candidate) and candidate not in search_dirs:
                 search_dirs.append(candidate)
@@ -554,7 +744,8 @@ def get_profile_default_cert_paths(
     config_dir: str = "/config",
 ) -> tuple[str, str, str, str, str]:
     """Returns (default_cert_path, default_key_path, default_cert_dir, default_cert_name, default_key_name)."""
-    default_cert_dir = os.path.join(config_dir, "ssl")
+    storage_dir = os.path.join(config_dir, ".storage", "vidaa", "certs")
+    default_cert_dir = storage_dir if os.path.isdir(storage_dir) else os.path.join(config_dir, "ssl")
 
     profile_clean = (auth_profile or "auto").lower()
     if profile_clean in ("modern", "vidaa_2024", "vidaa"):

@@ -42,6 +42,59 @@ You MUST adhere strictly to the following semantic structure for any new release
 Please report any issues or feedback on [GitHub Issues](https://github.com/stevene1919/vidaa/issues) or Discussions!
 -->
 
+## [3.6.1] - 2026-11-22
+
+### ☕ Support the Project
+
+If this integration makes controlling your smart home entertainment a breeze, consider supporting continued open-source development and reverse-engineering:
+
+[![Support on Ko-fi](https://img.shields.io/badge/Support%20on-Ko--fi-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/stevene_)
+
+---
+
+Hey everyone! 👋
+
+This release introduces native UI certificate uploads and an automated, zero-friction storage architecture for Home Assistant OS and container setups!
+
+---
+
+### 🌟 What's New & Highlights
+
+- **Native UI Certificate & App Upload (`FileSelector`)**:
+  - No more SSH, Samba, terminal `openssl` commands, or manual directory creation.
+  - If certificates are not detected on disk during setup or reconfigure, Home Assistant presents a native file selector accepting `.apk`, `.xapk`, `.p12`, `.pfx`, `.pem`, or `.crt` files.
+- **In-Memory Keystore Unpacking & Auto-Cleanup**:
+  - Archives (including nested XAPKs) are inspected and unpacked in memory via Python's `zipfile` and `cryptography` off the event loop.
+  - Uploaded archives are temporarily buffered in `/tmp/` and immediately deleted upon extraction via Home Assistant's `process_uploaded_file` context manager, leaving only the ~4 KB extracted PEM files.
+- **HA Core-Compliant Storage (`.storage/vidaa/certs`)**:
+  - Extracted certificates are saved to `/config/.storage/vidaa/certs/` with strict `0700` directory and `0600` private key permissions.
+  - Storage is isolated, backed up automatically in Home Assistant snapshots, and survives HACS updates.
+  - Full backwards compatibility is preserved: setups with existing certificates in `/config/ssl/` continue working seamlessly without requiring re-upload.
+- **Security & Extraction Guardrails**:
+  - Hardened against Zip Slip path traversal exploits and oversized upload archives (>150 MB).
+  - Client certificate and private key pairs are pre-validated in an `SSLContext` before saving to disk.
+
+---
+
+<details>
+<summary>🛠️ <b>Full Technical Details & Refactoring</b> (Click to expand)</summary>
+
+- **Manifest**: Added `file_upload` to `dependencies` in `manifest.json`.
+- **Protocol**: Implemented `extract_and_install_certs` and `_extract_p12_bytes_from_archive` in `protocol/certs.py`.
+- **Search Resolution**: Prioritized `/config/.storage/vidaa/certs` ahead of `/config/ssl` in `_get_default_search_dirs()`.
+- **Config Flow**: Added `async_step_upload` with `FileSelector` in `flow/certs.py`, seamlessly routing to TV pairing or falling back to manual path entry.
+- **Options Flow**: Added certificate replacement upload support to `async_step_security`.
+- **Test Suite**: Added 13 new automated unit tests covering APK/XAPK extraction, raw P12, PEM bundles, Zip Slip rejection, and upload config flow transitions.
+
+</details>
+
+---
+
+### 💬 Feedback & Bug Reports
+Please report any issues or feedback on [GitHub Issues](https://github.com/stevene1919/vidaa/issues) or Discussions!
+
+---
+
 ## [3.6.0] - 2026-11-21
 
 ### ☕ Support the Project

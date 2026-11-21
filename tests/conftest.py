@@ -632,6 +632,20 @@ if "homeassistant" not in sys.modules:
     components.device_automation = device_automation
     sys.modules["homeassistant.components.device_automation"] = device_automation
 
+    # file_upload
+    file_upload = types.ModuleType("homeassistant.components.file_upload")
+    from contextlib import contextmanager
+    from pathlib import Path
+
+    @contextmanager
+    def process_uploaded_file(hass, file_id):
+        yield Path(file_id)
+
+    file_upload.process_uploaded_file = process_uploaded_file
+    components.file_upload = file_upload
+    sys.modules["homeassistant.components.file_upload"] = file_upload
+
+    components.__path__ = []
     ha.components = components
     sys.modules["homeassistant.components"] = components
 
@@ -709,6 +723,17 @@ if "homeassistant" not in sys.modules:
         def __init__(self, value, label):
             super().__init__(value=value, label=label)
 
+    class FileSelector:
+        def __init__(self, config=None):
+            self.config = config
+
+        def __call__(self, data):
+            return data
+
+    class FileSelectorConfig:
+        def __init__(self, **kwargs):
+            self.config = kwargs
+
     selector.NumberSelector = NumberSelector
     selector.NumberSelectorConfig = NumberSelectorConfig
     selector.NumberSelectorMode = NumberSelectorMode
@@ -716,6 +741,8 @@ if "homeassistant" not in sys.modules:
     selector.SelectSelectorConfig = SelectSelectorConfig
     selector.SelectSelectorMode = SelectSelectorMode
     selector.SelectOptionDict = SelectOptionDict
+    selector.FileSelector = FileSelector
+    selector.FileSelectorConfig = FileSelectorConfig
     helpers.selector = selector
     sys.modules["homeassistant.helpers.selector"] = selector
 

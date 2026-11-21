@@ -276,9 +276,10 @@ class ReauthFlowMixin:
                     self.keyfile = None
             elif self.auth_profile == "auto":
                 if not await self._async_resolve_ssl_certs():
-                    return await self.async_step_certs()
+                    return await self.async_step_upload()
             else:
-                return await self.async_step_certs()
+                if not await self._async_resolve_ssl_certs():
+                    return await self.async_step_upload()
 
             try:
                 return await self._async_init_client_and_auth(is_reauth=True, reauth_reason="reconfigure_successful")

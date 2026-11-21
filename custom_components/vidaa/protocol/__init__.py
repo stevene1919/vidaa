@@ -15,8 +15,10 @@ from .auth import (
     test_tv_ssl_connection,
 )
 from .certs import (
+    P12_CANDIDATES,
     check_certs_exist,
     detect_brand_from_cert_paths,
+    extract_and_install_certs,
     extract_pkcs12_to_pem,
     get_profile_default_cert_paths,
     resolve_ca_certificate,
@@ -58,6 +60,7 @@ from .wol import send_wake_on_lan
 __all__ = [
     "CLIENT_ID_PATTERN",
     "MODERN_SALT",
+    "P12_CANDIDATES",
     "SENSITIVE_KEYS",
     "STANDARD_SALT",
     "TOPIC_BROADCAST_BASEPATH",
@@ -81,6 +84,7 @@ __all__ = [
     "clean_mac",
     "detect_brand_from_cert_paths",
     "dispatch_incoming_mqtt_message",
+    "extract_and_install_certs",
     "extract_connect_rc",
     "extract_pkcs12_to_pem",
     "generate_initial_credentials",

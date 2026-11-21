@@ -3,11 +3,24 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
+from pathlib import Path
 from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
+
+try:
+    from homeassistant.components.file_upload import process_uploaded_file
+except ImportError:
+    from contextlib import contextmanager
+
+    @contextmanager
+    def process_uploaded_file(hass, file_id):
+        yield Path(file_id)
+
+
 from homeassistant.helpers import selector
 from homeassistant.helpers.device_registry import format_mac
 
@@ -16,6 +29,7 @@ from ..const import (
     BRAND_SELECTOR,
     CONF_AUTH_PROFILE,
     CONF_BRAND,
+    CONF_CERT_FILE,
     CONF_CERTFILE,
     CONF_ENABLE_AUDIO_ONLY,
     CONF_ENABLE_CEC_NAMES,
@@ -46,7 +60,9 @@ from ..const import (
     DEFAULT_PLAYBACK_DEBOUNCE,
     DEFAULT_USE_SSL,
 )
-from ..protocol import check_certs_exist, validate_ssl_certs
+from ..protocol import check_certs_exist, extract_and_install_certs, validate_ssl_certs
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class VidaaOptionsFlowHandler(config_entries.OptionsFlow):
@@ -301,6 +317,33 @@ class VidaaOptionsFlowHandler(config_entries.OptionsFlow):
         current_key = options.get(CONF_KEYFILE, data.get(CONF_KEYFILE, ""))
 
         if user_input is not None:
+            uploaded_file_id = user_input.pop(CONF_CERT_FILE, None)
+            if uploaded_file_id:
+                try:
+                    storage_dir = (
+                        Path(self.hass.config.path(".storage", "vidaa", "certs"))
+                        if hasattr(self, "hass") and hasattr(self.hass, "config")
+                        else Path("/config/.storage/vidaa/certs")
+                    )
+
+                    def _extract(file_id: str, dest: Path) -> tuple[str, str]:
+                        if hasattr(self, "hass") and self.hass and "file_upload" in getattr(self.hass, "data", {}):
+                            with process_uploaded_file(self.hass, file_id) as uploaded_path:
+                                return extract_and_install_certs(uploaded_path, dest)
+                        return extract_and_install_certs(Path(file_id), dest)
+
+                    if hasattr(self, "hass") and self.hass:
+                        extracted = await self.hass.async_add_executor_job(_extract, uploaded_file_id, storage_dir)
+                    else:
+                        loop = asyncio.get_running_loop()
+                        extracted = await loop.run_in_executor(None, _extract, uploaded_file_id, storage_dir)
+
+                    user_input[CONF_CERTFILE] = extracted[0]
+                    user_input[CONF_KEYFILE] = extracted[1]
+                except Exception as ex:
+                    _LOGGER.warning("Failed to extract uploaded cert in options flow: %s", ex)
+                    errors["base"] = "invalid_cert_archive"
+
             new_cert = (user_input.get(CONF_CERTFILE) or "").strip()
             new_key = (user_input.get(CONF_KEYFILE) or "").strip()
 
@@ -359,6 +402,9 @@ class VidaaOptionsFlowHandler(config_entries.OptionsFlow):
                         CONF_USE_SSL,
                         default=current_use_ssl,
                     ): bool,
+                    vol.Optional(CONF_CERT_FILE): selector.FileSelector(
+                        selector.FileSelectorConfig(accept=".apk,.xapk,.p12,.pfx,.pem,.crt")
+                    ),
                     vol.Optional(
                         CONF_CERTFILE,
                         default=current_cert,

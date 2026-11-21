@@ -87,7 +87,7 @@ class DiscoveryFlowMixin:
                     )
                     errors["base"] = "cannot_connect"
             else:
-                return await self.async_step_certs()
+                return await self.async_step_upload()
 
         return self.async_show_form(
             step_id="discovery_confirm",

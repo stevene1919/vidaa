@@ -38,10 +38,10 @@ Click the one-click button below (or search **VIDAA Smart TV** in Marketplace (H
 
 [![Open Marketplace (HACS)](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stevene1919&repository=hisense_vidaa&category=integration)
 
-### 2️⃣ Place the Key File (`client_mobile_android.p12` or `El.p12`)
-VIDAA TVs enforce mutual TLS on port 36669. Drop the universal **`client_mobile_android.p12`** (or `El.p12`) file into your Home Assistant **`/config/ssl/`** directory.
-- Download the free public **VIDAA Smart TV** app APK on your PC/Mac browser, rename `.apk` to `.zip`, and extract `res/raw/client_mobile_android.p12` (or `res/El.p12` if obfuscated).
-- *No Android phone, tablet, or emulator is needed!* An `.apk` is simply a standard zip file.
+### 2️⃣ Client Certificates (Native UI Upload or Manual Placement)
+VIDAA TVs enforce mutual TLS on port 36669.
+- **✨ 1-Click UI Upload (Recommended):** During setup, Home Assistant checks for certificates automatically. If missing, simply upload the official VIDAA / RemoteNOW Android app package (`.apk` or `.xapk`) or an extracted keystore (`.p12` / `.pem`) directly from your browser! Home Assistant extracts, validates, and stores the certificates automatically.
+- **Manual Placement (Legacy):** Alternatively, drop `client_mobile_android.p12`, `El.p12`, or `hisense.crt` + `hisense.key` into `/config/ssl/` or `/config/.storage/vidaa/certs/`.
 
 > [!TIP]
 > **Need a step-by-step walkthrough?**  

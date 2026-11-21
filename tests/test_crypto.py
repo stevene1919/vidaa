@@ -13,6 +13,7 @@ from custom_components.vidaa.protocol import (
     CLIENT_ID_PATTERN,
     XOR_TIMESTAMP_MASK,
     clean_mac,
+    extract_and_install_certs,
     extract_pkcs12_to_pem,
     generate_initial_credentials,
     normalize_mac_address,
@@ -448,3 +449,147 @@ def test_generate_initial_credentials_unique_per_tv_mac():
     assert topics_1.mobile != topics_2.mobile
     assert topics_1.mobile == f"/remoteapp/mobile/{client_id_1}/"
     assert topics_2.mobile == f"/remoteapp/mobile/{client_id_2}/"
+
+
+def _create_test_p12_bytes(password: bytes = b"186e990688070325a1c4b0ce275d2388") -> bytes:
+    """Helper to generate a valid test PKCS#12 bundle."""
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    subject = issuer = x509.Name([x509.NameAttribute(x509.oid.NameOID.COMMON_NAME, "VidaaTest")])
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(subject)
+        .issuer_name(issuer)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(datetime.now(UTC) - timedelta(days=1))
+        .not_valid_after(datetime.now(UTC) + timedelta(days=1))
+        .sign(key, hashes.SHA256())
+    )
+    return pkcs12.serialize_key_and_certificates(
+        b"VidaaTest",
+        key,
+        cert,
+        None,
+        serialization.BestAvailableEncryption(password),
+    )
+
+
+def test_extract_and_install_certs_apk(tmp_path):
+    """Test extracting and installing certificates from a simulated APK."""
+    import zipfile
+
+    p12_bytes = _create_test_p12_bytes()
+    apk_path = tmp_path / "app.apk"
+    with zipfile.ZipFile(apk_path, "w") as z:
+        z.writestr("res/raw/client_mobile_android.p12", p12_bytes)
+        z.writestr("AndroidManifest.xml", b"<manifest/>")
+
+    target_dir = tmp_path / "installed_certs"
+    crt_path, key_path = extract_and_install_certs(apk_path, target_dir)
+
+    assert os.path.isfile(crt_path)
+    assert os.path.isfile(key_path)
+    assert crt_path == str(target_dir / "hisense.crt")
+    assert key_path == str(target_dir / "hisense.key")
+
+    # Verify key permissions (0600 on POSIX)
+    key_stat = os.stat(key_path)
+    assert key_stat.st_mode & 0o777 == 0o600
+
+
+def test_extract_and_install_certs_xapk(tmp_path):
+    """Test extracting and installing certificates from a simulated XAPK (nested APK bundle)."""
+    import io
+    import zipfile
+
+    p12_bytes = _create_test_p12_bytes()
+    inner_apk = io.BytesIO()
+    with zipfile.ZipFile(inner_apk, "w") as z_inner:
+        z_inner.writestr("res/El.p12", p12_bytes)
+
+    xapk_path = tmp_path / "app.xapk"
+    with zipfile.ZipFile(xapk_path, "w") as z_outer:
+        z_outer.writestr("com.universal.remote.multi.apk", inner_apk.getvalue())
+        z_outer.writestr("manifest.json", b"{}")
+
+    target_dir = tmp_path / "installed_xapk_certs"
+    crt_path, key_path = extract_and_install_certs(xapk_path, target_dir)
+
+    assert os.path.isfile(crt_path)
+    assert os.path.isfile(key_path)
+
+
+def test_extract_and_install_certs_raw_p12(tmp_path):
+    """Test extracting and installing directly from a raw .p12 keystore file."""
+    p12_bytes = _create_test_p12_bytes()
+    p12_file = tmp_path / "keystore.p12"
+    p12_file.write_bytes(p12_bytes)
+
+    target_dir = tmp_path / "installed_p12_certs"
+    crt_path, key_path = extract_and_install_certs(p12_file, target_dir)
+
+    assert os.path.isfile(crt_path)
+    assert os.path.isfile(key_path)
+
+
+def test_extract_and_install_certs_direct_pem(tmp_path):
+    """Test installing from a concatenated PEM bundle containing certificate and private key."""
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    subject = issuer = x509.Name([x509.NameAttribute(x509.oid.NameOID.COMMON_NAME, "VidaaTestPEM")])
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(subject)
+        .issuer_name(issuer)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(datetime.now(UTC) - timedelta(days=1))
+        .not_valid_after(datetime.now(UTC) + timedelta(days=1))
+        .sign(key, hashes.SHA256())
+    )
+
+    cert_pem = cert.public_bytes(serialization.Encoding.PEM)
+    key_pem = key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.TraditionalOpenSSL,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+
+    combined_pem_file = tmp_path / "bundle.pem"
+    combined_pem_file.write_bytes(cert_pem + b"\n" + key_pem)
+
+    target_dir = tmp_path / "installed_pem_certs"
+    crt_path, key_path = extract_and_install_certs(combined_pem_file, target_dir)
+
+    assert os.path.isfile(crt_path)
+    assert os.path.isfile(key_path)
+
+
+def test_extract_and_install_certs_zip_slip_rejected(tmp_path):
+    """Test that archives containing directory traversal paths are strictly rejected."""
+    import zipfile
+
+    import pytest
+
+    p12_bytes = _create_test_p12_bytes()
+    malicious_zip = tmp_path / "malicious.zip"
+    with zipfile.ZipFile(malicious_zip, "w") as z:
+        z.writestr("../../etc/passwd", p12_bytes)
+
+    target_dir = tmp_path / "installed_bad_certs"
+    with pytest.raises(ValueError, match="Insecure file path detected"):
+        extract_and_install_certs(malicious_zip, target_dir)
+
+
+def test_extract_and_install_certs_no_keystore_rejected(tmp_path):
+    """Test that an archive without compatible keystores raises a clear ValueError."""
+    import zipfile
+
+    import pytest
+
+    empty_apk = tmp_path / "empty.apk"
+    with zipfile.ZipFile(empty_apk, "w") as z:
+        z.writestr("AndroidManifest.xml", b"<manifest/>")
+
+    target_dir = tmp_path / "target_empty"
+    with pytest.raises(ValueError, match="No VIDAA PKCS#12 keystore found"):
+        extract_and_install_certs(empty_apk, target_dir)

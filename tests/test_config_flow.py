@@ -183,12 +183,17 @@ async def test_user_step_auto_certs_missing_routes_to_certs(monkeypatch):
 
     result = await flow.async_step_user(user_input={"ip_address": "192.168.1.100", "auth_profile": "auto"})
     assert result["type"] == "form"
-    assert result["step_id"] == "certs"
+    assert result["step_id"] == "upload"
+
+    # From upload, choosing manual paths routes to certs step
+    manual_res = await flow.async_step_upload(user_input={"manual_paths": True})
+    assert manual_res["type"] == "form"
+    assert manual_res["step_id"] == "certs"
 
 
 @pytest.mark.anyio
 async def test_user_step_explicit_model_routes_to_certs():
-    """When an explicit model profile is selected, it routes to certs step."""
+    """When an explicit model profile is selected, it routes to upload step if certs missing."""
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
 
@@ -198,7 +203,7 @@ async def test_user_step_explicit_model_routes_to_certs():
 
     result = await flow.async_step_user(user_input={"ip_address": "192.168.1.100", "auth_profile": "modern"})
     assert result["type"] == "form"
-    assert result["step_id"] == "certs"
+    assert result["step_id"] == "upload"
 
 
 @pytest.mark.anyio
@@ -608,3 +613,73 @@ async def test_user_step_legacy_profile_without_certs_proceeds(monkeypatch):
     assert flow.certfile is None
     assert flow.keyfile is None
     assert flow.use_ssl is True
+
+
+@pytest.mark.anyio
+async def test_upload_step_success(monkeypatch):
+    """Test successful upload step extracting certificates and progressing to auth."""
+    hass = MagicMock(spec=HomeAssistant)
+    hass.async_add_executor_job = AsyncMock(
+        return_value=("/config/.storage/vidaa/certs/hisense.crt", "/config/.storage/vidaa/certs/hisense.key")
+    )
+    hass.config = MagicMock()
+    hass.config.path = MagicMock(return_value="/config/.storage/vidaa/certs")
+
+    flow = VidaaConfigFlow()
+    flow.hass = hass
+    flow.context = {}
+    flow.ip_address = "192.168.1.100"
+
+    monkeypatch.setattr(
+        "custom_components.vidaa.config_flow.VidaaConfigFlow._async_init_client_and_auth",
+        AsyncMock(return_value={"type": "form", "step_id": "auth"}),
+    )
+
+    result = await flow.async_step_upload(user_input={"cert_file": "mock_file_id"})
+    assert result["type"] == "form"
+    assert result["step_id"] == "auth"
+    assert flow.certfile == "/config/.storage/vidaa/certs/hisense.crt"
+    assert flow.keyfile == "/config/.storage/vidaa/certs/hisense.key"
+    assert flow.use_ssl is True
+
+
+@pytest.mark.anyio
+async def test_upload_step_invalid_archive(monkeypatch):
+    """Test error handling when uploaded file contains no valid keystore."""
+    hass = MagicMock(spec=HomeAssistant)
+    hass.async_add_executor_job = AsyncMock(
+        side_effect=ValueError("No VIDAA PKCS#12 keystore found in uploaded archive")
+    )
+    hass.config = MagicMock()
+    hass.config.path = MagicMock(return_value="/config/.storage/vidaa/certs")
+
+    flow = VidaaConfigFlow()
+    flow.hass = hass
+    flow.context = {}
+    flow.ip_address = "192.168.1.100"
+
+    result = await flow.async_step_upload(user_input={"cert_file": "bad_file"})
+    assert result["type"] == "form"
+    assert result["step_id"] == "upload"
+    assert result["errors"]["base"] == "no_p12_found"
+
+
+@pytest.mark.anyio
+async def test_upload_step_decrypt_failed(monkeypatch):
+    """Test error handling when keystore password decryption fails."""
+    hass = MagicMock(spec=HomeAssistant)
+    hass.async_add_executor_job = AsyncMock(
+        side_effect=ValueError("Failed to decrypt PKCS#12 keystore from uploaded file")
+    )
+    hass.config = MagicMock()
+    hass.config.path = MagicMock(return_value="/config/.storage/vidaa/certs")
+
+    flow = VidaaConfigFlow()
+    flow.hass = hass
+    flow.context = {}
+    flow.ip_address = "192.168.1.100"
+
+    result = await flow.async_step_upload(user_input={"cert_file": "bad_p12"})
+    assert result["type"] == "form"
+    assert result["step_id"] == "upload"
+    assert result["errors"]["base"] == "p12_decrypt_failed"

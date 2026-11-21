@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from .auth import AuthFlowMixin
 from .certs import CertsFlowMixin
 from .discovery import DiscoveryFlowMixin
 from .helpers import (
@@ -15,13 +16,16 @@ from .helpers import (
     resolve_ssl_certs,
 )
 from .options import HisenseVidaaOptionsFlowHandler, VidaaOptionsFlowHandler
+from .options_security import OptionsSecurityMixin
 from .reauth import ReauthFlowMixin
 from .user import UserFlowMixin
 
 __all__ = [
+    "AuthFlowMixin",
     "CertsFlowMixin",
     "DiscoveryFlowMixin",
     "HisenseVidaaOptionsFlowHandler",
+    "OptionsSecurityMixin",
     "ReauthFlowMixin",
     "UserFlowMixin",
     "VidaaOptionsFlowHandler",

@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import logging
 import time
+from functools import partial
 from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
@@ -15,6 +16,7 @@ from homeassistant.data_entry_flow import AbortFlow
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
+from ..client import VidaaClient
 from ..const import (
     AUTH_PROFILE_SELECTOR,
     BRAND_SELECTOR,
@@ -32,6 +34,7 @@ from ..const import (
     DEFAULT_USE_SSL,
     DOMAIN,
 )
+from ..protocol import wol
 from .helpers import async_resolve_mac
 
 if TYPE_CHECKING:
@@ -162,11 +165,7 @@ class ReauthFlowMixin:
             return False
 
         _LOGGER.info("[%s] TV not reachable on port 36669; sending Wake-on-LAN before reauth", self.ip_address)
-        from functools import partial
-
-        from ..protocol.wol import send_wake_on_lan
-
-        await self.hass.async_add_executor_job(partial(send_wake_on_lan, list(dict.fromkeys(macs)), ip=self.ip_address))
+        await self.hass.async_add_executor_job(partial(wol.send_wake_on_lan, list(dict.fromkeys(macs)), ip=self.ip_address))
 
         deadline = time.monotonic() + REAUTH_WAKE_TIMEOUT
         while time.monotonic() < deadline:
@@ -198,8 +197,6 @@ class ReauthFlowMixin:
                 await self._async_resolve_ssl_certs()
 
             session = async_get_clientsession(self.hass) if self.hass else None
-            from ..client import VidaaClient
-
             self.client = VidaaClient(
                 self.ip_address,
                 self.mac_address,
@@ -240,16 +237,9 @@ class ReauthFlowMixin:
         self._reauth_entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
         self._reauth_reason = "reconfigure_successful"
         errors: dict[str, str] = {}
-        current_data = (
-            dict(self._reauth_entry.data)
-            if self._reauth_entry and isinstance(getattr(self._reauth_entry, "data", None), dict)
-            else {}
-        )
-        current_options = (
-            dict(self._reauth_entry.options)
-            if self._reauth_entry and isinstance(getattr(self._reauth_entry, "options", None), dict)
-            else {}
-        )
+        entry = self._reauth_entry
+        current_data = dict(entry.data) if entry and isinstance(getattr(entry, "data", None), dict) else {}
+        current_options = dict(entry.options) if entry and isinstance(getattr(entry, "options", None), dict) else {}
         self.brand = current_options.get(CONF_BRAND, current_data.get(CONF_BRAND, DEFAULT_BRAND_OPTION))
         self.use_ssl = current_options.get(CONF_USE_SSL, current_data.get(CONF_USE_SSL, DEFAULT_USE_SSL))
         self.certfile = current_options.get(CONF_CERTFILE, current_data.get(CONF_CERTFILE))

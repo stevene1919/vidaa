@@ -282,16 +282,19 @@ def collect_client_auth_data(
                 CONF_REFRESH_TOKEN_DURATION: client.refresh_token_duration,
             }
         )
-    if certfile:
-        data[CONF_CERTFILE] = certfile
-    if keyfile:
-        data[CONF_KEYFILE] = keyfile
-    if model:
-        data[CONF_MODEL] = model
-    if manufacturer:
-        data[CONF_MANUFACTURER] = manufacturer
-    if sw_version:
-        data[CONF_SW_VERSION] = sw_version
+    data.update(
+        {
+            k: v
+            for k, v in (
+                (CONF_CERTFILE, certfile),
+                (CONF_KEYFILE, keyfile),
+                (CONF_MODEL, model),
+                (CONF_MANUFACTURER, manufacturer),
+                (CONF_SW_VERSION, sw_version),
+            )
+            if v
+        }
+    )
     resolved_brand = (
         (brand if brand and brand != "auto" else None)
         or (client.brand if client and client.brand != "auto" else None)

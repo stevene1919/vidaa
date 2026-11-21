@@ -16,6 +16,7 @@ from .const import (
     DOMAIN,
 )
 from .flow import (
+    AuthFlowMixin,
     CertsFlowMixin,
     DiscoveryFlowMixin,
     ReauthFlowMixin,
@@ -39,6 +40,7 @@ class VidaaConfigFlow(
     DiscoveryFlowMixin,
     ReauthFlowMixin,
     CertsFlowMixin,
+    AuthFlowMixin,
     UserFlowMixin,
     config_entries.ConfigFlow,
     domain=DOMAIN,

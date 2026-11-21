@@ -113,9 +113,11 @@ class CertsFlowMixin:
                         else Path("/config/.storage/vidaa/certs")
                     )
 
-                    def _extract(file_id: str, dest: Path) -> tuple[str, str]:
+                    def _extract(file_id: str, dest: Path) -> tuple[str, str, str | None]:
                         with process_uploaded_file(self.hass, file_id) as uploaded_path:
-                            return extract_and_install_certs(uploaded_path, dest)
+                            cert_p, key_p = extract_and_install_certs(uploaded_path, dest)
+                            hint = detect_brand_from_cert_paths(cert_p, key_p, str(uploaded_path), file_id)
+                            return cert_p, key_p, hint
 
                     if hasattr(self, "hass") and self.hass:
                         extracted = await self.hass.async_add_executor_job(_extract, uploaded_file_id, storage_dir)
@@ -123,7 +125,7 @@ class CertsFlowMixin:
                         loop = asyncio.get_running_loop()
                         extracted = await loop.run_in_executor(None, _extract, uploaded_file_id, storage_dir)
 
-                    self.certfile, self.keyfile = extracted
+                    self.certfile, self.keyfile, brand_hint = extracted
                     self.use_ssl = True
                 except ValueError as ex:
                     _LOGGER.warning("[%s] Failed to extract certificates from upload: %s", self.ip_address, ex)

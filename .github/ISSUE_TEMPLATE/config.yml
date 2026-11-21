@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: 🔐 Certificate & Key Documentation
-    url: https://github.com/stevene1919/hisense_vidaa/blob/main/docs/certificates.md
+    url: https://github.com/stevene1919/vidaa/blob/main/docs/certificates.md
     about: Setup and configuration instructions for SSL certificates and keys.
   - name: 🔧 Troubleshooting & Diagnostics
-    url: https://github.com/stevene1919/hisense_vidaa/blob/main/docs/troubleshooting.md
+    url: https://github.com/stevene1919/vidaa/blob/main/docs/troubleshooting.md
     about: Common connection diagnostics, port checks, and known limitations.

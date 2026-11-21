@@ -13,9 +13,9 @@ body:
         Before opening a bug report, running the built-in diagnostic tool against your TV's IP address can often pinpoint the exact issue (firmware compatibility, certificate error, or network block).
 
         > [!NOTE]
-        > `test_client.py` is a standalone developer utility located in the [GitHub repository root](https://github.com/stevene1919/hisense_vidaa/blob/main/test_client.py) (it is **not** bundled inside the HACS release zip). You can run it directly from a cloned git checkout, or download it standalone via:
+        > `test_client.py` is a standalone developer utility located in [`scripts/test_client.py`](https://github.com/stevene1919/vidaa/blob/main/scripts/test_client.py) (it is **not** bundled inside the HACS release zip). You can run it directly from a cloned git checkout, or download it standalone via:
         > ```bash
-        > curl -sLO https://raw.githubusercontent.com/stevene1919/hisense_vidaa/main/test_client.py
+        > curl -sLO https://raw.githubusercontent.com/stevene1919/vidaa/main/scripts/test_client.py
         > python3 test_client.py report --ip <YOUR_TV_IP>
         > ```
 
@@ -27,15 +27,15 @@ body:
       options:
         - label: "This issue is NOT related to HACS / marketplace setup, download errors, or GitHub token limits (refer to official HACS documentation)."
           required: true
-        - label: "This issue is NOT a request for SSL certificate files, certificate extraction assistance, or SSL debugging (review [docs/certificates.md](https://github.com/stevene1919/hisense_vidaa/blob/main/docs/certificates.md))."
+        - label: "This issue is NOT a request for SSL certificate files, certificate extraction assistance, or SSL debugging (review [docs/certificates.md](https://github.com/stevene1919/vidaa/blob/main/docs/certificates.md))."
           required: true
         - label: "The TV / projector is powered ON and connected to the same local network / subnet as Home Assistant."
           required: true
         - label: "The TV / projector is reachable from Home Assistant on port 36669 (TCP/TLS) and port 38400 (HTTP/TCP)."
           required: true
-        - label: "Client certificates or PKCS#12 bundles are valid, unencrypted, and placed in `/config/ssl/` per [docs/certificates.md](https://github.com/stevene1919/hisense_vidaa/blob/main/docs/certificates.md)."
+        - label: "Client certificates or PKCS#12 bundles are valid, unencrypted, and placed in `/config/ssl/` per [docs/certificates.md](https://github.com/stevene1919/vidaa/blob/main/docs/certificates.md)."
           required: true
-        - label: "I have reviewed [docs/troubleshooting.md](https://github.com/stevene1919/hisense_vidaa/blob/main/docs/troubleshooting.md) and restarted Home Assistant."
+        - label: "I have reviewed [docs/troubleshooting.md](https://github.com/stevene1919/vidaa/blob/main/docs/troubleshooting.md) and restarted Home Assistant."
           required: true
 
   - type: input

@@ -56,11 +56,11 @@
         }
       },
       "upload": {
-        "title": "Upload Client Certificate or App",
-        "description": "VIDAA TVs require TLS client certificates for secure communication. Upload the official VIDAA / RemoteNOW Android app package (.apk / .xapk) or an extracted keystore (.p12 / .pfx / .pem / .crt). Home Assistant will extract and secure the certificates automatically.",
+        "title": "Otpremite sertifikat klijenta ili aplikaciju",
+        "description": "VIDAA televizorima su potrebni TLS sertifikati klijenta za bezbednu komunikaciju. Otpremite zvanični paket VIDAA / RemoteNOW Android aplikacije (.apk / .xapk) ili ekstrahovani ključ (.p12 / .pfx / .pem / .crt). Home Assistant će automatski ekstrahovati i obezbediti sertifikate.",
         "data": {
-          "cert_file": "Application Package or Keystore File",
-          "manual_paths": "Enter file paths manually instead"
+          "cert_file": "Paket aplikacije ili datoteka ključa",
+          "manual_paths": "Ručno unesite putanje do datoteka"
         }
       }
     },
@@ -70,12 +70,12 @@
       "certs_not_found": "Sertifikat ili datoteka privatnog ključa nisu pronađeni na navedenoj putanji. Proverite lokaciju datoteke i dozvole.",
       "unknown": "Došlo je do nepoznate greške.",
       "invalid_ssl_cert": "Validacija SSL sertifikata ili privatnog ključa nije uspela. Proverite da li su datoteke u ispravnom nešifrovanom PEM ili podržanom PKCS#12 formatu i da li odgovaraju jedna drugoj.",
-      "tv_not_awake": "The TV did not respond. Turn it on with the remote, wait until the picture appears, then press Submit again.",
-      "invalid_cert_archive": "Could not extract a valid VIDAA certificate keystore from the uploaded file. Please verify the APK or P12 file.",
-      "file_too_large": "The uploaded file exceeds the 150 MB size limit.",
-      "no_p12_found": "No compatible VIDAA PKCS#12 keystore was found inside the uploaded archive.",
-      "p12_decrypt_failed": "Failed to decrypt the certificate keystore. The archive password could not be verified.",
-      "invalid_pem_bundle": "Uploaded PEM/CRT file must contain both a certificate and an unencrypted private key."
+      "tv_not_awake": "Televizor nije odgovorio. Uključite ga daljinskim upravljačem, sačekajte da se pojavi slika, a zatim ponovo kliknite na Pošalji.",
+      "invalid_cert_archive": "Nije bilo moguće izdvojiti važeće VIDAA spremište sertifikata iz otpremljene datoteke. Proverite APK ili P12 datoteku.",
+      "file_too_large": "Otpremljena datoteka premašuje ograničenje veličine od 150 MB.",
+      "no_p12_found": "U otpremljenoj arhivi nije pronađeno kompatibilno VIDAA PKCS#12 spremište ključeva.",
+      "p12_decrypt_failed": "Dešifrovanje spremišta sertifikata nije uspelo. Nije bilo moguće verifikovati lozinku arhive.",
+      "invalid_pem_bundle": "Otpremljena PEM/CRT datoteka mora da sadrži i sertifikat i odgovarajući nešifrovani privatni ključ."
     },
     "abort": {
       "reauth_successful": "Ponovna autentifikacija je bila uspešna.",
@@ -102,6 +102,10 @@
         "data": {
           "enable_wol": "Omogući uključivanje putem Wake-on-LAN-a",
           "secondary_mac_address": "Sekundarna MAC adresa (Wi-Fi ili Ethernet)"
+        },
+        "data_description": {
+          "enable_wol": "Broadcasts magic packets to wake the TV from deep sleep or standby when network interfaces power down.",
+          "secondary_mac_address": "Enter the TV's second physical network interface MAC (e.g. Ethernet MAC if connected via Wi-Fi, or vice-versa). WoL magic packets will be broadcast simultaneously to both MAC addresses."
         }
       },
       "playback_sources": {
@@ -111,10 +115,15 @@
           "include_apps_in_sources": "Uključi Smart TV aplikacije u listu izvora medijskog plejera",
           "enable_media_controls": "Omogući kontrole za upravljanje medijima (pusti/pauziraj, zaustavi, preskoči)",
           "enable_cec_names": "Prikaži nazive povezanih HDMI-CEC uređaja u izvorima (npr. 'HDMI 2 (PlayStation 5)')",
-          "playback_debounce": "Prozor za stabilizaciju stanja reprodukcije / debounce (sekunde)"
+          "playback_debounce": "Prozor za stabilizaciju stanja reprodukcije / debounce (sekunde)",
+          "sources": "Enabled Sources & Applications"
         },
         "data_description": {
-          "playback_debounce": "Trajanje u sekundama za filtriranje brzih, prolaznih treperenja stanja pri pokretanju aplikacija za striming ili baferovanju."
+          "playback_debounce": "Trajanje u sekundama za filtriranje brzih, prolaznih treperenja stanja pri pokretanju aplikacija za striming ili baferovanju.",
+          "include_apps_in_sources": "Displays installed streaming apps (Netflix, YouTube, Prime Video, etc.) alongside physical HDMI inputs in the Media Player source dropdown.",
+          "sources": "Select which inputs and apps appear in the source selector. Leave empty or select all to display every detected source.",
+          "enable_media_controls": "Exposes media transport controls (Play, Pause, Stop, Previous, Next) on the Media Player card for supported apps and media playback.",
+          "enable_cec_names": "Replaces generic input labels like 'HDMI 2' with active device names reported over HDMI-CEC (e.g. 'PlayStation 5', 'Apple TV')."
         }
       },
       "features_remote": {
@@ -126,6 +135,13 @@
           "enable_audio_only": "Omogući prekidač za režim 'Samo audio' (isključen ekran)",
           "key_delay": "Podrazumevano kašnjenje tastera (sekunde)",
           "key_repeat": "Podrazumevani broj ponavljanja tastera"
+        },
+        "data_description": {
+          "enable_picture_controls": "Creates picture mode selector and backlight, brightness, and contrast slider entities. Disabling removes these entities from Home Assistant.",
+          "enable_sound_controls": "Creates an equalizer sound preset selector entity (Standard, Theatre, Music, Speech, Late Night, Sports).",
+          "enable_audio_only": "Creates a switch entity to turn off the display panel while keeping audio streaming active (ideal for music, radio, and podcasts).",
+          "key_delay": "Delay between sequential keystrokes when sending remote button sequences or automated commands.",
+          "key_repeat": "Number of times a keystroke is transmitted per command when no explicit repeat count is specified."
         }
       },
       "security": {
@@ -137,7 +153,13 @@
           "use_ssl": "Koristi šifrovanu SSL/TLS vezu",
           "certfile": "Putanja do datoteke sertifikata (.crt / .pem / .p12)",
           "keyfile": "Putanja do datoteke privatnog ključa (.key / .pem)",
-          "cert_file": "Upload New Certificate or App (.apk / .p12 / .pem)"
+          "cert_file": "Otpremite novi sertifikat ili aplikaciju (.apk / .p12 / .pem)"
+        },
+        "data_description": {
+          "auth_profile": "Select the encryption and pairing protocol. 'Auto Detect' automatically negotiates based on TV model and firmware version.",
+          "brand": "Select the TV manufacturer brand to load OEM-specific MQTT topics and client IDs. Use 'Auto Detect' unless pairing fails.",
+          "use_ssl": "Enables TLS/SSL encryption on port 36669. Required for all modern VIDAA TVs (VIDAA U4+). Only disable for older pre-2022 firmware on port 3160.",
+          "cert_file": "Upload an updated VIDAA APK, XAPK, or .p12 keystore to extract and install new certificates into Home Assistant storage."
         }
       }
     },
@@ -145,11 +167,11 @@
       "certs_not_found": "Sertifikat ili datoteka privatnog ključa nisu pronađeni na navedenoj putanji. Proverite lokaciju datoteke i dozvole.",
       "invalid_ssl_cert": "Validacija SSL sertifikata ili privatnog ključa nije uspela. Proverite da li su datoteke u ispravnom nešifrovanom PEM ili podržanom PKCS#12 formatu i da li odgovaraju jedna drugoj.",
       "invalid_mac": "Nevažeća MAC adresa. Mora biti heksadecimalna adresa od 12 cifara (npr. AA:BB:CC:DD:EE:FF).",
-      "invalid_cert_archive": "Could not extract a valid VIDAA certificate keystore from the uploaded file. Please verify the APK or P12 file.",
-      "file_too_large": "The uploaded file exceeds the 150 MB size limit.",
-      "no_p12_found": "No compatible VIDAA PKCS#12 keystore was found inside the uploaded archive.",
-      "p12_decrypt_failed": "Failed to decrypt the certificate keystore. The archive password could not be verified.",
-      "invalid_pem_bundle": "Uploaded PEM/CRT file must contain both a certificate and an unencrypted private key."
+      "invalid_cert_archive": "Nije bilo moguće izdvojiti važeće VIDAA spremište sertifikata iz otpremljene datoteke. Proverite APK ili P12 datoteku.",
+      "file_too_large": "Otpremljena datoteka premašuje ograničenje veličine od 150 MB.",
+      "no_p12_found": "U otpremljenoj arhivi nije pronađeno kompatibilno VIDAA PKCS#12 spremište ključeva.",
+      "p12_decrypt_failed": "Dešifrovanje spremišta sertifikata nije uspelo. Nije bilo moguće verifikovati lozinku arhive.",
+      "invalid_pem_bundle": "Otpremljena PEM/CRT datoteka mora da sadrži i sertifikat i odgovarajući nešifrovani privatni ključ."
     }
   },
   "entity": {
@@ -176,6 +198,9 @@
       },
       "in_use": {
         "name": "U upotrebi"
+      },
+      "auth_problem": {
+        "name": "Authentication problem"
       }
     },
     "button": {
@@ -384,6 +409,18 @@
     },
     "device_off": {
       "message": "Nije moguće izvršiti radnju: televizor je trenutno isključen."
+    },
+    "device_config_entry_not_loaded": {
+      "message": "The VIDAA integration for device {device_id} is not loaded."
+    },
+    "device_not_valid": {
+      "message": "Device {device_id} is not a valid VIDAA device."
+    },
+    "invalid_entity_id": {
+      "message": "Entity {entity_id} is not a valid VIDAA entity."
+    },
+    "unhandled_trigger_type": {
+      "message": "Trigger type {trigger_type} is not handled."
     }
   },
   "selector": {
@@ -449,6 +486,31 @@
           }
         }
       }
+    },
+    "legacy_folder_detected": {
+      "title": "Legacy integration folder detected",
+      "description": "The integration has successfully upgraded to VIDAA Smart TV (`{new_domain}`). The old folder `custom_components/{legacy_domain}` is still present on your storage. Please remove `custom_components/{legacy_domain}` and restart Home Assistant to avoid potential component collisions."
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "vidaa.turn_on": "Device is requested to turn on"
+    }
+  },
+  "triggers": {
+    "turn_on": {
+      "description": "Triggers when one or more VIDAA Smart TVs are requested to turn on.",
+      "fields": {
+        "device_id": {
+          "description": "The TVs to listen to. At least one device or entity is required.",
+          "name": "Devices"
+        },
+        "entity_id": {
+          "description": "The TV media players to listen to. At least one device or entity is required.",
+          "name": "Entities"
+        }
+      },
+      "name": "Turn on"
     }
   }
 }

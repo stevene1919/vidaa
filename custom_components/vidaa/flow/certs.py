@@ -98,6 +98,7 @@ class CertsFlowMixin:
     ) -> config_entries.ConfigFlowResult:
         """Handle certificate file upload step."""
         errors: dict[str, str] = {}
+        brand_hint: str | None = None
         if user_input is not None:
             if user_input.get(CONF_MANUAL_PATHS):
                 return await self.async_step_certs()
@@ -125,7 +126,7 @@ class CertsFlowMixin:
                         loop = asyncio.get_running_loop()
                         extracted = await loop.run_in_executor(None, _extract, uploaded_file_id, storage_dir)
 
-                    self.certfile, self.keyfile, brand_hint = extracted
+                    self.certfile, self.keyfile, upload_hint = extracted
                     self.use_ssl = True
                 except ValueError as ex:
                     _LOGGER.warning("[%s] Failed to extract certificates from upload: %s", self.ip_address, ex)
@@ -145,7 +146,7 @@ class CertsFlowMixin:
                     errors["base"] = "invalid_cert_archive"
 
             if not errors:
-                brand_hint = detect_brand_from_cert_paths(self.certfile, self.keyfile)
+                brand_hint = upload_hint or detect_brand_from_cert_paths(self.certfile, self.keyfile)
                 if brand_hint and getattr(self, "brand", DEFAULT_BRAND) == DEFAULT_BRAND:
                     self.brand = brand_hint
                     if brand_hint in BRAND_MAP:
@@ -258,7 +259,10 @@ class CertsFlowMixin:
                     if brand_hint in BRAND_MAP:
                         self.manufacturer = BRAND_MAP[brand_hint]
                 try:
-                    return await self._async_init_client_and_auth()
+                    return await self._async_init_client_and_auth(
+                        is_reauth=self._reauth_entry is not None,
+                        reauth_reason=getattr(self, "_reauth_reason", "reauth_successful"),
+                    )
                 except AbortFlow:
                     # HA flow control (e.g. already_configured) must never be
                     # turned into cannot_connect.

@@ -102,6 +102,10 @@
         "data": {
           "enable_wol": "Einschalten über Wake-on-LAN aktivieren",
           "secondary_mac_address": "Sekundäre MAC-Adresse (WLAN oder Ethernet)"
+        },
+        "data_description": {
+          "enable_wol": "Broadcasts magic packets to wake the TV from deep sleep or standby when network interfaces power down.",
+          "secondary_mac_address": "Enter the TV's second physical network interface MAC (e.g. Ethernet MAC if connected via Wi-Fi, or vice-versa). WoL magic packets will be broadcast simultaneously to both MAC addresses."
         }
       },
       "playback_sources": {
@@ -111,10 +115,15 @@
           "include_apps_in_sources": "Smart-TV-Apps in die Quellenliste des Medienplayers aufnehmen",
           "enable_media_controls": "Mediensteuerungen aktivieren (Wiedergabe/Pause, Stopp, Überspringen)",
           "enable_cec_names": "Namen angeschlossener HDMI-CEC-Geräte in Quellen anzeigen (z. B. 'HDMI 2 (PlayStation 5)')",
-          "playback_debounce": "Wiedergabestatus-Einschwingfenster / Entprellung (Sekunden)"
+          "playback_debounce": "Wiedergabestatus-Einschwingfenster / Entprellung (Sekunden)",
+          "sources": "Enabled Sources & Applications"
         },
         "data_description": {
-          "playback_debounce": "Dauer in Sekunden, um flüchtige Statuswechsel beim Starten oder Puffern von Streaming-Apps herauszufiltern."
+          "playback_debounce": "Dauer in Sekunden, um flüchtige Statuswechsel beim Starten oder Puffern von Streaming-Apps herauszufiltern.",
+          "include_apps_in_sources": "Displays installed streaming apps (Netflix, YouTube, Prime Video, etc.) alongside physical HDMI inputs in the Media Player source dropdown.",
+          "sources": "Select which inputs and apps appear in the source selector. Leave empty or select all to display every detected source.",
+          "enable_media_controls": "Exposes media transport controls (Play, Pause, Stop, Previous, Next) on the Media Player card for supported apps and media playback.",
+          "enable_cec_names": "Replaces generic input labels like 'HDMI 2' with active device names reported over HDMI-CEC (e.g. 'PlayStation 5', 'Apple TV')."
         }
       },
       "features_remote": {
@@ -126,6 +135,13 @@
           "enable_audio_only": "Nur-Audio-Schalter (Bildschirm aus) aktivieren",
           "key_delay": "Standard-Tastenverzögerung (Sekunden)",
           "key_repeat": "Standard-Tastenwiederholungsanzahl"
+        },
+        "data_description": {
+          "enable_picture_controls": "Creates picture mode selector and backlight, brightness, and contrast slider entities. Disabling removes these entities from Home Assistant.",
+          "enable_sound_controls": "Creates an equalizer sound preset selector entity (Standard, Theatre, Music, Speech, Late Night, Sports).",
+          "enable_audio_only": "Creates a switch entity to turn off the display panel while keeping audio streaming active (ideal for music, radio, and podcasts).",
+          "key_delay": "Delay between sequential keystrokes when sending remote button sequences or automated commands.",
+          "key_repeat": "Number of times a keystroke is transmitted per command when no explicit repeat count is specified."
         }
       },
       "security": {
@@ -138,6 +154,12 @@
           "keyfile": "Privater Schlüsseldateipfad (.key / .pem)",
           "brand": "TV-OEM-Marke",
           "cert_file": "Neues Zertifikat oder neue App hochladen (.apk / .p12 / .pem)"
+        },
+        "data_description": {
+          "auth_profile": "Select the encryption and pairing protocol. 'Auto Detect' automatically negotiates based on TV model and firmware version.",
+          "brand": "Select the TV manufacturer brand to load OEM-specific MQTT topics and client IDs. Use 'Auto Detect' unless pairing fails.",
+          "use_ssl": "Enables TLS/SSL encryption on port 36669. Required for all modern VIDAA TVs (VIDAA U4+). Only disable for older pre-2022 firmware on port 3160.",
+          "cert_file": "Upload an updated VIDAA APK, XAPK, or .p12 keystore to extract and install new certificates into Home Assistant storage."
         }
       }
     },
@@ -149,8 +171,7 @@
       "file_too_large": "Die hochgeladene Datei überschreitet das Größenlimit von 150 MB.",
       "no_p12_found": "Im hochgeladenen Archiv wurde kein kompatibler VIDAA PKCS#12-Keystore gefunden.",
       "p12_decrypt_failed": "Entschlüsselung des Zertifikatsspeichers fehlgeschlagen. Das Archivpasswort konnte nicht verifiziert werden.",
-      "invalid_pem_bundle": "Die hochgeladene PEM/CRT-Datei muss sowohl ein Zertifikat als auch einen unverschlüsselten privaten Schlüssel enthalten.",
-      "tv_not_awake": "Der Fernseher hat nicht geantwortet. Schalte ihn mit der Fernbedienung ein, warte, bis das Bild erscheint, und klicke erneut auf Absenden."
+      "invalid_pem_bundle": "Die hochgeladene PEM/CRT-Datei muss sowohl ein Zertifikat als auch einen unverschlüsselten privaten Schlüssel enthalten."
     }
   },
   "entity": {
@@ -177,6 +198,9 @@
       },
       "in_use": {
         "name": "In Benutzung"
+      },
+      "auth_problem": {
+        "name": "Authentication problem"
       }
     },
     "button": {
@@ -385,6 +409,18 @@
     },
     "device_off": {
       "message": "Aktion kann nicht ausgeführt werden: Fernseher ist derzeit ausgeschaltet."
+    },
+    "device_config_entry_not_loaded": {
+      "message": "The VIDAA integration for device {device_id} is not loaded."
+    },
+    "device_not_valid": {
+      "message": "Device {device_id} is not a valid VIDAA device."
+    },
+    "invalid_entity_id": {
+      "message": "Entity {entity_id} is not a valid VIDAA entity."
+    },
+    "unhandled_trigger_type": {
+      "message": "Trigger type {trigger_type} is not handled."
     }
   },
   "selector": {
@@ -450,6 +486,31 @@
           }
         }
       }
+    },
+    "legacy_folder_detected": {
+      "title": "Legacy integration folder detected",
+      "description": "The integration has successfully upgraded to VIDAA Smart TV (`{new_domain}`). The old folder `custom_components/{legacy_domain}` is still present on your storage. Please remove `custom_components/{legacy_domain}` and restart Home Assistant to avoid potential component collisions."
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "vidaa.turn_on": "Device is requested to turn on"
+    }
+  },
+  "triggers": {
+    "turn_on": {
+      "description": "Triggers when one or more VIDAA Smart TVs are requested to turn on.",
+      "fields": {
+        "device_id": {
+          "description": "The TVs to listen to. At least one device or entity is required.",
+          "name": "Devices"
+        },
+        "entity_id": {
+          "description": "The TV media players to listen to. At least one device or entity is required.",
+          "name": "Entities"
+        }
+      },
+      "name": "Turn on"
     }
   }
 }

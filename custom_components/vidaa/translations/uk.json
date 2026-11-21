@@ -56,11 +56,11 @@
         }
       },
       "upload": {
-        "title": "Upload Client Certificate or App",
-        "description": "VIDAA TVs require TLS client certificates for secure communication. Upload the official VIDAA / RemoteNOW Android app package (.apk / .xapk) or an extracted keystore (.p12 / .pfx / .pem / .crt). Home Assistant will extract and secure the certificates automatically.",
+        "title": "Завантажити клієнтський сертифікат або додаток",
+        "description": "Телевізорам VIDAA потрібні клієнтські сертифікати TLS для безпечного зв’язку. Завантажте офіційний пакет додатка VIDAA / RemoteNOW для Android (.apk / .xapk) або видобуте сховище ключів (.p12 / .pfx / .pem / .crt). Home Assistant автоматично видобуде та захистить сертифікати.",
         "data": {
-          "cert_file": "Application Package or Keystore File",
-          "manual_paths": "Enter file paths manually instead"
+          "cert_file": "Пакет додатка або файл сховища ключів",
+          "manual_paths": "Ввести шляхи до файлів вручну"
         }
       }
     },
@@ -70,12 +70,12 @@
       "certs_not_found": "Файл сертифіката або приватного ключа не знайдено за вказаним шляхом. Перевірте розташування та права доступу.",
       "unknown": "Сталася невідома помилка.",
       "invalid_ssl_cert": "Сертифікат SSL або приватний ключ не пройшли перевірку. Переконайтеся, що файли збережені у форматі PEM або PKCS#12 та відповідають один одному.",
-      "tv_not_awake": "The TV did not respond. Turn it on with the remote, wait until the picture appears, then press Submit again.",
-      "invalid_cert_archive": "Could not extract a valid VIDAA certificate keystore from the uploaded file. Please verify the APK or P12 file.",
-      "file_too_large": "The uploaded file exceeds the 150 MB size limit.",
-      "no_p12_found": "No compatible VIDAA PKCS#12 keystore was found inside the uploaded archive.",
-      "p12_decrypt_failed": "Failed to decrypt the certificate keystore. The archive password could not be verified.",
-      "invalid_pem_bundle": "Uploaded PEM/CRT file must contain both a certificate and an unencrypted private key."
+      "tv_not_awake": "Телевізор не відповів. Увімкніть його пультом, дочекайтеся появи зображення та натисніть «Надіслати» знову.",
+      "invalid_cert_archive": "Не вдалося видобути дійсне сховище сертифікатів VIDAA із завантаженого файлу. Перевірте файл APK або P12.",
+      "file_too_large": "Розмір завантаженого файлу перевищує ліміт 150 МБ.",
+      "no_p12_found": "У завантаженому архіві не знайдено сумісного сховища PKCS#12 VIDAA.",
+      "p12_decrypt_failed": "Не вдалося розшифрувати сховище сертифікатів. Не вдалося перевірити пароль архіву.",
+      "invalid_pem_bundle": "Завантажений файл PEM/CRT повинен містити як сертифікат, так і відповідний незашифрований закритий ключ."
     },
     "abort": {
       "reauth_successful": "Повторна автентифікація пройшла успішно.",
@@ -102,6 +102,10 @@
         "data": {
           "enable_wol": "Увімкнути увімкнення через Wake-on-LAN",
           "secondary_mac_address": "Друга MAC-адреса (Wi-Fi або Ethernet)"
+        },
+        "data_description": {
+          "enable_wol": "Broadcasts magic packets to wake the TV from deep sleep or standby when network interfaces power down.",
+          "secondary_mac_address": "Enter the TV's second physical network interface MAC (e.g. Ethernet MAC if connected via Wi-Fi, or vice-versa). WoL magic packets will be broadcast simultaneously to both MAC addresses."
         }
       },
       "playback_sources": {
@@ -115,7 +119,11 @@
           "playback_debounce": "Час стабілізації стану відтворення / дебаунс (секунди)"
         },
         "data_description": {
-          "playback_debounce": "Тривалість у секундах для фільтрації короткочасних мерехтінь стану при запуску або буферизації додатків."
+          "playback_debounce": "Тривалість у секундах для фільтрації короткочасних мерехтінь стану при запуску або буферизації додатків.",
+          "include_apps_in_sources": "Displays installed streaming apps (Netflix, YouTube, Prime Video, etc.) alongside physical HDMI inputs in the Media Player source dropdown.",
+          "sources": "Select which inputs and apps appear in the source selector. Leave empty or select all to display every detected source.",
+          "enable_media_controls": "Exposes media transport controls (Play, Pause, Stop, Previous, Next) on the Media Player card for supported apps and media playback.",
+          "enable_cec_names": "Replaces generic input labels like 'HDMI 2' with active device names reported over HDMI-CEC (e.g. 'PlayStation 5', 'Apple TV')."
         }
       },
       "features_remote": {
@@ -127,6 +135,13 @@
           "enable_audio_only": "Увімкнути перемикач «Тільки аудіо» (Вимкнення екрана)",
           "key_delay": "Типова затримка натискання клавіш (секунди)",
           "key_repeat": "Типова кількість повторень клавіш"
+        },
+        "data_description": {
+          "enable_picture_controls": "Creates picture mode selector and backlight, brightness, and contrast slider entities. Disabling removes these entities from Home Assistant.",
+          "enable_sound_controls": "Creates an equalizer sound preset selector entity (Standard, Theatre, Music, Speech, Late Night, Sports).",
+          "enable_audio_only": "Creates a switch entity to turn off the display panel while keeping audio streaming active (ideal for music, radio, and podcasts).",
+          "key_delay": "Delay between sequential keystrokes when sending remote button sequences or automated commands.",
+          "key_repeat": "Number of times a keystroke is transmitted per command when no explicit repeat count is specified."
         }
       },
       "security": {
@@ -138,7 +153,13 @@
           "use_ssl": "Використовувати зашифроване з'єднання SSL/TLS",
           "certfile": "Шлях до файлу сертифіката (.crt / .pem / .p12)",
           "keyfile": "Шлях до файлу приватного ключа (.key / .pem)",
-          "cert_file": "Upload New Certificate or App (.apk / .p12 / .pem)"
+          "cert_file": "Завантажити новий сертифікат або додаток (.apk / .p12 / .pem)"
+        },
+        "data_description": {
+          "auth_profile": "Select the encryption and pairing protocol. 'Auto Detect' automatically negotiates based on TV model and firmware version.",
+          "brand": "Select the TV manufacturer brand to load OEM-specific MQTT topics and client IDs. Use 'Auto Detect' unless pairing fails.",
+          "use_ssl": "Enables TLS/SSL encryption on port 36669. Required for all modern VIDAA TVs (VIDAA U4+). Only disable for older pre-2022 firmware on port 3160.",
+          "cert_file": "Upload an updated VIDAA APK, XAPK, or .p12 keystore to extract and install new certificates into Home Assistant storage."
         }
       }
     },
@@ -146,11 +167,11 @@
       "certs_not_found": "Файл сертифіката або ключа не знайдено за вказаним шляхом.",
       "invalid_ssl_cert": "Сертифікат SSL або приватний ключ не пройшли перевірку.",
       "invalid_mac": "Недійсна MAC-адреса. Повинна містити 12-значну шістнадцяткову адресу (наприклад, AA:BB:CC:DD:EE:FF).",
-      "invalid_cert_archive": "Could not extract a valid VIDAA certificate keystore from the uploaded file. Please verify the APK or P12 file.",
-      "file_too_large": "The uploaded file exceeds the 150 MB size limit.",
-      "no_p12_found": "No compatible VIDAA PKCS#12 keystore was found inside the uploaded archive.",
-      "p12_decrypt_failed": "Failed to decrypt the certificate keystore. The archive password could not be verified.",
-      "invalid_pem_bundle": "Uploaded PEM/CRT file must contain both a certificate and an unencrypted private key."
+      "invalid_cert_archive": "Не вдалося видобути дійсне сховище сертифікатів VIDAA із завантаженого файлу. Перевірте файл APK або P12.",
+      "file_too_large": "Розмір завантаженого файлу перевищує ліміт 150 МБ.",
+      "no_p12_found": "У завантаженому архіві не знайдено сумісного сховища PKCS#12 VIDAA.",
+      "p12_decrypt_failed": "Не вдалося розшифрувати сховище сертифікатів. Не вдалося перевірити пароль архіву.",
+      "invalid_pem_bundle": "Завантажений файл PEM/CRT повинен містити як сертифікат, так і відповідний незашифрований закритий ключ."
     }
   },
   "entity": {
@@ -177,6 +198,9 @@
       },
       "in_use": {
         "name": "Використовується"
+      },
+      "auth_problem": {
+        "name": "Authentication problem"
       }
     },
     "button": {
@@ -358,6 +382,45 @@
     },
     "device_off": {
       "message": "Неможливо виконати дію: телевізор наразі вимкнено."
+    },
+    "ambiguous_target": {
+      "message": "Multiple VIDAA Smart TVs are configured. Please specify a target TV, or use 'all' to target every TV."
+    },
+    "no_target_device": {
+      "message": "No matching VIDAA Smart TV was found for the specified service call target."
+    },
+    "not_connected": {
+      "message": "TV offline: Device unreachable."
+    },
+    "send_key_failed": {
+      "message": "Failed to send key {key}: {error}"
+    },
+    "empty_key_sequence": {
+      "message": "Sequence must contain at least one key."
+    },
+    "send_key_sequence_failed": {
+      "message": "Failed to send sequence key {key}: {error}"
+    },
+    "invalid_channel_digits": {
+      "message": "Channel {channel} contains no valid digits."
+    },
+    "change_channel_digit_failed": {
+      "message": "Failed to send channel digit {digit}: {error}"
+    },
+    "change_channel_confirm_failed": {
+      "message": "Failed to send channel confirm key: {error}"
+    },
+    "launch_app_failed": {
+      "message": "Failed to launch app {app_name}: {error}"
+    },
+    "set_picture_setting_failed": {
+      "message": "Failed to set picture setting (menu_id={menu_id}): {error}"
+    },
+    "set_sound_setting_failed": {
+      "message": "Failed to set sound setting (menu_id={menu_id}): {error}"
+    },
+    "send_text_input_failed": {
+      "message": "Failed to send text input: {error}"
     }
   },
   "selector": {
@@ -423,6 +486,10 @@
           }
         }
       }
+    },
+    "legacy_folder_detected": {
+      "title": "Legacy integration folder detected",
+      "description": "The integration has successfully upgraded to VIDAA Smart TV (`{new_domain}`). The old folder `custom_components/{legacy_domain}` is still present on your storage. Please remove `custom_components/{legacy_domain}` and restart Home Assistant to avoid potential component collisions."
     }
   },
   "device_automation": {

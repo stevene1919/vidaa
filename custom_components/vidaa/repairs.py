@@ -47,10 +47,12 @@ class CertificateMissingRepairFlow(RepairsFlow):
 
                 def _verify_resolved_certs() -> bool:
                     try:
+                        config_dir = self.hass.config.config_dir if hasattr(self.hass, "config") else None
                         cert, key = resolve_certificates(
                             auth_profile=auth_profile,
                             certfile=custom_cert,
                             keyfile=custom_key,
+                            config_dir=config_dir,
                         )
                     except TypeError:
                         cert, key = resolve_certificates()

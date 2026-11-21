@@ -247,14 +247,6 @@ def extract_and_install_certs(
             if not (cert_marker in raw_data and key_marker):
                 raise ValueError("Uploaded PEM/CRT file must contain both a certificate and an unencrypted private key")
 
-            cert_start = raw_data.find(cert_marker)
-            cert_end_marker = b"-----END CERTIFICATE-----"
-            cert_end_idx = raw_data.find(cert_end_marker)
-            if cert_end_idx == -1:
-                raise ValueError("Malformed certificate in uploaded PEM file")
-            cert_end = cert_end_idx + len(cert_end_marker)
-            cert_pem = raw_data[cert_start:cert_end].strip()
-
             key_start = raw_data.find(key_marker)
             end_marker = key_marker.replace(b"BEGIN", b"END")
             key_end_idx = raw_data.find(end_marker)
@@ -264,10 +256,46 @@ def extract_and_install_certs(
             key_pem = raw_data[key_start:key_end].strip()
 
             try:
-                certificate = x509.load_pem_x509_certificate(cert_pem)
                 private_key = serialization.load_pem_private_key(key_pem, password=None)
             except Exception as e:
-                raise ValueError(f"Failed parsing uploaded PEM certificate or key: {e}") from e
+                raise ValueError(f"Failed parsing uploaded private key: {e}") from e
+
+            # Parse all certificates in the file to find the matching leaf certificate
+            all_certs: list[x509.Certificate] = []
+            cur_pos = 0
+            cert_end_marker = b"-----END CERTIFICATE-----"
+            while True:
+                c_start = raw_data.find(cert_marker, cur_pos)
+                if c_start == -1:
+                    break
+                c_end_idx = raw_data.find(cert_end_marker, c_start)
+                if c_end_idx == -1:
+                    break
+                c_end = c_end_idx + len(cert_end_marker)
+                c_pem = raw_data[c_start:c_end].strip()
+                cur_pos = c_end
+                with contextlib.suppress(Exception):
+                    all_certs.append(x509.load_pem_x509_certificate(c_pem))
+
+            if not all_certs:
+                raise ValueError("Malformed certificate in uploaded PEM file")
+
+            priv_pub_bytes = private_key.public_key().public_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo,
+            )
+            for cert_cand in all_certs:
+                with contextlib.suppress(Exception):
+                    cand_pub_bytes = cert_cand.public_key().public_bytes(
+                        encoding=serialization.Encoding.PEM,
+                        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+                    )
+                    if cand_pub_bytes == priv_pub_bytes:
+                        certificate = cert_cand
+                        break
+
+            if not certificate:
+                raise ValueError("Uploaded PEM certificate does not match the included private key")
         else:
             p12_bytes = raw_data
 

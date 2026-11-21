@@ -298,8 +298,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
 
     ca_cert = None
     if use_ssl and auth_profile not in ("legacy", "static"):
-        certfile, keyfile = await hass.async_add_executor_job(resolve_certificates, auth_profile, certfile, keyfile)
-        ca_cert = await hass.async_add_executor_job(resolve_ca_certificate, None)
+        config_dir = hass.config.config_dir if hasattr(hass, "config") else None
+        certfile, keyfile = await hass.async_add_executor_job(
+            resolve_certificates, auth_profile, certfile, keyfile, config_dir
+        )
+        ca_cert = await hass.async_add_executor_job(resolve_ca_certificate, None, config_dir)
     elif auth_profile in ("legacy", "static"):
         if certfile and not os.path.isfile(certfile):
             certfile = None

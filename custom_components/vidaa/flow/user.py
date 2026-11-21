@@ -261,7 +261,16 @@ class UserFlowMixin:
                 else:
                     return await self.async_step_upload()
             else:
-                return await self.async_step_upload()
+                if await self._async_resolve_ssl_certs():
+                    try:
+                        return await self._async_init_client_and_auth()
+                    except AbortFlow:
+                        raise
+                    except Exception as e:
+                        _LOGGER.warning("[%s] Failed to connect or initiate auth with TV: %s", self.ip_address, e)
+                        errors["base"] = "cannot_connect"
+                else:
+                    return await self.async_step_upload()
 
         return self.async_show_form(
             step_id="user",

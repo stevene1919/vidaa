@@ -55,11 +55,16 @@ class CertsFlowMixin:
 
     async def _async_resolve_ssl_certs(self: VidaaConfigFlow) -> bool:
         """Attempts to resolve certificates from disk or profile off the event loop."""
+        config_dir = self.hass.config.config_dir if hasattr(self, "hass") and hasattr(self.hass, "config") else None
         if hasattr(self, "hass") and self.hass:
-            success, cert, key, use_ssl = await self.hass.async_add_executor_job(resolve_ssl_certs, self.auth_profile)
+            success, cert, key, use_ssl = await self.hass.async_add_executor_job(
+                resolve_ssl_certs, self.auth_profile, config_dir
+            )
         else:
             loop = asyncio.get_running_loop()
-            success, cert, key, use_ssl = await loop.run_in_executor(None, resolve_ssl_certs, self.auth_profile)
+            success, cert, key, use_ssl = await loop.run_in_executor(
+                None, resolve_ssl_certs, self.auth_profile, config_dir
+            )
         if success:
             self.certfile = cert
             self.keyfile = key
@@ -74,7 +79,8 @@ class CertsFlowMixin:
 
     def _resolve_ssl_certs(self: VidaaConfigFlow) -> bool:
         """Synchronous fallback to resolve certificates from disk or profile."""
-        success, cert, key, use_ssl = resolve_ssl_certs(self.auth_profile)
+        config_dir = self.hass.config.config_dir if hasattr(self, "hass") and hasattr(self.hass, "config") else None
+        success, cert, key, use_ssl = resolve_ssl_certs(self.auth_profile, config_dir)
         if success:
             self.certfile = cert
             self.keyfile = key
@@ -108,10 +114,8 @@ class CertsFlowMixin:
                     )
 
                     def _extract(file_id: str, dest: Path) -> tuple[str, str]:
-                        if hasattr(self, "hass") and self.hass and "file_upload" in getattr(self.hass, "data", {}):
-                            with process_uploaded_file(self.hass, file_id) as uploaded_path:
-                                return extract_and_install_certs(uploaded_path, dest)
-                        return extract_and_install_certs(Path(file_id), dest)
+                        with process_uploaded_file(self.hass, file_id) as uploaded_path:
+                            return extract_and_install_certs(uploaded_path, dest)
 
                     if hasattr(self, "hass") and self.hass:
                         extracted = await self.hass.async_add_executor_job(_extract, uploaded_file_id, storage_dir)
@@ -124,10 +128,12 @@ class CertsFlowMixin:
                 except ValueError as ex:
                     _LOGGER.warning("[%s] Failed to extract certificates from upload: %s", self.ip_address, ex)
                     err_msg = str(ex).lower()
-                    if "size limit" in err_msg:
+                    if "size limit" in err_msg or "exceeds maximum" in err_msg:
                         errors["base"] = "file_too_large"
                     elif "decrypt" in err_msg:
                         errors["base"] = "p12_decrypt_failed"
+                    elif "both a certificate and" in err_msg or "malformed" in err_msg or "failed parsing" in err_msg:
+                        errors["base"] = "invalid_pem_bundle"
                     elif "no vidaa pkcs#12" in err_msg:
                         errors["base"] = "no_p12_found"
                     else:
@@ -143,7 +149,10 @@ class CertsFlowMixin:
                     if brand_hint in BRAND_MAP:
                         self.manufacturer = BRAND_MAP[brand_hint]
                 try:
-                    return await self._async_init_client_and_auth()
+                    return await self._async_init_client_and_auth(
+                        is_reauth=self._reauth_entry is not None,
+                        reauth_reason=getattr(self, "_reauth_reason", "reauth_successful"),
+                    )
                 except AbortFlow:
                     raise
                 except ssl.SSLError as e:
@@ -155,7 +164,7 @@ class CertsFlowMixin:
 
         upload_schema = vol.Schema(
             {
-                vol.Required(CONF_CERT_FILE): selector.FileSelector(
+                vol.Optional(CONF_CERT_FILE): selector.FileSelector(
                     selector.FileSelectorConfig(accept=".apk,.xapk,.p12,.pfx,.pem,.crt")
                 ),
                 vol.Optional(CONF_MANUAL_PATHS, default=False): bool,

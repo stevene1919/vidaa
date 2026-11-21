@@ -192,7 +192,7 @@ async def test_user_step_auto_certs_missing_routes_to_certs(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_user_step_explicit_model_routes_to_certs():
+async def test_user_step_explicit_model_routes_to_certs(monkeypatch):
     """When an explicit model profile is selected, it routes to upload step if certs missing."""
     hass = MagicMock(spec=HomeAssistant)
     hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
@@ -200,6 +200,11 @@ async def test_user_step_explicit_model_routes_to_certs():
     flow = VidaaConfigFlow()
     flow.hass = hass
     flow.context = {}
+
+    monkeypatch.setattr(
+        "custom_components.vidaa.protocol.check_certs_exist",
+        lambda c, k: False,
+    )
 
     result = await flow.async_step_user(user_input={"ip_address": "192.168.1.100", "auth_profile": "modern"})
     assert result["type"] == "form"
@@ -616,14 +621,23 @@ async def test_user_step_legacy_profile_without_certs_proceeds(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_upload_step_success(monkeypatch):
+async def test_upload_step_success(tmp_path, monkeypatch):
     """Test successful upload step extracting certificates and progressing to auth."""
+    import zipfile
+
+    from tests.test_crypto import _create_test_p12_bytes
+
+    p12_bytes = _create_test_p12_bytes()
+    apk_path = tmp_path / "app.apk"
+    with zipfile.ZipFile(apk_path, "w") as z:
+        z.writestr("res/raw/client_mobile_android.p12", p12_bytes)
+
+    target_certs_dir = tmp_path / "certs"
+
     hass = MagicMock(spec=HomeAssistant)
-    hass.async_add_executor_job = AsyncMock(
-        return_value=("/config/.storage/vidaa/certs/hisense.crt", "/config/.storage/vidaa/certs/hisense.key")
-    )
+    hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
     hass.config = MagicMock()
-    hass.config.path = MagicMock(return_value="/config/.storage/vidaa/certs")
+    hass.config.path = MagicMock(return_value=str(target_certs_dir))
 
     flow = VidaaConfigFlow()
     flow.hass = hass
@@ -635,12 +649,49 @@ async def test_upload_step_success(monkeypatch):
         AsyncMock(return_value={"type": "form", "step_id": "auth"}),
     )
 
-    result = await flow.async_step_upload(user_input={"cert_file": "mock_file_id"})
+    result = await flow.async_step_upload(user_input={"cert_file": str(apk_path)})
     assert result["type"] == "form"
     assert result["step_id"] == "auth"
-    assert flow.certfile == "/config/.storage/vidaa/certs/hisense.crt"
-    assert flow.keyfile == "/config/.storage/vidaa/certs/hisense.key"
+    assert flow.certfile == str(target_certs_dir / "hisense.crt")
+    assert flow.keyfile == str(target_certs_dir / "hisense.key")
     assert flow.use_ssl is True
+
+
+@pytest.mark.anyio
+async def test_upload_step_manual_paths_without_file():
+    """Test checking 'manual_paths' without providing cert_file routes directly to certs step."""
+    hass = MagicMock(spec=HomeAssistant)
+    hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
+    flow = VidaaConfigFlow()
+    flow.hass = hass
+    flow.context = {}
+    flow.ip_address = "192.168.1.100"
+
+    result = await flow.async_step_upload(user_input={"manual_paths": True})
+    assert result["type"] == "form"
+    assert result["step_id"] == "certs"
+
+
+@pytest.mark.anyio
+async def test_upload_step_crt_only_rejected(tmp_path):
+    """Test uploading CRT-only without key is rejected with invalid_pem_bundle error."""
+    crt_file = tmp_path / "only.crt"
+    crt_file.write_text("-----BEGIN CERTIFICATE-----\nMIIB...\n-----END CERTIFICATE-----\n")
+
+    hass = MagicMock(spec=HomeAssistant)
+    hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
+    hass.config = MagicMock()
+    hass.config.path = MagicMock(return_value=str(tmp_path / "certs"))
+
+    flow = VidaaConfigFlow()
+    flow.hass = hass
+    flow.context = {}
+    flow.ip_address = "192.168.1.100"
+
+    result = await flow.async_step_upload(user_input={"cert_file": str(crt_file)})
+    assert result["type"] == "form"
+    assert result["step_id"] == "upload"
+    assert result["errors"]["base"] == "invalid_pem_bundle"
 
 
 @pytest.mark.anyio

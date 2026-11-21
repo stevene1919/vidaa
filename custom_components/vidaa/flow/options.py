@@ -327,10 +327,8 @@ class VidaaOptionsFlowHandler(config_entries.OptionsFlow):
                     )
 
                     def _extract(file_id: str, dest: Path) -> tuple[str, str]:
-                        if hasattr(self, "hass") and self.hass and "file_upload" in getattr(self.hass, "data", {}):
-                            with process_uploaded_file(self.hass, file_id) as uploaded_path:
-                                return extract_and_install_certs(uploaded_path, dest)
-                        return extract_and_install_certs(Path(file_id), dest)
+                        with process_uploaded_file(self.hass, file_id) as uploaded_path:
+                            return extract_and_install_certs(uploaded_path, dest)
 
                     if hasattr(self, "hass") and self.hass:
                         extracted = await self.hass.async_add_executor_job(_extract, uploaded_file_id, storage_dir)
@@ -340,14 +338,27 @@ class VidaaOptionsFlowHandler(config_entries.OptionsFlow):
 
                     user_input[CONF_CERTFILE] = extracted[0]
                     user_input[CONF_KEYFILE] = extracted[1]
-                except Exception as ex:
+                except ValueError as ex:
                     _LOGGER.warning("Failed to extract uploaded cert in options flow: %s", ex)
+                    err_msg = str(ex).lower()
+                    if "size limit" in err_msg or "exceeds maximum" in err_msg:
+                        errors["base"] = "file_too_large"
+                    elif "decrypt" in err_msg:
+                        errors["base"] = "p12_decrypt_failed"
+                    elif "both a certificate and" in err_msg or "malformed" in err_msg or "failed parsing" in err_msg:
+                        errors["base"] = "invalid_pem_bundle"
+                    elif "no vidaa pkcs#12" in err_msg:
+                        errors["base"] = "no_p12_found"
+                    else:
+                        errors["base"] = "invalid_cert_archive"
+                except Exception as ex:
+                    _LOGGER.warning("Unexpected error during certificate extraction in options flow: %s", ex)
                     errors["base"] = "invalid_cert_archive"
 
             new_cert = (user_input.get(CONF_CERTFILE) or "").strip()
             new_key = (user_input.get(CONF_KEYFILE) or "").strip()
 
-            if new_cert or new_key:
+            if not errors and (new_cert or new_key):
 
                 async def _check_exist(c: str | None, k: str | None) -> bool:
                     if hasattr(self, "hass") and self.hass:

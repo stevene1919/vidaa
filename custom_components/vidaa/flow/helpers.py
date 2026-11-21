@@ -86,6 +86,7 @@ def build_entry_options(user_input: dict[str, Any], picture_supported: bool, sou
 
 def resolve_ssl_certs(
     auth_profile: str,
+    config_dir: str | None = None,
 ) -> tuple[bool, str | None, str | None, bool]:
     """Resolves certificates from disk or profile.
 
@@ -94,7 +95,7 @@ def resolve_ssl_certs(
     if auth_profile == "legacy":
         return True, None, None, False
 
-    resolved_cert, resolved_key = resolve_certificates(auth_profile)
+    resolved_cert, resolved_key = resolve_certificates(auth_profile, config_dir=config_dir)
     if protocol.check_certs_exist(resolved_cert, resolved_key):
         return True, resolved_cert, resolved_key, True
 

@@ -74,7 +74,8 @@
       "invalid_cert_archive": "Could not extract a valid VIDAA certificate keystore from the uploaded file. Please verify the APK or P12 file.",
       "file_too_large": "The uploaded file exceeds the 150 MB size limit.",
       "no_p12_found": "No compatible VIDAA PKCS#12 keystore was found inside the uploaded archive.",
-      "p12_decrypt_failed": "Failed to decrypt the certificate keystore. The archive password could not be verified."
+      "p12_decrypt_failed": "Failed to decrypt the certificate keystore. The archive password could not be verified.",
+      "invalid_pem_bundle": "Uploaded PEM/CRT file must contain both a certificate and an unencrypted private key."
     },
     "abort": {
       "reauth_successful": "Re-authentication was successful.",
@@ -165,7 +166,12 @@
     "error": {
       "certs_not_found": "Certificate or private key file was not found at the specified path. Please check the file location and permissions.",
       "invalid_ssl_cert": "SSL certificate or private key failed validation. Verify that the files are in valid unencrypted PEM or supported PKCS#12 format and match each other.",
-      "invalid_mac": "Invalid MAC address. Must be a 12-digit hexadecimal address (e.g. AA:BB:CC:DD:EE:FF)."
+      "invalid_mac": "Invalid MAC address. Must be a 12-digit hexadecimal address (e.g. AA:BB:CC:DD:EE:FF).",
+      "invalid_cert_archive": "Could not extract a valid VIDAA certificate keystore from the uploaded file. Please verify the APK or P12 file.",
+      "file_too_large": "The uploaded file exceeds the 150 MB size limit.",
+      "no_p12_found": "No compatible VIDAA PKCS#12 keystore was found inside the uploaded archive.",
+      "p12_decrypt_failed": "Failed to decrypt the certificate keystore. The archive password could not be verified.",
+      "invalid_pem_bundle": "Uploaded PEM/CRT file must contain both a certificate and an unencrypted private key."
     }
   },
   "entity": {

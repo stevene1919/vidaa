@@ -54,6 +54,14 @@
           "enable_sound_controls": "Omogući izbor ekvilajzera za režim zvuka",
           "enable_audio_only": "Omogući prekidač za režim 'Samo audio' (isključen ekran)"
         }
+      },
+      "upload": {
+        "title": "Upload Client Certificate or App",
+        "description": "VIDAA TVs require TLS client certificates for secure communication. Upload the official VIDAA / RemoteNOW Android app package (.apk / .xapk) or an extracted keystore (.p12 / .pfx / .pem / .crt). Home Assistant will extract and secure the certificates automatically.",
+        "data": {
+          "cert_file": "Application Package or Keystore File",
+          "manual_paths": "Enter file paths manually instead"
+        }
       }
     },
     "error": {
@@ -61,7 +69,13 @@
       "invalid_auth": "Nevažeći PIN kod. Pokušajte ponovo.",
       "certs_not_found": "Sertifikat ili datoteka privatnog ključa nisu pronađeni na navedenoj putanji. Proverite lokaciju datoteke i dozvole.",
       "unknown": "Došlo je do nepoznate greške.",
-      "invalid_ssl_cert": "Validacija SSL sertifikata ili privatnog ključa nije uspela. Proverite da li su datoteke u ispravnom nešifrovanom PEM ili podržanom PKCS#12 formatu i da li odgovaraju jedna drugoj."
+      "invalid_ssl_cert": "Validacija SSL sertifikata ili privatnog ključa nije uspela. Proverite da li su datoteke u ispravnom nešifrovanom PEM ili podržanom PKCS#12 formatu i da li odgovaraju jedna drugoj.",
+      "tv_not_awake": "The TV did not respond. Turn it on with the remote, wait until the picture appears, then press Submit again.",
+      "invalid_cert_archive": "Could not extract a valid VIDAA certificate keystore from the uploaded file. Please verify the APK or P12 file.",
+      "file_too_large": "The uploaded file exceeds the 150 MB size limit.",
+      "no_p12_found": "No compatible VIDAA PKCS#12 keystore was found inside the uploaded archive.",
+      "p12_decrypt_failed": "Failed to decrypt the certificate keystore. The archive password could not be verified.",
+      "invalid_pem_bundle": "Uploaded PEM/CRT file must contain both a certificate and an unencrypted private key."
     },
     "abort": {
       "reauth_successful": "Ponovna autentifikacija je bila uspešna.",
@@ -122,14 +136,20 @@
           "brand": "OEM marka televizora",
           "use_ssl": "Koristi šifrovanu SSL/TLS vezu",
           "certfile": "Putanja do datoteke sertifikata (.crt / .pem / .p12)",
-          "keyfile": "Putanja do datoteke privatnog ključa (.key / .pem)"
+          "keyfile": "Putanja do datoteke privatnog ključa (.key / .pem)",
+          "cert_file": "Upload New Certificate or App (.apk / .p12 / .pem)"
         }
       }
     },
     "error": {
       "certs_not_found": "Sertifikat ili datoteka privatnog ključa nisu pronađeni na navedenoj putanji. Proverite lokaciju datoteke i dozvole.",
       "invalid_ssl_cert": "Validacija SSL sertifikata ili privatnog ključa nije uspela. Proverite da li su datoteke u ispravnom nešifrovanom PEM ili podržanom PKCS#12 formatu i da li odgovaraju jedna drugoj.",
-      "invalid_mac": "Nevažeća MAC adresa. Mora biti heksadecimalna adresa od 12 cifara (npr. AA:BB:CC:DD:EE:FF)."
+      "invalid_mac": "Nevažeća MAC adresa. Mora biti heksadecimalna adresa od 12 cifara (npr. AA:BB:CC:DD:EE:FF).",
+      "invalid_cert_archive": "Could not extract a valid VIDAA certificate keystore from the uploaded file. Please verify the APK or P12 file.",
+      "file_too_large": "The uploaded file exceeds the 150 MB size limit.",
+      "no_p12_found": "No compatible VIDAA PKCS#12 keystore was found inside the uploaded archive.",
+      "p12_decrypt_failed": "Failed to decrypt the certificate keystore. The archive password could not be verified.",
+      "invalid_pem_bundle": "Uploaded PEM/CRT file must contain both a certificate and an unencrypted private key."
     }
   },
   "entity": {

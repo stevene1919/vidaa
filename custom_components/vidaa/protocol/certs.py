@@ -273,16 +273,23 @@ def _extract_p12_bytes_from_archive(file_path: Path) -> bytes:
         # Check direct candidate paths
         for candidate in P12_CANDIDATES:
             if candidate.lower() in lower_names:
-                return archive.read(lower_names[candidate.lower()])
+                actual = lower_names[candidate.lower()]
+                if archive.getinfo(actual).file_size > 10 * 1024 * 1024:
+                    raise ValueError("Keystore file in archive exceeds size limit")
+                return archive.read(actual)
 
         # Check for any .p12/.pfx files in archive
         for name in names:
             if name.lower().endswith((".p12", ".pfx")) and not name.startswith("__MACOSX"):
+                if archive.getinfo(name).file_size > 10 * 1024 * 1024:
+                    raise ValueError("Keystore file in archive exceeds size limit")
                 return archive.read(name)
 
         # Check nested APKs (e.g. XAPK / APKS bundle)
         for name in names:
             if name.lower().endswith(".apk") and not name.startswith("__MACOSX"):
+                if archive.getinfo(name).file_size > MAX_UPLOAD_SIZE:
+                    continue
                 try:
                     inner_bytes = archive.read(name)
                     if zipfile.is_zipfile(io.BytesIO(inner_bytes)):
@@ -290,16 +297,23 @@ def _extract_p12_bytes_from_archive(file_path: Path) -> bytes:
                             for inner_member in inner_apk.infolist():
                                 iname = inner_member.filename
                                 if iname.startswith(("/", "\\")) or ".." in Path(iname).parts:
-                                    continue
+                                    raise ValueError(f"Insecure file path detected in nested archive: {iname}")
                             inner_lower = {n.lower(): n for n in inner_apk.namelist()}
                             for candidate in P12_CANDIDATES:
                                 if candidate.lower() in inner_lower:
-                                    return inner_apk.read(inner_lower[candidate.lower()])
+                                    actual = inner_lower[candidate.lower()]
+                                    if inner_apk.getinfo(actual).file_size > 10 * 1024 * 1024:
+                                        raise ValueError("Keystore file in nested archive exceeds size limit")
+                                    return inner_apk.read(actual)
                             for inner_name in inner_apk.namelist():
                                 if inner_name.lower().endswith((".p12", ".pfx")) and not inner_name.startswith(
                                     "__MACOSX"
                                 ):
+                                    if inner_apk.getinfo(inner_name).file_size > 10 * 1024 * 1024:
+                                        raise ValueError("Keystore file in nested archive exceeds size limit")
                                     return inner_apk.read(inner_name)
+                except ValueError:
+                    raise
                 except Exception as ex:
                     _LOGGER.debug("Skipping unreadable nested APK '%s': %s", name, ex)
                     continue
@@ -331,17 +345,17 @@ def extract_and_install_certs(
     if src.stat().st_size > MAX_UPLOAD_SIZE:
         raise ValueError(f"Uploaded file exceeds maximum limit of {MAX_UPLOAD_SIZE // (1024 * 1024)} MB")
 
-    raw_data = src.read_bytes()
     private_key = None
     certificate = None
 
-    # Check if user directly uploaded unencrypted PEM containing both cert and key
-    if b"-----BEGIN CERTIFICATE-----" in raw_data and (
-        b"-----BEGIN PRIVATE KEY-----" in raw_data
-        or b"-----BEGIN RSA PRIVATE KEY-----" in raw_data
-        or b"-----BEGIN EC PRIVATE KEY-----" in raw_data
-    ):
-        try:
+    if zipfile.is_zipfile(src):
+        p12_bytes = _extract_p12_bytes_from_archive(src)
+    else:
+        if src.stat().st_size > 10 * 1024 * 1024:
+            raise ValueError("Uploaded non-archive keystore exceeds maximum limit of 10 MB")
+        raw_data = src.read_bytes()
+
+        if b"-----BEGIN " in raw_data:
             cert_marker = b"-----BEGIN CERTIFICATE-----"
             key_marker = None
             for km in (
@@ -352,24 +366,34 @@ def extract_and_install_certs(
                 if km in raw_data:
                     key_marker = km
                     break
-            if cert_marker and key_marker:
-                cert_start = raw_data.find(cert_marker)
-                cert_end = raw_data.find(b"-----END CERTIFICATE-----") + len(b"-----END CERTIFICATE-----")
-                cert_pem = raw_data[cert_start:cert_end].strip()
+            if not (cert_marker in raw_data and key_marker):
+                raise ValueError("Uploaded PEM/CRT file must contain both a certificate and an unencrypted private key")
 
-                key_start = raw_data.find(key_marker)
-                end_marker = key_marker.replace(b"BEGIN", b"END")
-                key_end = raw_data.find(end_marker) + len(end_marker)
-                key_pem = raw_data[key_start:key_end].strip()
+            cert_start = raw_data.find(cert_marker)
+            cert_end_marker = b"-----END CERTIFICATE-----"
+            cert_end_idx = raw_data.find(cert_end_marker)
+            if cert_end_idx == -1:
+                raise ValueError("Malformed certificate in uploaded PEM file")
+            cert_end = cert_end_idx + len(cert_end_marker)
+            cert_pem = raw_data[cert_start:cert_end].strip()
 
+            key_start = raw_data.find(key_marker)
+            end_marker = key_marker.replace(b"BEGIN", b"END")
+            key_end_idx = raw_data.find(end_marker)
+            if key_end_idx == -1:
+                raise ValueError("Malformed private key in uploaded PEM file")
+            key_end = key_end_idx + len(end_marker)
+            key_pem = raw_data[key_start:key_end].strip()
+
+            try:
                 certificate = x509.load_pem_x509_certificate(cert_pem)
                 private_key = serialization.load_pem_private_key(key_pem, password=None)
-        except Exception as e:
-            _LOGGER.debug("Failed parsing direct PEM upload: %s", e)
+            except Exception as e:
+                raise ValueError(f"Failed parsing uploaded PEM certificate or key: {e}") from e
+        else:
+            p12_bytes = raw_data
 
     if not private_key or not certificate:
-        p12_bytes = _extract_p12_bytes_from_archive(src)
-
         passwords_to_try: list[bytes | None] = []
         if password is not None:
             passwords_to_try.append(password.encode("utf-8") if isinstance(password, str) else password)
@@ -419,9 +443,16 @@ def extract_and_install_certs(
     return str(crt_path), str(key_path)
 
 
-def _get_default_search_dirs() -> list[str]:
+def _get_default_search_dirs(config_dir: str | None = None) -> list[str]:
     """Build list of candidate certificate search paths, scanning upwards to repo root."""
-    search_dirs = [
+    search_dirs: list[str] = []
+    if config_dir:
+        for sub in (".storage/vidaa/certs", ".storage/vidaa", "ssl", "certs"):
+            candidate = os.path.join(config_dir, sub)
+            if candidate not in search_dirs:
+                search_dirs.append(candidate)
+
+    static_dirs = [
         "/config/.storage/vidaa/certs",
         "/config/.storage/vidaa",
         "/config/ssl",
@@ -432,6 +463,10 @@ def _get_default_search_dirs() -> list[str]:
         os.path.join(os.getcwd(), "ssl"),
         os.path.join(os.getcwd(), "certs"),
     ]
+    for d in static_dirs:
+        if d not in search_dirs:
+            search_dirs.append(d)
+
     cur = os.path.dirname(os.path.abspath(__file__))
     while cur and cur != os.path.dirname(cur):
         for sub in (".storage/vidaa/certs", "ssl", "certs"):
@@ -445,6 +480,7 @@ def _get_default_search_dirs() -> list[str]:
 def resolve_ca_certificate(
     ca_path: str | None = None,
     search_dirs: list[str] | None = None,
+    config_dir: str | None = None,
 ) -> str | None:
     """Resolves CA certificate path for optional server certificate validation.
 
@@ -455,7 +491,7 @@ def resolve_ca_certificate(
         return os.path.abspath(ca_path)
 
     if search_dirs is None:
-        search_dirs = _get_default_search_dirs()
+        search_dirs = _get_default_search_dirs(config_dir)
 
     ca_names = [
         "remote_ca.pem",
@@ -651,6 +687,7 @@ def resolve_certificates(
     certfile: str | None = None,
     keyfile: str | None = None,
     search_dirs: list[str] | None = None,
+    config_dir: str | None = None,
 ) -> tuple[str, str]:
     """Resolves certificate and private key paths based on profile and candidate locations.
 
@@ -658,7 +695,7 @@ def resolve_certificates(
         tuple[certfile_path, keyfile_path]
     """
     if search_dirs is None:
-        search_dirs = _get_default_search_dirs()
+        search_dirs = _get_default_search_dirs(config_dir)
 
     # Handle direct PKCS#12 bundle input
     if certfile and (certfile.lower().endswith(".p12") or certfile.lower().endswith(".pfx")):
@@ -733,8 +770,13 @@ def resolve_certificates(
                     if extracted:
                         return extracted
 
-    default_cert = "/config/ssl/hisense.crt"
-    default_key = "/config/ssl/hisense.key"
+    if config_dir:
+        fallback_dir = os.path.join(config_dir, ".storage", "vidaa", "certs")
+    else:
+        fallback_dir = "/config/ssl"
+
+    default_cert = os.path.join(fallback_dir, "hisense.crt")
+    default_key = os.path.join(fallback_dir, "hisense.key")
 
     return resolved_cert or default_cert, resolved_key or default_key
 
@@ -761,7 +803,7 @@ def get_profile_default_cert_paths(
         default_cert_name = "hisense.crt"
         default_key_name = "hisense.key"
 
-    resolved_cert, resolved_key = resolve_certificates(auth_profile)
+    resolved_cert, resolved_key = resolve_certificates(auth_profile, config_dir=config_dir)
     if check_certs_exist(resolved_cert, resolved_key):
         default_cert_path = resolved_cert
         default_key_path = resolved_key

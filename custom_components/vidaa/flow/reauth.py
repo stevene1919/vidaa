@@ -108,6 +108,7 @@ class ReauthFlowMixin:
     async def async_step_reauth(self: VidaaConfigFlow, entry_data: dict[str, Any]) -> config_entries.ConfigFlowResult:
         """Handle reauthorization initiated by Home Assistant."""
         self._reauth_entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+        self._reauth_reason = "reauth_successful"
         current_options = (
             dict(self._reauth_entry.options)
             if self._reauth_entry and isinstance(getattr(self._reauth_entry, "options", None), dict)
@@ -237,6 +238,7 @@ class ReauthFlowMixin:
     ) -> config_entries.ConfigFlowResult:
         """Handle reconfigure initiated from 3-dots menu in HA UI."""
         self._reauth_entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+        self._reauth_reason = "reconfigure_successful"
         errors: dict[str, str] = {}
         current_data = (
             dict(self._reauth_entry.data)
@@ -249,6 +251,9 @@ class ReauthFlowMixin:
             else {}
         )
         self.brand = current_options.get(CONF_BRAND, current_data.get(CONF_BRAND, DEFAULT_BRAND_OPTION))
+        self.use_ssl = current_options.get(CONF_USE_SSL, current_data.get(CONF_USE_SSL, DEFAULT_USE_SSL))
+        self.certfile = current_options.get(CONF_CERTFILE, current_data.get(CONF_CERTFILE))
+        self.keyfile = current_options.get(CONF_KEYFILE, current_data.get(CONF_KEYFILE))
         default_ip = current_data.get(CONF_IP_ADDRESS, "")
         default_profile = current_options.get(
             CONF_AUTH_PROFILE, current_data.get(CONF_AUTH_PROFILE, DEFAULT_AUTH_PROFILE)

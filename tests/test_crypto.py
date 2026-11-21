@@ -564,6 +564,32 @@ def test_extract_and_install_certs_direct_pem(tmp_path):
     assert os.path.isfile(key_path)
 
 
+def test_extract_and_install_certs_only_crt_rejected(tmp_path):
+    """Test that uploading only a certificate without private key raises ValueError."""
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    subject = issuer = x509.Name([x509.NameAttribute(x509.oid.NameOID.COMMON_NAME, "VidaaTestCRT")])
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(subject)
+        .issuer_name(issuer)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(datetime.now(UTC) - timedelta(days=1))
+        .not_valid_after(datetime.now(UTC) + timedelta(days=1))
+        .sign(key, hashes.SHA256())
+    )
+    cert_file = tmp_path / "server.crt"
+    cert_file.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+
+    target_dir = tmp_path / "output_certs"
+    import pytest
+
+    with pytest.raises(
+        ValueError, match="Uploaded PEM/CRT file must contain both a certificate and an unencrypted private key"
+    ):
+        extract_and_install_certs(cert_file, target_dir)
+
+
 def test_extract_and_install_certs_zip_slip_rejected(tmp_path):
     """Test that archives containing directory traversal paths are strictly rejected."""
     import zipfile

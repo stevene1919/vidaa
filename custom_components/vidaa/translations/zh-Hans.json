@@ -54,6 +54,14 @@
           "enable_sound_controls": "启用声音模式均衡器预设选择器",
           "enable_audio_only": "启用“仅音频/关闭屏幕”切换开关"
         }
+      },
+      "upload": {
+        "title": "Upload Client Certificate or App",
+        "description": "VIDAA TVs require TLS client certificates for secure communication. Upload the official VIDAA / RemoteNOW Android app package (.apk / .xapk) or an extracted keystore (.p12 / .pfx / .pem / .crt). Home Assistant will extract and secure the certificates automatically.",
+        "data": {
+          "cert_file": "Application Package or Keystore File",
+          "manual_paths": "Enter file paths manually instead"
+        }
       }
     },
     "error": {
@@ -61,7 +69,13 @@
       "invalid_auth": "PIN 码无效，请重试。",
       "certs_not_found": "在指定路径未找到证书或私钥文件。请检查文件位置和权限。",
       "unknown": "发生未知错误。",
-      "invalid_ssl_cert": "SSL 证书或私钥验证失败。请确认文件为有效的未加密 PEM 或支持的 PKCS#12 格式并相互匹配。"
+      "invalid_ssl_cert": "SSL 证书或私钥验证失败。请确认文件为有效的未加密 PEM 或支持的 PKCS#12 格式并相互匹配。",
+      "tv_not_awake": "The TV did not respond. Turn it on with the remote, wait until the picture appears, then press Submit again.",
+      "invalid_cert_archive": "Could not extract a valid VIDAA certificate keystore from the uploaded file. Please verify the APK or P12 file.",
+      "file_too_large": "The uploaded file exceeds the 150 MB size limit.",
+      "no_p12_found": "No compatible VIDAA PKCS#12 keystore was found inside the uploaded archive.",
+      "p12_decrypt_failed": "Failed to decrypt the certificate keystore. The archive password could not be verified.",
+      "invalid_pem_bundle": "Uploaded PEM/CRT file must contain both a certificate and an unencrypted private key."
     },
     "abort": {
       "reauth_successful": "重新认证成功。",
@@ -123,14 +137,20 @@
           "brand": "电视 OEM 品牌",
           "use_ssl": "使用加密的 SSL/TLS 连接",
           "certfile": "证书文件路径 (.crt / .pem / .p12)",
-          "keyfile": "私钥文件路径 (.key / .pem)"
+          "keyfile": "私钥文件路径 (.key / .pem)",
+          "cert_file": "Upload New Certificate or App (.apk / .p12 / .pem)"
         }
       }
     },
     "error": {
       "certs_not_found": "在指定路径未找到证书或密钥文件。请检查文件位置和权限。",
       "invalid_ssl_cert": "SSL 证书或私钥验证失败。",
-      "invalid_mac": "无效的 MAC 地址。必须是 12 位十六进制地址 (例如 AA:BB:CC:DD:EE:FF)。"
+      "invalid_mac": "无效的 MAC 地址。必须是 12 位十六进制地址 (例如 AA:BB:CC:DD:EE:FF)。",
+      "invalid_cert_archive": "Could not extract a valid VIDAA certificate keystore from the uploaded file. Please verify the APK or P12 file.",
+      "file_too_large": "The uploaded file exceeds the 150 MB size limit.",
+      "no_p12_found": "No compatible VIDAA PKCS#12 keystore was found inside the uploaded archive.",
+      "p12_decrypt_failed": "Failed to decrypt the certificate keystore. The archive password could not be verified.",
+      "invalid_pem_bundle": "Uploaded PEM/CRT file must contain both a certificate and an unencrypted private key."
     }
   },
   "entity": {

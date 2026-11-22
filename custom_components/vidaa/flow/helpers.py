@@ -58,6 +58,20 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
+def unwrap_section_data(user_input: dict[str, Any] | None) -> dict[str, Any]:
+    """Unwrap nested data_entry_flow.section input while preserving flat fallback keys."""
+    if not user_input:
+        return {}
+    res = dict(user_input)
+    for k, v in list(res.items()):
+        if isinstance(v, dict):
+            # Promote section child fields if not already explicitly provided at root
+            for child_k, child_v in v.items():
+                if child_k not in res or res[child_k] is None:
+                    res[child_k] = child_v
+    return res
+
+
 def build_options_schema(picture_supported: bool, sound_supported: bool) -> vol.Schema:
     """Build the configuration options schema for initial setup and options flow."""
     return vol.Schema(

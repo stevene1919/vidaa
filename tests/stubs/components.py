@@ -56,6 +56,39 @@ class MediaPlayerEntityFeature:
     STOP = 4096
     PLAY = 16384
     SELECT_SOUND_MODE = 65536
+    BROWSE_MEDIA = 131072
+
+
+class MediaClass:
+    APP = "app"
+    DIRECTORY = "directory"
+    CHANNEL = "channel"
+    TV_SHOW = "tv_show"
+
+
+class BrowseMedia:
+    def __init__(
+        self,
+        *,
+        media_class: str,
+        media_content_id: str,
+        media_content_type: str,
+        title: str,
+        can_play: bool,
+        can_expand: bool,
+        children: list[BrowseMedia] | None = None,
+        children_media_class: str | None = None,
+        thumbnail: str | None = None,
+    ) -> None:
+        self.media_class = media_class
+        self.media_content_id = media_content_id
+        self.media_content_type = media_content_type
+        self.title = title
+        self.can_play = can_play
+        self.can_expand = can_expand
+        self.children = children or []
+        self.children_media_class = children_media_class
+        self.thumbnail = thumbnail
 
 
 class MediaType:
@@ -78,6 +111,8 @@ class MediaPlayerState:
 
 media_player.MediaPlayerState = MediaPlayerState
 media_player.MediaType = MediaType
+media_player.MediaClass = MediaClass
+media_player.BrowseMedia = BrowseMedia
 media_player.MediaPlayerEntity = MediaPlayerEntity
 media_player.MediaPlayerDeviceClass = MediaPlayerDeviceClass
 media_player.MediaPlayerEntityFeature = MediaPlayerEntityFeature
@@ -96,7 +131,12 @@ class RemoteEntity:
         pass
 
 
+class RemoteEntityFeature:
+    ACTIVITY = 1
+
+
 remote.RemoteEntity = RemoteEntity
+remote.RemoteEntityFeature = RemoteEntityFeature
 components.remote = remote
 sys.modules["homeassistant.components.remote"] = remote
 

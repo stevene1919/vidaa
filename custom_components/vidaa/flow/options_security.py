@@ -37,6 +37,7 @@ from ..const import (
     DEFAULT_USE_SSL,
 )
 from ..protocol import check_certs_exist, extract_and_install_certs, validate_ssl_certs
+from .helpers import unwrap_section_data
 
 if TYPE_CHECKING:
     from .options import VidaaOptionsFlowHandler
@@ -69,6 +70,7 @@ class OptionsSecurityMixin:
         current_key = options.get(CONF_KEYFILE, data.get(CONF_KEYFILE, ""))
 
         if user_input is not None:
+            user_input = unwrap_section_data(user_input)
             uploaded_file_id = user_input.pop(CONF_CERT_FILE, None)
             if uploaded_file_id:
                 try:
@@ -152,9 +154,45 @@ class OptionsSecurityMixin:
                     self.hass.config_entries.async_update_entry(self.config_entry, data=new_data)
                 return self.async_create_entry(title="", data=updated_options)
 
-        return self.async_show_form(
-            step_id="security",
-            data_schema=vol.Schema(
+        try:
+            from homeassistant.data_entry_flow import section
+
+            schema = vol.Schema(
+                {
+                    vol.Optional(
+                        CONF_AUTH_PROFILE,
+                        default=current_profile,
+                    ): AUTH_PROFILE_SELECTOR,
+                    vol.Optional(
+                        CONF_BRAND,
+                        default=current_brand,
+                    ): BRAND_SELECTOR,
+                    vol.Optional(CONF_CERT_FILE): selector.FileSelector(
+                        selector.FileSelectorConfig(accept=".apk,.xapk,.p12,.pfx,.pem,.crt")
+                    ),
+                    vol.Optional("manual_certificates"): section(
+                        vol.Schema(
+                            {
+                                vol.Optional(
+                                    CONF_USE_SSL,
+                                    default=current_use_ssl,
+                                ): bool,
+                                vol.Optional(
+                                    CONF_CERTFILE,
+                                    default=current_cert,
+                                ): str,
+                                vol.Optional(
+                                    CONF_KEYFILE,
+                                    default=current_key,
+                                ): str,
+                            }
+                        ),
+                        {"collapsed": True},
+                    ),
+                }
+            )
+        except (ImportError, AttributeError):
+            schema = vol.Schema(
                 {
                     vol.Optional(
                         CONF_AUTH_PROFILE,
@@ -180,7 +218,11 @@ class OptionsSecurityMixin:
                         default=current_key,
                     ): str,
                 }
-            ),
+            )
+
+        return self.async_show_form(
+            step_id="security",
+            data_schema=schema,
             errors=errors,
         )
 

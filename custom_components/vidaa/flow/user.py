@@ -38,6 +38,7 @@ from .helpers import (
     build_entry_options,
     build_options_schema,
     collect_client_auth_data,
+    unwrap_section_data,
 )
 
 if TYPE_CHECKING:
@@ -189,10 +190,11 @@ class UserFlowMixin:
         """Handle manual user IP configuration step."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            self.ip_address = user_input[CONF_IP_ADDRESS]
-            self.auth_profile = user_input.get(CONF_AUTH_PROFILE, DEFAULT_AUTH_PROFILE)
-            if CONF_BRAND in user_input:
-                self.brand = user_input[CONF_BRAND]
+            data = unwrap_section_data(user_input)
+            self.ip_address = data[CONF_IP_ADDRESS]
+            self.auth_profile = data.get(CONF_AUTH_PROFILE, DEFAULT_AUTH_PROFILE)
+            if CONF_BRAND in data:
+                self.brand = data[CONF_BRAND]
                 if self.brand in BRAND_MAP:
                     self.manufacturer = BRAND_MAP[self.brand]
             self.mac_address = await async_resolve_mac(self.hass, self.ip_address)
@@ -210,17 +212,6 @@ class UserFlowMixin:
                 except Exception as e:
                     _LOGGER.warning("[%s] Failed to connect or initiate auth with TV: %s", self.ip_address, e)
                     errors["base"] = "cannot_connect"
-            elif self.auth_profile == "auto":
-                if await self._async_resolve_ssl_certs():
-                    try:
-                        return await self._async_init_client_and_auth()
-                    except AbortFlow:
-                        raise
-                    except Exception as e:
-                        _LOGGER.warning("[%s] Failed to connect or initiate auth with TV: %s", self.ip_address, e)
-                        errors["base"] = "cannot_connect"
-                else:
-                    return await self.async_step_upload()
             else:
                 if await self._async_resolve_ssl_certs():
                     try:
@@ -233,15 +224,35 @@ class UserFlowMixin:
                 else:
                     return await self.async_step_upload()
 
-        return self.async_show_form(
-            step_id="user",
-            data_schema=vol.Schema(
+        try:
+            from homeassistant.data_entry_flow import section
+
+            schema = vol.Schema(
+                {
+                    vol.Required(CONF_IP_ADDRESS): str,
+                    vol.Optional("advanced_options"): section(
+                        vol.Schema(
+                            {
+                                vol.Optional(CONF_BRAND, default=DEFAULT_BRAND_OPTION): BRAND_SELECTOR,
+                                vol.Optional(CONF_AUTH_PROFILE, default=DEFAULT_AUTH_PROFILE): AUTH_PROFILE_SELECTOR,
+                            }
+                        ),
+                        {"collapsed": True},
+                    ),
+                }
+            )
+        except (ImportError, AttributeError):
+            schema = vol.Schema(
                 {
                     vol.Required(CONF_IP_ADDRESS): str,
                     vol.Optional(CONF_BRAND, default=DEFAULT_BRAND_OPTION): BRAND_SELECTOR,
                     vol.Optional(CONF_AUTH_PROFILE, default=DEFAULT_AUTH_PROFILE): AUTH_PROFILE_SELECTOR,
                 }
-            ),
+            )
+
+        return self.async_show_form(
+            step_id="user",
+            data_schema=schema,
             errors=errors,
         )
 

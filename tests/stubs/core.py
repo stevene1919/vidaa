@@ -182,8 +182,13 @@ if "homeassistant.data_entry_flow" not in sys.modules:
             super().__init__(reason)
             self.reason = reason
 
+    def section(schema, options=None):
+        """HA data_entry_flow.section helper stub."""
+        return schema
+
     data_entry_flow.FlowResult = FlowResult
     data_entry_flow.AbortFlow = AbortFlow
+    data_entry_flow.section = section
     ha.data_entry_flow = data_entry_flow
     sys.modules["homeassistant.data_entry_flow"] = data_entry_flow
 

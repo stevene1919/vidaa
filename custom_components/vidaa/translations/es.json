@@ -8,6 +8,12 @@
           "ip_address": "Dirección IP",
           "auth_profile": "Perfil de autenticación / certificado",
           "brand": "Marca de TV (ecosistema VIDAA OS)"
+        },
+        "sections": {
+          "advanced_options": {
+            "name": "Advanced Connection & OEM Brand",
+            "description": "Optional: override automatic profile negotiation and OEM manufacturer brand detection."
+          }
         }
       },
       "discovery_confirm": {
@@ -160,6 +166,12 @@
           "brand": "Select the TV manufacturer brand to load OEM-specific MQTT topics and client IDs. Use 'Auto Detect' unless pairing fails.",
           "use_ssl": "Enables TLS/SSL encryption on port 36669. Required for all modern VIDAA TVs (VIDAA U4+). Only disable for older pre-2022 firmware on port 3160.",
           "cert_file": "Upload an updated VIDAA APK, XAPK, or .p12 keystore to extract and install new certificates into Home Assistant storage."
+        },
+        "sections": {
+          "manual_certificates": {
+            "name": "Manual Certificate Paths (Advanced)",
+            "description": "Enter custom filesystem paths for client certificate and private key files."
+          }
         }
       }
     },
@@ -468,11 +480,19 @@
         "step": {
           "confirm": {
             "title": "Verificar certificados de cliente",
-            "description": "Una vez hayas copiado hisense.crt y hisense.key en /config/ssl o /ssl, envía este formulario para verificar."
+            "description": "Una vez hayas copiado hisense.crt y hisense.key en /config/ssl o /ssl, envía este formulario para verificar.",
+            "data": {
+              "cert_file": "Application Package or Keystore File (.apk / .p12 / .pem)"
+            }
           }
         },
         "error": {
-          "certificates_still_missing": "Los certificados siguen sin encontrarse. Asegúrate de que hisense.crt y hisense.key existen."
+          "certificates_still_missing": "Los certificados siguen sin encontrarse. Asegúrate de que hisense.crt y hisense.key existen.",
+          "file_too_large": "The uploaded file exceeds the 150 MB size limit.",
+          "invalid_cert_archive": "Could not extract a valid VIDAA certificate keystore from the uploaded file.",
+          "no_p12_found": "No compatible VIDAA PKCS#12 keystore was found inside the uploaded archive.",
+          "p12_decrypt_failed": "Failed to decrypt the certificate keystore. The archive password could not be verified.",
+          "invalid_pem_bundle": "Uploaded PEM/CRT file must contain both a certificate and an unencrypted private key."
         }
       }
     },

@@ -7,7 +7,7 @@ import logging
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.components.remote import RemoteEntity
+from homeassistant.components.remote import RemoteEntity, RemoteEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -15,18 +15,25 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .client import VidaaClient
 from .const import (
+    CONF_ENABLE_CEC_NAMES,
     CONF_ENABLE_WOL,
+    CONF_INCLUDE_APPS_IN_SOURCES,
     CONF_KEY_DELAY,
     CONF_KEY_REPEAT,
     CONF_SECONDARY_MAC_ADDRESS,
+    CONF_SOURCES,
+    DEFAULT_ENABLE_CEC_NAMES,
     DEFAULT_ENABLE_WOL,
+    DEFAULT_INCLUDE_APPS_IN_SOURCES,
     DEFAULT_KEY_DELAY,
     DEFAULT_KEY_REPEAT,
+    DEFAULT_WOL_TIMEOUT,
     DOMAIN,
     POWER_KEYS,
 )
 from .entity import VidaaEntity
 from .helpers import check_client_command_readiness
+from .tv.media import async_execute_select_source, build_media_player_current_source, build_media_player_source_list
 
 if TYPE_CHECKING:
     from . import VidaaConfigEntry
@@ -45,6 +52,7 @@ class VidaaRemote(VidaaEntity, RemoteEntity):
     """VIDAA Remote entity."""
 
     _attr_name = None
+    _attr_supported_features = RemoteEntityFeature.ACTIVITY
 
     def __init__(
         self,
@@ -103,8 +111,46 @@ class VidaaRemote(VidaaEntity, RemoteEntity):
             return await res
         return res
 
+    @property
+    def supported_features(self) -> RemoteEntityFeature:
+        """Flag remote features that are supported."""
+        return RemoteEntityFeature.ACTIVITY
+
+    @property
+    def current_activity(self) -> str | None:
+        """Return the current activity (active app or input source)."""
+        if not self.is_on:
+            return None
+        current_app = getattr(self._client, "current_app", None)
+        if current_app:
+            return current_app
+        enable_cec = self._options.get(CONF_ENABLE_CEC_NAMES, DEFAULT_ENABLE_CEC_NAMES)
+        raw_source = getattr(self._client, "current_source", None)
+        conn_dev = getattr(self._client, "connected_device", None)
+        return build_media_player_current_source(raw_source, conn_dev, enable_cec)
+
+    @property
+    def activity_list(self) -> list[str] | None:
+        """Return list of available activities (applications and input sources)."""
+        enable_cec = self._options.get(CONF_ENABLE_CEC_NAMES, DEFAULT_ENABLE_CEC_NAMES)
+        include_apps = self._options.get(CONF_INCLUDE_APPS_IN_SOURCES, DEFAULT_INCLUDE_APPS_IN_SOURCES)
+        configured_sources = self._options.get(CONF_SOURCES)
+        sources_dict = getattr(self._client, "source_dict", {}) or {}
+        apps_dict = getattr(self._client, "app_dict", {}) or {}
+        raw_source = getattr(self._client, "current_source", None)
+        conn_dev = getattr(self._client, "connected_device", None)
+        return build_media_player_source_list(
+            source_dict=sources_dict,
+            app_dict=apps_dict,
+            current_source=raw_source,
+            connected_device=conn_dev,
+            enable_cec=enable_cec,
+            include_apps=include_apps,
+            configured_sources=configured_sources,
+        )
+
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Turn the TV on."""
+        """Turn the TV on and optionally launch an activity."""
         if getattr(self._client, "auth_failed", False) is True:
             raise HomeAssistantError(
                 "Authentication required: Re-pair TV in Settings > Integrations.",
@@ -128,6 +174,30 @@ class VidaaRemote(VidaaEntity, RemoteEntity):
                 translation_domain=DOMAIN,
                 translation_key="turn_on_failed",
             )
+
+        activity = kwargs.get("activity")
+        if activity:
+            if not self.is_on:
+                wait_fn = getattr(self._client, "async_wait_until_awake", None)
+                if wait_fn is not None and callable(wait_fn):
+                    res = wait_fn(timeout=DEFAULT_WOL_TIMEOUT)
+                    if asyncio.iscoroutine(res) or isinstance(res, asyncio.Future):
+                        awake = await res
+                    else:
+                        awake = bool(res)
+                    if not awake:
+                        raise HomeAssistantError(
+                            f"Failed to power on TV before selecting activity '{activity}': TV did not wake up",
+                            translation_domain=DOMAIN,
+                            translation_key="turn_on_failed",
+                        )
+                await asyncio.sleep(0.5)
+
+            check_client_command_readiness(self._client)
+            sources = getattr(self._client, "source_dict", {}) or {}
+            apps = getattr(self._client, "app_dict", {}) or {}
+            await async_execute_select_source(self._client, sources, apps, str(activity))
+
         self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs: Any) -> None:

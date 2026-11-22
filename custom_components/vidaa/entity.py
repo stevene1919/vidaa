@@ -58,6 +58,13 @@ class VidaaEntity(Entity):
         brand_mfg = BRAND_MAP.get(getattr(self._client, "brand", self._brand), "Hisense")
         manufacturer = self._client.manufacturer or self._manufacturer or brand_mfg
         sw_version = self._client.firmware_version or self._sw_version
+        hw_version = getattr(self._client, "hw_version", None) or self._entry.data.get("hw_version")
+        serial_num = getattr(self._client, "serial_number", None) or self._entry.data.get("serial_number")
+        ip = getattr(self._client, "ip", None) or self._entry.data.get("ip_address")
+        config_url = getattr(self._client, "upnp_location", None) or (
+            f"http://{ip}:38400/MediaServer/rendererdevicedesc.xml" if ip else None
+        )
+
         info = DeviceInfo(
             identifiers={(DOMAIN, self._entry_id), (LEGACY_DOMAIN, self._entry_id)},
             name=self._name,
@@ -65,6 +72,12 @@ class VidaaEntity(Entity):
             model=model,
             sw_version=sw_version,
         )
+        if hw_version:
+            info["hw_version"] = str(hw_version)
+        if serial_num:
+            info["serial_number"] = str(serial_num)
+        if config_url:
+            info["configuration_url"] = str(config_url)
         connections: set[tuple[str, str]] = set()
         for mac_addr in (
             self._mac,

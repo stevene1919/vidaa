@@ -2,16 +2,29 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from pathlib import Path
 from typing import Any
 
 import voluptuous as vol
 from homeassistant import data_entry_flow
 from homeassistant.components.repairs import RepairsFlow
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import selector
 
-from .const import CONF_AUTH_PROFILE, CONF_CERTFILE, CONF_KEYFILE
-from .protocol import check_certs_exist, resolve_certificates
+try:
+    from homeassistant.components.file_upload import process_uploaded_file
+except ImportError:
+    from contextlib import contextmanager
+
+    @contextmanager
+    def process_uploaded_file(hass, file_id):
+        yield Path(file_id)
+
+
+from .const import CONF_AUTH_PROFILE, CONF_CERT_FILE, CONF_CERTFILE, CONF_KEYFILE
+from .protocol import check_certs_exist, extract_and_install_certs, resolve_certificates
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -33,42 +46,100 @@ class CertificateMissingRepairFlow(RepairsFlow):
         errors: dict[str, str] = {}
         if user_input is not None:
             entry = self.hass.config_entries.async_get_entry(self._entry_id) if self._entry_id else None
-            auth_profile = "auto"
-            custom_cert = None
-            custom_key = None
-            if entry:
-                opts = entry.options
-                d = entry.data
-                auth_profile = opts.get(CONF_AUTH_PROFILE, d.get(CONF_AUTH_PROFILE, "auto"))
-                custom_cert = opts.get(CONF_CERTFILE, d.get(CONF_CERTFILE))
-                custom_key = opts.get(CONF_KEYFILE, d.get(CONF_KEYFILE))
+            uploaded_file_id = user_input.get(CONF_CERT_FILE)
+            if uploaded_file_id:
+                try:
+                    storage_dir = (
+                        Path(self.hass.config.path(".storage", "vidaa", "certs"))
+                        if hasattr(self.hass, "config")
+                        else Path("/config/.storage/vidaa/certs")
+                    )
 
-            try:
+                    def _extract(file_id: str, dest: Path) -> tuple[str, str]:
+                        with process_uploaded_file(self.hass, file_id) as uploaded_path:
+                            return extract_and_install_certs(uploaded_path, dest)
 
-                def _verify_resolved_certs() -> bool:
-                    try:
-                        config_dir = self.hass.config.config_dir if hasattr(self.hass, "config") else None
-                        cert, key = resolve_certificates(
-                            auth_profile=auth_profile,
-                            certfile=custom_cert,
-                            keyfile=custom_key,
-                            config_dir=config_dir,
-                        )
-                    except TypeError:
-                        cert, key = resolve_certificates()
-                    return bool(cert and key and check_certs_exist(cert, key))
+                    if hasattr(self, "hass") and self.hass and hasattr(self.hass, "async_add_executor_job"):
+                        res = self.hass.async_add_executor_job(_extract, uploaded_file_id, storage_dir)
+                        if asyncio.iscoroutine(res) or isinstance(res, asyncio.Future):
+                            extracted = await res
+                        else:
+                            extracted = _extract(uploaded_file_id, storage_dir)
+                    else:
+                        loop = asyncio.get_running_loop()
+                        extracted = await loop.run_in_executor(None, _extract, uploaded_file_id, storage_dir)
 
-                if await self.hass.async_add_executor_job(_verify_resolved_certs):
                     if entry is not None:
-                        await self.hass.config_entries.async_reload(entry.entry_id)
+                        new_opts = dict(entry.options)
+                        new_opts[CONF_CERTFILE] = extracted[0]
+                        new_opts[CONF_KEYFILE] = extracted[1]
+                        self.hass.config_entries.async_update_entry(entry, options=new_opts)
+                        reload_res = self.hass.config_entries.async_reload(entry.entry_id)
+                        if asyncio.iscoroutine(reload_res) or isinstance(reload_res, asyncio.Future):
+                            await reload_res
                     return self.async_create_entry(data={})
-            except Exception as err:
-                _LOGGER.debug("Certificate verification failed during repair: %s", err)
-            errors["base"] = "certificates_still_missing"
+                except ValueError as ex:
+                    _LOGGER.warning("Failed to extract uploaded cert in repair flow: %s", ex)
+                    err_msg = str(ex).lower()
+                    if "size limit" in err_msg or "exceeds maximum" in err_msg:
+                        errors["base"] = "file_too_large"
+                    elif "decrypt" in err_msg:
+                        errors["base"] = "p12_decrypt_failed"
+                    elif "both a certificate and" in err_msg or "malformed" in err_msg or "failed parsing" in err_msg:
+                        errors["base"] = "invalid_pem_bundle"
+                    elif "no vidaa pkcs#12" in err_msg:
+                        errors["base"] = "no_p12_found"
+                    else:
+                        errors["base"] = "invalid_cert_archive"
+                except Exception as ex:
+                    _LOGGER.warning("Unexpected error during cert extraction in repair flow: %s", ex)
+                    errors["base"] = "invalid_cert_archive"
+
+            if not errors:
+                auth_profile = "auto"
+                custom_cert = None
+                custom_key = None
+                if entry:
+                    opts = entry.options
+                    d = entry.data
+                    auth_profile = opts.get(CONF_AUTH_PROFILE, d.get(CONF_AUTH_PROFILE, "auto"))
+                    custom_cert = opts.get(CONF_CERTFILE, d.get(CONF_CERTFILE))
+                    custom_key = opts.get(CONF_KEYFILE, d.get(CONF_KEYFILE))
+
+                try:
+
+                    def _verify_resolved_certs() -> bool:
+                        try:
+                            config_dir = self.hass.config.config_dir if hasattr(self.hass, "config") else None
+                            cert, key = resolve_certificates(
+                                auth_profile=auth_profile,
+                                certfile=custom_cert,
+                                keyfile=custom_key,
+                                config_dir=config_dir,
+                            )
+                        except TypeError:
+                            cert, key = resolve_certificates()
+                        return bool(cert and key and check_certs_exist(cert, key))
+
+                    if await self.hass.async_add_executor_job(_verify_resolved_certs):
+                        if entry is not None:
+                            reload_res = self.hass.config_entries.async_reload(entry.entry_id)
+                            if asyncio.iscoroutine(reload_res) or isinstance(reload_res, asyncio.Future):
+                                await reload_res
+                        return self.async_create_entry(data={})
+                except Exception as err:
+                    _LOGGER.debug("Certificate verification failed during repair: %s", err)
+                errors["base"] = "certificates_still_missing"
 
         return self.async_show_form(
             step_id="confirm",
-            data_schema=vol.Schema({}),
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(CONF_CERT_FILE): selector.FileSelector(
+                        selector.FileSelectorConfig(accept=".apk,.xapk,.p12,.pfx,.pem,.crt")
+                    ),
+                }
+            ),
             errors=errors,
         )
 

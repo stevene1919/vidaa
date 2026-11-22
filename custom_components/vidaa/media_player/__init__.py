@@ -38,6 +38,7 @@ from ..tv.settings import (
     DEFAULT_MENU_ID_SOUND_MODE,
     find_menu_item_by_name,
 )
+from .browse import MediaPlayerBrowseMixin
 from .controls import MediaPlayerControlsMixin
 from .state_handler import MediaPlayerStateHandlerMixin
 
@@ -54,6 +55,7 @@ __all__ = ["HisenseVidaaMediaPlayer", "VidaaMediaPlayer", "async_setup_entry"]
 class VidaaMediaPlayer(
     MediaPlayerControlsMixin,
     MediaPlayerStateHandlerMixin,
+    MediaPlayerBrowseMixin,
     VidaaEntity,
     MediaPlayerEntity,
 ):
@@ -379,6 +381,7 @@ class VidaaMediaPlayer(
             | MediaPlayerEntityFeature.VOLUME_MUTE
             | MediaPlayerEntityFeature.SELECT_SOURCE
             | MediaPlayerEntityFeature.PLAY_MEDIA
+            | MediaPlayerEntityFeature.BROWSE_MEDIA
         )
         if self.sound_mode_list:
             base |= MediaPlayerEntityFeature.SELECT_SOUND_MODE

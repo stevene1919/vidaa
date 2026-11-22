@@ -299,6 +299,10 @@ async def async_execute_play_media(
         if "://" in media_id or type_lower in ("url", "deep_link"):
             return bool(await client.async_launch_app("", media_id, media_id))
 
+    if type_lower in ("source", "input"):
+        sources = getattr(client, "source_dict", {}) or {}
+        return await async_execute_select_source(client, sources, app_dict, media_id)
+
     if type_lower in ("channel", "tvshow"):
         clean_id = str(media_id).strip()
         channels = getattr(client, "channels", []) or []

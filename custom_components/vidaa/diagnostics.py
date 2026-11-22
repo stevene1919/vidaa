@@ -12,7 +12,7 @@ from homeassistant.core import HomeAssistant
 from .const import DOMAIN
 
 if TYPE_CHECKING:
-    from . import HisenseVidaaConfigEntry
+    from . import VidaaConfigEntry
 
 TO_REDACT = {
     "access_token",
@@ -45,7 +45,7 @@ TO_REDACT = {
 }
 
 
-async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: HisenseVidaaConfigEntry) -> dict[str, Any]:
+async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: VidaaConfigEntry) -> dict[str, Any]:
     """Return diagnostics for a config entry."""
     runtime_data = getattr(entry, "runtime_data", None)
     if runtime_data is None and hasattr(hass, "data") and isinstance(hass.data, dict):

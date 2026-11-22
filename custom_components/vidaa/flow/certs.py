@@ -98,7 +98,6 @@ class CertsFlowMixin:
     ) -> config_entries.ConfigFlowResult:
         """Handle certificate file upload step."""
         errors: dict[str, str] = {}
-        brand_hint: str | None = None
         if user_input is not None:
             if user_input.get(CONF_MANUAL_PATHS):
                 return await self.async_step_certs()

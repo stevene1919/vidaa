@@ -69,6 +69,8 @@ def unwrap_section_data(user_input: dict[str, Any] | None) -> dict[str, Any]:
             for child_k, child_v in v.items():
                 if child_k not in res or res[child_k] is None:
                     res[child_k] = child_v
+            # Remove the nested section container so it does not leak into config/options entries
+            res.pop(k, None)
     return res
 
 

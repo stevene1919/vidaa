@@ -11,8 +11,8 @@
         },
         "sections": {
           "advanced_options": {
-            "name": "Advanced Connection & OEM Brand",
-            "description": "Optional: override automatic profile negotiation and OEM manufacturer brand detection."
+            "name": "Erweiterte Verbindungs- & OEM-Markeneinstellungen",
+            "description": "Optional: Automatische Profilaushandlung und Erkennung der OEM-Herstellermarke überschreiben."
           }
         }
       },
@@ -169,8 +169,8 @@
         },
         "sections": {
           "manual_certificates": {
-            "name": "Manual Certificate Paths (Advanced)",
-            "description": "Enter custom filesystem paths for client certificate and private key files."
+            "name": "Manuelle Zertifikatspfade (Erweitert)",
+            "description": "Benutzerdefinierte Dateisystempfade für Client-Zertifikat und privaten Schlüssel eingeben."
           }
         }
       }
@@ -482,17 +482,17 @@
             "title": "Client-Zertifikate überprüfen",
             "description": "Sobald hisense.crt und hisense.key nach /config/ssl oder /ssl kopiert wurden, dieses Formular absenden zum Überprüfen.",
             "data": {
-              "cert_file": "Application Package or Keystore File (.apk / .p12 / .pem)"
+              "cert_file": "Anwendungspaket oder Keystore-Datei (.apk / .p12 / .pem)"
             }
           }
         },
         "error": {
           "certificates_still_missing": "Zertifikate fehlen weiterhin. Bitte sicherstellen, dass hisense.crt und hisense.key vorhanden sind.",
-          "file_too_large": "The uploaded file exceeds the 150 MB size limit.",
-          "invalid_cert_archive": "Could not extract a valid VIDAA certificate keystore from the uploaded file.",
-          "no_p12_found": "No compatible VIDAA PKCS#12 keystore was found inside the uploaded archive.",
-          "p12_decrypt_failed": "Failed to decrypt the certificate keystore. The archive password could not be verified.",
-          "invalid_pem_bundle": "Uploaded PEM/CRT file must contain both a certificate and an unencrypted private key."
+          "file_too_large": "Die hochgeladene Datei überschreitet das Größenlimit von 150 MB.",
+          "invalid_cert_archive": "Aus der hochgeladenen Datei konnte kein gültiger VIDAA-Zertifikatsspeicher extrahiert werden.",
+          "no_p12_found": "Im hochgeladenen Archiv wurde kein kompatibler VIDAA PKCS#12-Keystore gefunden.",
+          "p12_decrypt_failed": "Entschlüsselung des Zertifikatsspeichers fehlgeschlagen. Das Archivpasswort konnte nicht verifiziert werden.",
+          "invalid_pem_bundle": "Die hochgeladene PEM/CRT-Datei muss sowohl ein Zertifikat als auch einen unverschlüsselten privaten Schlüssel enthalten."
         }
       }
     },

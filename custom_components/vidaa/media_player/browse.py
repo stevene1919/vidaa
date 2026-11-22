@@ -11,6 +11,9 @@ from homeassistant.components.media_player import (
     MediaType,
 )
 
+from ..const import CONF_ENABLE_CEC_NAMES, DEFAULT_ENABLE_CEC_NAMES
+from ..tv.media import build_media_player_source_list
+
 if TYPE_CHECKING:
     from . import VidaaMediaPlayer
 
@@ -127,7 +130,17 @@ class MediaPlayerBrowseMixin:
         )
 
     def _build_inputs_browser(self: VidaaMediaPlayer) -> BrowseMedia:
-        """Build items list of physical/CEC input sources."""
+        """Build items list of physical/CEC input sources (excluding standalone apps)."""
+        enable_cec = self._options.get(CONF_ENABLE_CEC_NAMES, DEFAULT_ENABLE_CEC_NAMES)
+        inputs_only = build_media_player_source_list(
+            source_dict=self._source_dict,
+            app_dict=self._app_dict,
+            current_source=self._source,
+            connected_device=self._resolve_connected_device(),
+            enable_cec=enable_cec,
+            include_apps=False,
+        )
+
         items: list[BrowseMedia] = [
             BrowseMedia(
                 title=s_name,
@@ -137,7 +150,7 @@ class MediaPlayerBrowseMixin:
                 can_play=True,
                 can_expand=False,
             )
-            for s_name in self.source_list
+            for s_name in inputs_only
         ]
 
         return BrowseMedia(

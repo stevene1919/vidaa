@@ -49,6 +49,22 @@ _LOGGER = logging.getLogger(__name__)
 class VidaaOptionsFlowHandler(OptionsSecurityMixin, config_entries.OptionsFlow):
     """Handle categorized VIDAA options with intuitive menu navigation."""
 
+    def __init__(self, config_entry: config_entries.ConfigEntry | None = None) -> None:
+        """Initialize options flow handler."""
+        self._test_config_entry = config_entry
+
+    @property
+    def config_entry(self) -> config_entries.ConfigEntry:
+        """Return the config entry, supporting test injection or HA property."""
+        if getattr(self, "_test_config_entry", None) is not None:
+            return self._test_config_entry
+        return super().config_entry
+
+    @config_entry.setter
+    def config_entry(self, value: config_entries.ConfigEntry) -> None:
+        """Allow setting config_entry in test environments."""
+        self._test_config_entry = value
+
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
         """Present categorized options menu."""
         return self.async_show_menu(

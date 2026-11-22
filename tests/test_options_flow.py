@@ -19,7 +19,7 @@ from custom_components.vidaa.const import (
     CONF_MAC_ADDRESS,
     CONF_USE_SSL,
 )
-from custom_components.vidaa.flow import HisenseVidaaOptionsFlowHandler
+from custom_components.vidaa.flow import VidaaOptionsFlowHandler
 
 
 @pytest.mark.anyio
@@ -36,7 +36,7 @@ async def test_options_flow(monkeypatch: pytest.MonkeyPatch) -> None:
     }
     config_entry.data = {}
 
-    handler = HisenseVidaaOptionsFlowHandler()
+    handler = VidaaOptionsFlowHandler()
     handler.config_entry = config_entry
 
     result = await handler.async_step_init()
@@ -191,7 +191,7 @@ async def test_options_flow_brand_change_updates_data_and_triggers_reauth():
     entry.options = {CONF_BRAND: "his"}
     hass.config_entries.async_get_entry.return_value = entry
 
-    flow = HisenseVidaaOptionsFlowHandler()
+    flow = VidaaOptionsFlowHandler()
     flow.config_entry = entry
     flow.hass = hass
 
@@ -222,7 +222,7 @@ async def test_options_flow_power_network_autopopulates_from_data():
     }
     entry.options = {}
 
-    flow = HisenseVidaaOptionsFlowHandler()
+    flow = VidaaOptionsFlowHandler()
     flow.config_entry = entry
 
     result = await flow.async_step_power_network()
@@ -252,7 +252,7 @@ async def test_options_flow_power_network_autopopulates_from_client_runtime_data
     entry.runtime_data = MagicMock()
     entry.runtime_data.client = mock_client
 
-    flow = HisenseVidaaOptionsFlowHandler()
+    flow = VidaaOptionsFlowHandler()
     flow.config_entry = entry
 
     result = await flow.async_step_power_network()

@@ -169,8 +169,8 @@
         },
         "sections": {
           "manual_certificates": {
-            "name": "Manual Certificate Paths (Advanced)",
-            "description": "Enter custom filesystem paths for client certificate and private key files."
+            "name": "Ručne putanje do sertifikata (napredno)",
+            "description": "Unesite prilagođene putanje sistema datoteka za klijentski sertifikat i privatni ključ."
           }
         }
       }
@@ -482,7 +482,7 @@
             "title": "Verifikujte klijentske sertifikate",
             "description": "Nakon što kopirate datoteke hisense.crt i hisense.key u /config/ssl ili /ssl, pošaljite ovaj obrazac radi verifikacije.",
             "data": {
-              "cert_file": "Application Package or Keystore File (.apk / .p12 / .pem)"
+              "cert_file": "Paket aplikacije ili datoteka skladišta ključeva (.apk / .p12 / .pem)"
             }
           }
         },

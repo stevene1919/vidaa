@@ -152,3 +152,54 @@ async def test_repairs_certificate_missing_upload(mock_client, mock_entry):
         assert call_kwargs["options"]["certfile"] == "/mock/certs/hisense.crt"
         assert call_kwargs["options"]["keyfile"] == "/mock/certs/hisense.key"
         hass.config_entries.async_reload.assert_called_once_with("test_entry_123")
+
+
+@pytest.mark.anyio
+async def test_options_security_nested_section_unwrapping(mock_client, mock_entry):
+    """Test options flow unwrap_section_data removes nested section dict and promotes values."""
+    from custom_components.vidaa.flow.options import VidaaOptionsFlowHandler
+
+    flow = VidaaOptionsFlowHandler(mock_entry)
+    flow.hass = MagicMock()
+    flow.hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
+
+    nested_input = {
+        "auth_profile": "modern",
+        "brand": "his",
+        "manual_certificates": {
+            "use_ssl": True,
+            "certfile": "/mock/cert.pem",
+            "keyfile": "/mock/key.pem",
+        },
+    }
+
+    with (
+        patch("custom_components.vidaa.flow.options.check_certs_exist", return_value=True),
+        patch("custom_components.vidaa.flow.options.validate_ssl_certs", return_value=(True, None)),
+    ):
+        res = await flow.async_step_security(user_input=nested_input)
+        assert res["type"] == "create_entry"
+        # Nested section container must NOT be in options
+        assert "manual_certificates" not in res["data"]
+        # Promoted keys must be present
+        assert res["data"]["certfile"] == "/mock/cert.pem"
+        assert res["data"]["keyfile"] == "/mock/key.pem"
+        assert res["data"]["use_ssl"] is True
+
+
+@pytest.mark.anyio
+async def test_validate_ssl_certs_with_pkcs12_bundle():
+    """Test validate_ssl_certs automatically extracts and validates PKCS#12 bundles."""
+    from custom_components.vidaa.protocol.certs import validate_ssl_certs
+
+    with patch("custom_components.vidaa.protocol.certs.extract_pkcs12_to_pem") as mock_ext:
+        mock_ext.return_value = ("/mock/cert.pem", "/mock/key.pem")
+        with (
+            patch("custom_components.vidaa.protocol.certs.check_certs_exist", return_value=True),
+            patch("ssl.SSLContext.load_cert_chain") as mock_chain,
+        ):
+            ok, err = validate_ssl_certs("/mock/client_mobile_android.p12", None)
+            assert ok is True
+            assert err is None
+            mock_ext.assert_called_once_with("/mock/client_mobile_android.p12")
+            mock_chain.assert_called_once_with(certfile="/mock/cert.pem", keyfile="/mock/key.pem")

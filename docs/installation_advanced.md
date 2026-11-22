@@ -50,14 +50,14 @@ git clone https://github.com/stevene1919/vidaa.git vidaa_repo
 mkdir -p custom_components
 
 # 4. Symlink the integration component into custom_components
-ln -s /config/hisense_vidaa_repo/custom_components/vidaa /config/custom_components/vidaa
+ln -s /config/vidaa_repo/custom_components/vidaa /config/custom_components/vidaa
 
 # 5. Restart Home Assistant to load the component
 ```
 
 To update to the latest commit on `main`:
 ```bash
-cd /config/hisense_vidaa_repo
+cd /config/vidaa_repo
 git pull origin main
 # Restart Home Assistant
 ```
@@ -69,7 +69,7 @@ git pull origin main
 If you are collaborating on an open issue or testing an unreleased fix (e.g. `feat/ssl-cert-validation`):
 
 ```bash
-cd /config/hisense_vidaa_repo
+cd /config/vidaa_repo
 
 # Fetch all remote branches
 git fetch origin

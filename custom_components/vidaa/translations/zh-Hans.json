@@ -169,8 +169,8 @@
         },
         "sections": {
           "manual_certificates": {
-            "name": "Manual Certificate Paths (Advanced)",
-            "description": "Enter custom filesystem paths for client certificate and private key files."
+            "name": "手动证书路径（高级）",
+            "description": "输入客户端证书和私钥文件的自定义文件系统路径。"
           }
         }
       }
@@ -482,7 +482,7 @@
             "title": "验证客户端证书",
             "description": "将 hisense.crt 和 hisense.key 复制到 /config/ssl 或 /ssl 目录后，提交此表单进行验证。",
             "data": {
-              "cert_file": "Application Package or Keystore File (.apk / .p12 / .pem)"
+              "cert_file": "应用程序包或密钥库文件 (.apk / .p12 / .pem)"
             }
           }
         },

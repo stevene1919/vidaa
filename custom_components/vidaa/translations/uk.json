@@ -169,8 +169,8 @@
         },
         "sections": {
           "manual_certificates": {
-            "name": "Manual Certificate Paths (Advanced)",
-            "description": "Enter custom filesystem paths for client certificate and private key files."
+            "name": "Власні шляхи до сертифікатів (додатково)",
+            "description": "Вкажіть власні шляхи файлової системи для сертифіката клієнта та закритого ключа."
           }
         }
       }
@@ -482,7 +482,7 @@
             "title": "Перевірка клієнтських сертифікатів",
             "description": "Після того як ви скопіювали hisense.crt та hisense.key у /config/ssl або /ssl, надішліть цю форму для перевірки.",
             "data": {
-              "cert_file": "Application Package or Keystore File (.apk / .p12 / .pem)"
+              "cert_file": "Пакет програми або файл сховища ключів (.apk / .p12 / .pem)"
             }
           }
         },

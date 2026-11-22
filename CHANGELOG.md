@@ -82,9 +82,16 @@ This release introduces native UI certificate uploads and an automated, zero-fri
 - **Security & Extraction Guardrails**:
   - Hardened against Zip Slip path traversal exploits and oversized upload archives (>150 MB).
   - Client certificate and private key pairs are pre-validated in an `SSLContext` before saving to disk.
-- **Fixed Power-On Race Condition & Cold-Boot State Sync ([#76](https://github.com/stevene1919/vidaa/issues/76))**:
+- **Fixed Power-On Race Condition & Cold-Boot State Sync ([#76](https://github.com/stevene1919/vidaa/issues/76), [#77](https://github.com/stevene1919/vidaa/issues/77))**:
   - Eliminated the double-power toggle race condition where waking a TV with Fast Power On enabled could accidentally send an inverting `KEY_POWER` command and turn the TV straight back off. Added an active wake settle window and toggle cooldown protection.
   - Fixed state synchronization on cold boots when Fast Power On is disabled in TV settings: TV status now immediately updates from `off` to `on` as soon as device telemetry is received over MQTT.
+  - Expanded the initial state query retry cadence to 35s `(2.0, 3.0, 5.0, 10.0, 15.0)` to ensure volume, source list, and app list telemetry are reliably captured on slow cold-booting VIDAA devices such as the Hisense C2 Ultra laser projector ([#77](https://github.com/stevene1919/vidaa/issues/77)).
+- **Clean Activity Transitions & Client State Lifecycle**:
+  - Unified the client-side state machine in `tv/state.py`: switching sources (`sourceswitch`), tuning Live TV (`livetv`), or entering standby (`fake_sleep_0`) now cleans up stale application attributes (`current_app`, `current_app_id`, `current_channel`, `current_program`).
+  - The `remote` entity's `current_activity` now cleanly reflects HDMI/CEC sources and Live TV without sticking on Home Launcher. Added canonical `connected_device` tracking.
+- **Comprehensive Unit Testing & Quality Scale Expansion (466 Tests, 84% Coverage)**:
+  - Systematically expanded unit tests across all under-tested engine modules: `actions_settings.py` (100%), `actions_input.py` (99%), `settings.py` (99%), `media.py` (98%), `remote.py` (98%), `actions_power.py` (94%), `ping.py` (90%), `upnp_desc.py` (87%), and `fingerprint.py` (86%).
+  - Total component coverage increased from 78% to 84% (575 fewer untested lines) across 466 passing tests with zero regressions.
 - **Complete Internationalization (13 Locales)**:
   - 100% string and translation key parity achieved across all 13 supported languages (`en`, `de`, `es`, `fr`, `it`, `pl`, `pt-BR`, `pt`, `ru`, `sr-Latn`, `sr`, `uk`, `zh-Hans`), including all new section and upload repair strings.
 
@@ -102,10 +109,10 @@ This release introduces native UI certificate uploads and an automated, zero-fri
 - **Options Flow**: Modularized options into `flow/options_security.py` with collapsible sections and unwrapping helpers; added certificate replacement upload support to `async_step_security`.
 - **Repairs**: Enhanced `CertificateMissingRepairFlow` with interactive native file upload support.
 - **Power Lifecycle**: Added `STANDBY_WAKE_SETTLE_DELAY` (0.3s) and `POWER_TOGGLE_COOLDOWN` (2.0s) in `actions_power.py` to prevent inverting `KEY_POWER` toggle races, guarding WoL reconnection so `KEY_POWER` is only dispatched when the TV confirms low-power standby telemetry (`fake_sleep_0` / `fake_sleep_state == 0`).
-- **Cold Boot State Synchronization**: Added staggered query retry mechanism in `_async_delayed_initial_query` (retrying at 2s, 3s, 5s, 10s, 15s) to handle slow cold boots where `mosquitto` starts before `platform_service` and `ui_service` without Fast Power On (Issues #76, #77).
-- **State Deduction**: Updated `apply_device_info_update` in `tv/state.py` to detect awake state when `fake_sleep == 0` (Fast Power On disabled), dispatching synthetic `fake_sleep_1` wake events upon MQTT reconnection.
-- **Client Attributes**: Tracked `_connected_time`, `_last_standby_time`, `_last_wake_time`, and `_last_power_toggle_time` lifecycle timestamps to coordinate safe wake transitions.
-- **Test Suite**: Added unit tests covering cold-boot state query retries, WoL reconnect standby checks, and wake race prevention, bringing the automated test suite to 406 tests.
+- **Cold Boot State Synchronization**: Expanded query retry cadence in `_async_delayed_initial_query` to `(2.0, 3.0, 5.0, 10.0, 15.0)` (~35s) to support slow cold-booting laser projectors and TVs where `mosquitto` starts well before `platform_service` and `ui_service` ([#76](https://github.com/stevene1919/vidaa/issues/76), [#77](https://github.com/stevene1919/vidaa/issues/77)).
+- **State Deduction & Reset**: Updated `apply_device_info_update` in `tv/state.py` to detect awake state when `fake_sleep == 0` (Fast Power On disabled), dispatching synthetic `fake_sleep_1` wake events upon MQTT reconnection. Added automatic clearing of `current_app`, `current_app_id`, `current_channel`, `channel_number`, and `current_program` on `sourceswitch`, `livetv`, and `fake_sleep_0`.
+- **Client Attributes**: Tracked `_connected_time`, `_last_standby_time`, `_last_wake_time`, `_last_power_toggle_time`, and canonical `connected_device` lifecycle attributes to coordinate safe wake and activity transitions.
+- **Test Suite**: Added 59 new unit tests covering input actions, media parsers, calibration mixins, UPnP/mDNS fingerprinting, and power lifecycle edge cases, expanding the automated test suite to 466 tests and 84% total coverage.
 
 </details>
 

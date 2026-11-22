@@ -31,6 +31,12 @@ def apply_state_update(client: VidaaClient, data: Any) -> None:
         client.state = "off"
         client._last_standby_time = time.time()
         client._last_power_toggle_time = 0.0
+        client.current_app = None
+        client.current_app_id = None
+        client.connected_device = None
+        client.current_channel = None
+        client.channel_number = None
+        client.current_program = None
         if isinstance(getattr(client, "sources", None), list):
             for s in client.sources:
                 if isinstance(s, dict):
@@ -44,6 +50,38 @@ def apply_state_update(client: VidaaClient, data: Any) -> None:
     elif statetype or data.get("is_power_on") in (1, "1", True):
         client.state = "on"
         client._last_wake_time = time.time()
+
+    if statetype == "sourceswitch":
+        client.current_app = None
+        client.current_app_id = None
+        client.current_channel = None
+        client.channel_number = None
+        client.current_program = None
+        client.connected_device = data.get("displayname2") or data.get("source_detail")
+    elif statetype == "livetv":
+        client.current_source = "TV"
+        client.current_source_id = "TV"
+        client.current_app = None
+        client.current_app_id = None
+        client.connected_device = None
+    elif statetype == "app":
+        app_name = data.get("name") or data.get("appName") or data.get("appname")
+        if app_name:
+            client.current_app = str(app_name)
+        raw_app_id = data.get("appId") or data.get("activeAppId") or data.get("appid")
+        if raw_app_id is not None and str(raw_app_id):
+            client.current_app_id = str(raw_app_id)
+        client.connected_device = None
+        client.current_channel = None
+        client.channel_number = None
+        client.current_program = None
+    elif statetype in ("launcher", "remote_launcher"):
+        client.current_app = "Home Launcher"
+        client.current_app_id = None
+        client.connected_device = None
+        client.current_channel = None
+        client.channel_number = None
+        client.current_program = None
 
     if "sourcename" in data:
         client.current_source = data["sourcename"]
@@ -70,12 +108,10 @@ def apply_state_update(client: VidaaClient, data: Any) -> None:
         client.current_source_id = str(data["sourceid"])
     elif statetype == "livetv":
         client.current_source_id = "TV"
-    if "appname" in data:
+
+    if not client.current_app and "appname" in data:
         client.current_app = data["appname"]
-    elif statetype in ("launcher", "remote_launcher"):
-        client.current_app = "Home Launcher"
-        client.current_app_id = None
-    if "appid" in data:
+    if not client.current_app_id and "appid" in data:
         client.current_app_id = str(data["appid"])
     if "channel_name" in data:
         client.current_channel = data["channel_name"]
@@ -304,6 +340,7 @@ class TvStateMixin:
         self.sources: list[dict[str, Any]] = []
         self.current_source: str | None = None
         self.current_source_id: str | None = None
+        self.connected_device: str | None = None
         self.apps: list[dict[str, Any]] = []
         self.current_app: str | None = None
         self.current_app_id: str | None = None

@@ -115,6 +115,7 @@ def mock_client():
     client.refresh_token_time = 1700000000
     client.refresh_token_duration = 86400
     client.current_app = "Netflix"
+    client.connected_device = None
     client.source = "HDMI 1"
     client.tv_state = "on"
     client.device_name = None

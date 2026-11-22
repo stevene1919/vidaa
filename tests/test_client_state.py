@@ -330,6 +330,24 @@ def test_apply_state_update_fake_sleep_vocabulary():
     assert client.current_app == "Home Launcher"
     assert client.current_app_id is None
 
+    # (e) switching to HDMI source clears current_app so remote activity does not stick
+    apply_state_update(
+        client,
+        {"statetype": "sourceswitch", "sourcename": "HDMI2", "displayname2": "Chromecast"},
+    )
+    assert client.state == "on"
+    assert client.current_source == "HDMI2"
+    assert client.current_app is None
+    assert client.current_app_id is None
+    assert client.connected_device == "Chromecast"
+
+    # (f) switching to app with standard VIDAA payload names (name, appId)
+    apply_state_update(client, {"statetype": "app", "name": "YouTube", "appId": "3"})
+    assert client.state == "on"
+    assert client.current_app == "YouTube"
+    assert client.current_app_id == "3"
+    assert client.connected_device is None
+
 
 def test_device_info_telemetry_and_entity_binding():
     """Test getdeviceinfo and gettvinfo telemetry update client state and VidaaEntity device_info."""

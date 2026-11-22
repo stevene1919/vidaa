@@ -1,7 +1,7 @@
 """Tests for VIDAA Smart TV remote control entity."""
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant.core import HomeAssistant
@@ -232,6 +232,7 @@ async def test_remote_turn_on_failed_wol(mock_client, mock_entry):
 async def test_remote_action_exceptions_when_tv_off(mock_client, mock_entry):
     """Test remote raises device_off for non-power keys when TV is off, allows power keys, and turn_off no-ops."""
     rem = VidaaRemote(client=mock_client, entry=mock_entry)
+    rem._options = {"enable_cec_names": True}
     mock_client.connected = True
     mock_client.is_on = False
     mock_client.async_send_command = AsyncMock(return_value=True)
@@ -248,3 +249,146 @@ async def test_remote_action_exceptions_when_tv_off(mock_client, mock_entry):
     # 3. Power command is permitted even when off
     await rem.async_send_command(["KEY_POWER"])
     mock_client.async_send_command.assert_called_with("KEY_POWER")
+
+
+def test_remote_current_activity_transitions(mock_client, mock_entry):
+    """Test current_activity transitions cleanly between app, launcher, and HDMI without sticking."""
+    from custom_components.vidaa.tv.state import apply_state_update
+
+    rem = VidaaRemote(client=mock_client, entry=mock_entry)
+    rem._options = {"enable_cec_names": True}
+    mock_client.connected = True
+    mock_client.is_on = True
+
+    # 1. TV launches Home Launcher
+    apply_state_update(mock_client, {"statetype": "remote_launcher"})
+    rem._handle_state_update({"statetype": "remote_launcher"})
+    assert rem.current_activity == "Home Launcher"
+
+    # 2. TV switches to HDMI2 with connected device
+    apply_state_update(
+        mock_client,
+        {"statetype": "sourceswitch", "sourcename": "HDMI2", "displayname2": "Chromecast"},
+    )
+    rem._handle_state_update({"statetype": "sourceswitch"})
+    # current_activity must reflect HDMI source (and CEC name), NOT stick on Home Launcher
+    assert rem.current_activity == "HDMI2 (Chromecast)"
+
+    # 3. TV launches Netflix
+    apply_state_update(mock_client, {"statetype": "app", "name": "Netflix", "appId": "1"})
+    rem._handle_state_update({"statetype": "app"})
+    assert rem.current_activity == "Netflix"
+
+
+@pytest.mark.anyio
+async def test_remote_lifecycle_callbacks(mock_client, mock_entry):
+    """Test remote entity registration and removal of client callbacks."""
+    rem = VidaaRemote(client=mock_client, entry=mock_entry)
+    rem.schedule_update_ha_state = MagicMock()
+
+    await rem.async_added_to_hass()
+    mock_client.register_connected_callback.assert_called_with(rem._handle_connected)
+    mock_client.register_state_callback.assert_called_with(rem._handle_state_update)
+
+    rem._handle_connected()
+    rem._handle_disconnected()
+    assert rem.schedule_update_ha_state.call_count == 2
+
+    await rem.async_will_remove_from_hass()
+    mock_client.unregister_connected_callback.assert_called_with(rem._handle_connected)
+    mock_client.unregister_state_callback.assert_called_with(rem._handle_state_update)
+
+
+@pytest.mark.anyio
+async def test_remote_async_exec_helper(mock_client, mock_entry):
+    """Test _async_exec helper with sync and async functions."""
+    rem = VidaaRemote(client=mock_client, entry=mock_entry)
+    assert await rem._async_exec(lambda: 42) == 42
+
+    async def _coro(val):
+        return val * 2
+
+    assert await rem._async_exec(_coro, 21) == 42
+
+
+@pytest.mark.anyio
+async def test_remote_current_activity_when_off(mock_client, mock_entry):
+    """Test current_activity returns None when TV is off."""
+    rem = VidaaRemote(client=mock_client, entry=mock_entry)
+    mock_client.is_on = False
+    assert rem.current_activity is None
+
+
+@pytest.mark.anyio
+async def test_remote_turn_on_with_activity_and_secondary_mac(mock_client, mock_entry):
+    """Test turn_on targets secondary MAC and launches activity."""
+    mock_entry.options = {
+        "enable_wol": True,
+        "secondary_mac_address": "e8:51:77:00:11:22",
+    }
+    rem = VidaaRemote(client=mock_client, entry=mock_entry)
+    rem.async_write_ha_state = MagicMock()
+    mock_client.connected = True
+    mock_client.is_on = True
+    mock_client.async_turn_on = AsyncMock(return_value=True)
+
+    with patch("custom_components.vidaa.remote.async_execute_select_source", AsyncMock()) as mock_sel:
+        await rem.async_turn_on(activity="Netflix")
+        mock_client.async_turn_on.assert_awaited_once()
+        woken_macs = mock_client.async_turn_on.await_args[0][0]
+        assert "e8:51:77:00:11:22" in woken_macs
+        mock_sel.assert_awaited_once()
+
+
+@pytest.mark.anyio
+async def test_remote_turn_on_with_activity_fails_to_wake(mock_client, mock_entry):
+    """Test turn_on with activity raises if TV does not wake up in time."""
+    rem = VidaaRemote(client=mock_client, entry=mock_entry)
+    mock_client.connected = True
+    mock_client.is_on = False
+    mock_client.async_turn_on = AsyncMock(return_value=True)
+    mock_client.async_wait_until_awake = AsyncMock(return_value=False)
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await rem.async_turn_on(activity="HDMI 1")
+    assert exc_info.value.translation_key == "turn_on_failed"
+
+
+@pytest.mark.anyio
+async def test_remote_turn_off_failure_raises(mock_client, mock_entry):
+    """Test turn_off raises when async_turn_off returns False."""
+    rem = VidaaRemote(client=mock_client, entry=mock_entry)
+    mock_client.connected = True
+    mock_client.is_on = True
+    mock_client.async_turn_off = AsyncMock(return_value=False)
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await rem.async_turn_off()
+    assert exc_info.value.translation_key == "send_key_failed"
+
+
+@pytest.mark.anyio
+async def test_remote_send_command_edge_options_and_hold(mock_client, mock_entry):
+    """Test send_command with invalid delay/repeat types and mute hold."""
+    mock_entry.options = {
+        "key_delay": "invalid_delay",
+        "key_repeat": "invalid_repeat",
+    }
+    rem = VidaaRemote(client=mock_client, entry=mock_entry)
+    mock_client.connected = True
+    mock_client.is_on = True
+
+    # 1. Invalid option types gracefully fall back without exception
+    await rem.async_send_command(["up"], num_repeats="bad_num", delay_secs="bad_delay", hold_secs="bad_hold")
+    assert mock_client.send_command.call_count == 1
+
+    # 2. Hold secs on mute sends KEY_MUTE_LONG_PRESS
+    mock_client.async_send_key.reset_mock()
+    await rem.async_send_command(["mute"], hold_secs=0.5)
+    mock_client.async_send_key.assert_awaited_with("KEY_MUTE_LONG_PRESS")
+
+    # 3. Hold secs step failure raises send_key_failed
+    mock_client.async_send_command = AsyncMock(return_value=False)
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await rem.async_send_command(["left"], hold_secs=0.2)
+    assert exc_info.value.translation_key == "send_key_failed"

@@ -302,8 +302,6 @@ class VidaaRemote(VidaaEntity, RemoteEntity):
         self._handle_update()
 
     def _handle_state_update(self, data: dict[str, Any]) -> None:
-        # Keep this in lock-step with tv/state.py and tv/media.py: only fake_sleep_0
-        # (exact) or a statetype containing "off" is off; fake_sleep_1 is the TV waking.
         if isinstance(data, dict) and self._client:
             statetype_l = str(data.get("statetype") or "").lower()
             self._client.is_on = not (statetype_l == "fake_sleep_0" or "off" in statetype_l)

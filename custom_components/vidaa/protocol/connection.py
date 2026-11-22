@@ -113,7 +113,7 @@ class ConnectionManagerMixin:
         # Cold-boot query retry: On cold boot (or power on with Fast Power disabled),
         # Mosquitto starts 10-20 seconds before ui_service and platform_service.
         # Querying at 0.5s may be ignored. Retry queries until state is confirmed or max retries.
-        for delay in (2.0, 5.0, 10.0):
+        for delay in (2.0, 3.0, 5.0, 10.0, 15.0):
             await asyncio.sleep(delay)
             if not self.connected:
                 break

@@ -101,10 +101,11 @@ This release introduces native UI certificate uploads and an automated, zero-fri
 - **Config Flow**: Added `async_step_upload` with `FileSelector` in `flow/certs.py`, seamlessly routing to TV pairing or falling back to manual path entry.
 - **Options Flow**: Modularized options into `flow/options_security.py` with collapsible sections and unwrapping helpers; added certificate replacement upload support to `async_step_security`.
 - **Repairs**: Enhanced `CertificateMissingRepairFlow` with interactive native file upload support.
-- **Power Lifecycle**: Added `STANDBY_WAKE_SETTLE_DELAY` (0.3s) and `POWER_TOGGLE_COOLDOWN` (2.0s) in `actions_power.py` to prevent inverting `KEY_POWER` toggle races.
+- **Power Lifecycle**: Added `STANDBY_WAKE_SETTLE_DELAY` (0.3s) and `POWER_TOGGLE_COOLDOWN` (2.0s) in `actions_power.py` to prevent inverting `KEY_POWER` toggle races, guarding WoL reconnection so `KEY_POWER` is only dispatched when the TV confirms low-power standby telemetry (`fake_sleep_0` / `fake_sleep_state == 0`).
+- **Cold Boot State Synchronization**: Added staggered query retry mechanism in `_async_delayed_initial_query` (retrying at 2s, 5s, 10s) to handle slow cold boots where `mosquitto` starts before `platform_service` and `ui_service` without Fast Power On (Issue #76).
 - **State Deduction**: Updated `apply_device_info_update` in `tv/state.py` to detect awake state when `fake_sleep == 0` (Fast Power On disabled), dispatching synthetic `fake_sleep_1` wake events upon MQTT reconnection.
-- **Client Attributes**: Implemented `has_active_signal` dynamic property on `VidaaState` and tracked `_last_wake_time` / `_last_power_toggle_time` lifecycle timestamps.
-- **Test Suite**: Added 3 new unit tests covering cold-boot wake deduction and power-on toggle race prevention, bringing the automated test suite to 401 tests.
+- **Client Attributes**: Tracked `_connected_time`, `_last_standby_time`, `_last_wake_time`, and `_last_power_toggle_time` lifecycle timestamps to coordinate safe wake transitions.
+- **Test Suite**: Added unit tests covering cold-boot state query retries, WoL reconnect standby checks, and wake race prevention, bringing the automated test suite to 406 tests.
 
 </details>
 

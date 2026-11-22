@@ -412,6 +412,8 @@ async def test_async_turn_on_tv_reconnect_sends_key_power_when_still_in_standby(
 
     async def fake_ensure_connected() -> bool:
         client.connected = True
+        client._connected_time = 100.0
+        client._last_standby_time = 101.0
         return True
 
     client.async_ensure_connected = AsyncMock(side_effect=fake_ensure_connected)
@@ -422,6 +424,124 @@ async def test_async_turn_on_tv_reconnect_sends_key_power_when_still_in_standby(
     assert res is True
     assert client.is_on is True
     client.send_wake_on_lan.assert_called_once()
+    client.async_send_key.assert_awaited_once_with("KEY_POWER")
+
+
+@pytest.mark.anyio
+async def test_async_turn_on_tv_reconnect_cold_boot_skips_key_power() -> None:
+    """When TV reconnects MQTT after WoL during cold-boot without standby telemetry, do not send KEY_POWER."""
+    from unittest.mock import AsyncMock
+
+    from custom_components.vidaa.tv.actions_power import async_turn_on_tv
+
+    client = VidaaClient(ip="192.168.1.100", client_id="cid")
+    client.connected = False
+    client.is_on = False
+    client.send_wake_on_lan = MagicMock(return_value=True)
+    client.async_send_key = AsyncMock(return_value=True)
+
+    async def fake_ensure_connected() -> bool:
+        client.connected = True
+        client._connected_time = 100.0
+        client._last_standby_time = 0.0
+        return True
+
+    client.async_ensure_connected = AsyncMock(side_effect=fake_ensure_connected)
+
+    with patch("custom_components.vidaa.tv.actions_power.asyncio.sleep", new_callable=AsyncMock):
+        res = await async_turn_on_tv(client, mac_targets=["e8:51:77:aa:bb:cc"])
+
+    assert res is True
+    assert client.is_on is True
+    client.send_wake_on_lan.assert_called_once()
+    client.async_send_key.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_async_delayed_initial_query_retries_on_cold_boot() -> None:
+    """_async_delayed_initial_query retries initial queries during cold-boot until state is resolved."""
+    client = VidaaClient(ip="192.168.1.100", client_id="cid")
+    client.connected = True
+    client.is_on = False
+    client._connected_time = 100.0
+    client._last_standby_time = 0.0
+    client.async_query_initial_state = AsyncMock()
+
+    calls = 0
+
+    async def fake_sleep(delay: float) -> None:
+        nonlocal calls
+        calls += 1
+        if calls == 3:
+            # Simulate platform_service waking up on second retry
+            client.is_on = True
+
+    with patch("custom_components.vidaa.protocol.connection.asyncio.sleep", side_effect=fake_sleep):
+        await client._async_delayed_initial_query()
+
+    # Initial call at 0.5s + 1 retry at 2.0s = 2 calls
+    assert client.async_query_initial_state.call_count == 2
+
+
+@pytest.mark.anyio
+async def test_async_delayed_initial_query_stops_when_standby_confirmed() -> None:
+    """_async_delayed_initial_query does not retry if explicit standby telemetry was received."""
+    client = VidaaClient(ip="192.168.1.100", client_id="cid")
+    client.connected = True
+    client.is_on = False
+    client._connected_time = 100.0
+    client._last_standby_time = 101.0  # Confirmed standby telemetry arrived
+    client.async_query_initial_state = AsyncMock()
+
+    with patch("custom_components.vidaa.protocol.connection.asyncio.sleep", new_callable=AsyncMock):
+        await client._async_delayed_initial_query()
+
+    # Only the initial query at 0.5s was dispatched; retries stopped because standby is confirmed
+    assert client.async_query_initial_state.call_count == 1
+
+
+@pytest.mark.anyio
+async def test_turn_off_does_not_impose_power_toggle_cooldown() -> None:
+    """Turning off the TV must not set _last_power_toggle_time or block subsequent turn-on commands."""
+    from custom_components.vidaa.tv.actions_power import async_turn_off_tv, async_turn_on_tv
+
+    client = VidaaClient(ip="192.168.1.100", client_id="cid")
+    client.connected = True
+    client.is_on = True
+    client.async_send_key = AsyncMock(return_value=True)
+
+    # Turn off TV
+    res_off = await async_turn_off_tv(client)
+    assert res_off is True
+    assert client.is_on is False
+    assert getattr(client, "_last_power_toggle_time", 0.0) == 0.0
+
+    # Turn on TV immediately afterwards without waiting for cooldown
+    with patch("custom_components.vidaa.tv.actions_power.asyncio.sleep", new_callable=AsyncMock):
+        res_on = await async_turn_on_tv(client)
+
+    assert res_on is True
+    assert client.is_on is True
+    # Sent KEY_POWER for turn-off and KEY_POWER for turn-on
+    assert client.async_send_key.call_count == 2
+
+
+@pytest.mark.anyio
+async def test_has_active_signal_does_not_prevent_turn_on_in_standby() -> None:
+    """Having active HDMI signal must not prevent waking a TV in standby (fake_sleep_0)."""
+    from custom_components.vidaa.tv.actions_power import async_turn_on_tv
+
+    client = VidaaClient(ip="192.168.1.100", client_id="cid")
+    client.connected = True
+    client.is_on = False
+    client.has_active_signal = True  # External HDMI device active while TV screen is off
+    client.async_send_key = AsyncMock(return_value=True)
+
+    with patch("custom_components.vidaa.tv.actions_power.asyncio.sleep", new_callable=AsyncMock):
+        res = await async_turn_on_tv(client)
+
+    assert res is True
+    assert client.is_on is True
     client.async_send_key.assert_awaited_once_with("KEY_POWER")
 
 

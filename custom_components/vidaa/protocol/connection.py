@@ -90,6 +90,7 @@ class ConnectionManagerMixin:
             _LOGGER.debug("[%s] Reconnected within debounce window; cancelled pending disconnect dispatch", self.ip)
 
         self.connected = True
+        self._connected_time = time.time()
         self.auth_failed = False
         _LOGGER.info("[%s] Connected to TV MQTT broker", self.ip)
         if hasattr(self, "_update_wake_event"):
@@ -107,11 +108,36 @@ class ConnectionManagerMixin:
 
     async def _async_delayed_initial_query(self: VidaaClient) -> None:
         await asyncio.sleep(0.5)
-        await self.async_query_initial_state()
+        await self.async_query_initial_state(min_interval=0.0)
+
+        # Cold-boot query retry: On cold boot (or power on with Fast Power disabled),
+        # Mosquitto starts 10-20 seconds before ui_service and platform_service.
+        # Querying at 0.5s may be ignored. Retry queries until state is confirmed or max retries.
+        for delay in (2.0, 5.0, 10.0):
+            await asyncio.sleep(delay)
+            if not self.connected:
+                break
+            if self.is_on:
+                break
+            last_standby = getattr(self, "_last_standby_time", 0.0)
+            conn_time = getattr(self, "_connected_time", 0.0)
+            if (
+                isinstance(last_standby, (int, float))
+                and isinstance(conn_time, (int, float))
+                and last_standby >= conn_time > 0
+            ):
+                break
+            _LOGGER.debug(
+                "[%s] Retrying initial state query (cold-boot wait, elapsed %.1fs)",
+                self.ip,
+                delay,
+            )
+            await self.async_query_initial_state(min_interval=0.0)
 
     def _handle_disconnected(self: VidaaClient, *, debounce: bool = True) -> None:
         was_connected = self.connected
         self.connected = False
+        self._connected_time = 0.0
         self._last_initial_query_time = 0.0
         if hasattr(self, "_update_wake_event"):
             self._update_wake_event()

@@ -99,7 +99,7 @@ def turn_on_tv(
         client.send_wake_on_lan(targets, ip=getattr(client, "ip", None))
 
     if client.connected:
-        if client.is_on or getattr(client, "has_active_signal", False) is True:
+        if client.is_on:
             client.is_on = True
             _LOGGER.debug(
                 "[%s] TV already connected and running. Skipping KEY_POWER to prevent powering down",
@@ -133,7 +133,7 @@ def turn_on_tv(
 
         lw_check = getattr(client, "_last_wake_time", 0.0)
         recent_wake = isinstance(lw_check, (int, float)) and (time.time() - lw_check < 3.0)
-        if client.is_on or getattr(client, "has_active_signal", False) is True or recent_wake:
+        if client.is_on or recent_wake:
             client.is_on = True
             _LOGGER.debug(
                 "[%s] TV waking broadcast arrived during settle window. Skipping KEY_POWER",
@@ -160,7 +160,14 @@ def turn_on_tv(
                         # Allow initial state broadcast (ui_service/state, gettvinfo) to arrive
                         # so we do not toggle off a TV that already woke via Wake-on-LAN.
                         time.sleep(1.0)
-                        if not client.is_on and getattr(client, "has_active_signal", False) is not True:
+                        conn_time = getattr(client, "_connected_time", 0.0)
+                        last_standby = getattr(client, "_last_standby_time", 0.0)
+                        is_confirmed_standby = (
+                            isinstance(last_standby, (int, float))
+                            and isinstance(conn_time, (int, float))
+                            and last_standby >= conn_time > 0
+                        )
+                        if is_confirmed_standby:
                             _LOGGER.debug(
                                 "[%s] TV reconnected in standby/fake_sleep. Sending KEY_POWER to wake screen",
                                 getattr(client, "ip", "unknown"),
@@ -168,9 +175,10 @@ def turn_on_tv(
                             client.send_key("KEY_POWER")
                         else:
                             _LOGGER.debug(
-                                "[%s] TV reconnected and is already awake. Skipping KEY_POWER to prevent powering down",
+                                "[%s] TV reconnected and is booting/awake. Skipping KEY_POWER to prevent powering down",
                                 getattr(client, "ip", "unknown"),
                             )
+                        client.is_on = True
                         break
                     time.sleep(0.1)
         except Exception as e:
@@ -204,7 +212,7 @@ async def async_turn_on_tv(
         )
 
     if client.connected:
-        if client.is_on or getattr(client, "has_active_signal", False) is True:
+        if client.is_on:
             client.is_on = True
             _LOGGER.debug(
                 "[%s] TV already connected and running. Skipping KEY_POWER to prevent powering down",
@@ -238,7 +246,7 @@ async def async_turn_on_tv(
 
         lw_check = getattr(client, "_last_wake_time", 0.0)
         recent_wake = isinstance(lw_check, (int, float)) and (time.time() - lw_check < 3.0)
-        if client.is_on or getattr(client, "has_active_signal", False) is True or recent_wake:
+        if client.is_on or recent_wake:
             client.is_on = True
             _LOGGER.debug(
                 "[%s] TV waking broadcast arrived during settle window. Skipping KEY_POWER",
@@ -280,7 +288,7 @@ async def async_turn_on_tv(
             now = time.time()
             lw_check = getattr(client, "_last_wake_time", 0.0)
             recent_wake = isinstance(lw_check, (int, float)) and (now - lw_check < 3.0)
-            if client.is_on or getattr(client, "has_active_signal", False) is True or recent_wake:
+            if client.is_on or recent_wake:
                 _LOGGER.debug(
                     "[%s] TV reconnected and is already awake. Skipping KEY_POWER to prevent powering down",
                     getattr(client, "ip", "unknown"),
@@ -298,16 +306,32 @@ async def async_turn_on_tv(
                 client.is_on = True
                 return True
 
+            conn_time = getattr(client, "_connected_time", 0.0)
+            last_standby = getattr(client, "_last_standby_time", 0.0)
+            is_confirmed_standby = (
+                isinstance(last_standby, (int, float))
+                and isinstance(conn_time, (int, float))
+                and last_standby >= conn_time > 0
+            )
+
+            if is_confirmed_standby:
+                _LOGGER.debug(
+                    "[%s] TV reconnected in standby/fake_sleep. Sending KEY_POWER to wake screen",
+                    getattr(client, "ip", "unknown"),
+                )
+                client._last_power_toggle_time = time.time()
+                res = await client.async_send_key("KEY_POWER")
+                if res is not False:
+                    client.is_on = True
+                    return True
+                break
+
             _LOGGER.debug(
-                "[%s] TV reconnected in standby/fake_sleep. Sending KEY_POWER to wake screen",
+                "[%s] TV reconnected after WoL/cold-boot. No standby signal received; skipping KEY_POWER to allow boot to complete",
                 getattr(client, "ip", "unknown"),
             )
-            client._last_power_toggle_time = time.time()
-            res = await client.async_send_key("KEY_POWER")
-            if res is not False:
-                client.is_on = True
-                return True
-            break
+            client.is_on = True
+            return True
         await asyncio.sleep(0.1)
 
     return bool(client.connected and client.is_on)
@@ -316,7 +340,6 @@ async def async_turn_on_tv(
 def turn_off_tv(client: VidaaClient) -> None:
     """Powers off the TV safely."""
     if client.connected and client.is_on:
-        client._last_power_toggle_time = time.time()
         client.send_key("KEY_POWER")
     client.is_on = False
 
@@ -324,14 +347,13 @@ def turn_off_tv(client: VidaaClient) -> None:
 async def async_turn_off_tv(client: VidaaClient) -> bool:
     """Powers off the TV safely asynchronously."""
     if client.connected and client.is_on:
-        client._last_power_toggle_time = time.time()
         res = await client.async_send_key("KEY_POWER")
         if res is not False:
             client.is_on = False
             return True
         return False
     client.is_on = False
-    return not client.is_on
+    return True
 
 
 class TvPowerActionsMixin:

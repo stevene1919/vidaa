@@ -307,6 +307,8 @@ class VidaaRemote(VidaaEntity, RemoteEntity):
         if isinstance(data, dict) and self._client:
             statetype_l = str(data.get("statetype") or "").lower()
             self._client.is_on = not (statetype_l == "fake_sleep_0" or "off" in statetype_l)
+            if not self._client.is_on:
+                self._client._last_power_toggle_time = 0.0
         self._handle_update()
 
 

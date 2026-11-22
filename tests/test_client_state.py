@@ -501,3 +501,26 @@ def test_sourcelist_with_active_signal_does_not_wake_standby_tv():
     assert len(state_events) == 1
     assert state_events[0]["statetype"] == "fake_sleep_1"
     assert state_events[0]["sourcename"] == "HDMI1"
+
+
+def test_gettvinfo_fake_sleep_disabled_reports_on_and_wakes_entity():
+    """Test gettvinfo with fake_sleep=0 (Fast Power On disabled in TV menu) transitions client to ON (Issue #76)."""
+    client = VidaaClient(ip="192.168.1.100", client_id="test_client")
+    client.update_topic_paths()
+    client.state = "off"
+    assert client.is_on is False
+
+    state_events = []
+    client.register_state_callback(lambda d: state_events.append(d))
+
+    mock_msg = MagicMock()
+    mock_msg.topic = f"{client.topics.mobile}platform_service/data/gettvinfo"
+    # When Fast Power On is turned off in TV settings, the TV completely cuts power in standby.
+    # Reaching MQTT with fake_sleep=0 confirms the TV is awake.
+    mock_msg.payload = b'{"fake_sleep": 0, "uVersion": "V0000.09.60C.Q0516"}'
+    client._on_message(None, None, mock_msg)
+
+    assert client.state == "on"
+    assert client.is_on is True
+    assert len(state_events) == 1
+    assert state_events[0]["statetype"] == "fake_sleep_1"

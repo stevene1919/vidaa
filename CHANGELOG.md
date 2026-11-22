@@ -82,6 +82,9 @@ This release introduces native UI certificate uploads and an automated, zero-fri
 - **Security & Extraction Guardrails**:
   - Hardened against Zip Slip path traversal exploits and oversized upload archives (>150 MB).
   - Client certificate and private key pairs are pre-validated in an `SSLContext` before saving to disk.
+- **Fixed Power-On Race Condition & Cold-Boot State Sync ([#76](https://github.com/stevene1919/vidaa/issues/76))**:
+  - Eliminated the double-power toggle race condition where waking a TV with Fast Power On enabled could accidentally send an inverting `KEY_POWER` command and turn the TV straight back off. Added an active wake settle window and toggle cooldown protection.
+  - Fixed state synchronization on cold boots when Fast Power On is disabled in TV settings: TV status now immediately updates from `off` to `on` as soon as device telemetry is received over MQTT.
 - **Complete Internationalization (13 Locales)**:
   - 100% string and translation key parity achieved across all 13 supported languages (`en`, `de`, `es`, `fr`, `it`, `pl`, `pt-BR`, `pt`, `ru`, `sr-Latn`, `sr`, `uk`, `zh-Hans`), including all new section and upload repair strings.
 
@@ -98,7 +101,10 @@ This release introduces native UI certificate uploads and an automated, zero-fri
 - **Config Flow**: Added `async_step_upload` with `FileSelector` in `flow/certs.py`, seamlessly routing to TV pairing or falling back to manual path entry.
 - **Options Flow**: Modularized options into `flow/options_security.py` with collapsible sections and unwrapping helpers; added certificate replacement upload support to `async_step_security`.
 - **Repairs**: Enhanced `CertificateMissingRepairFlow` with interactive native file upload support.
-- **Test Suite**: Added comprehensive test suites (`test_modern_ha_features.py`, `test_crypto.py`) with 398 automated unit tests passing across all components.
+- **Power Lifecycle**: Added `STANDBY_WAKE_SETTLE_DELAY` (0.3s) and `POWER_TOGGLE_COOLDOWN` (2.0s) in `actions_power.py` to prevent inverting `KEY_POWER` toggle races.
+- **State Deduction**: Updated `apply_device_info_update` in `tv/state.py` to detect awake state when `fake_sleep == 0` (Fast Power On disabled), dispatching synthetic `fake_sleep_1` wake events upon MQTT reconnection.
+- **Client Attributes**: Implemented `has_active_signal` dynamic property on `VidaaState` and tracked `_last_wake_time` / `_last_power_toggle_time` lifecycle timestamps.
+- **Test Suite**: Added 3 new unit tests covering cold-boot wake deduction and power-on toggle race prevention, bringing the automated test suite to 401 tests.
 
 </details>
 

@@ -472,6 +472,55 @@ async def test_async_turn_on_tv_returns_false_and_preserves_off_state_on_timeout
 
 
 @pytest.mark.anyio
+async def test_async_turn_on_tv_settle_window_skips_key_power_when_waking_broadcast_arrives() -> None:
+    """When TV is connected in standby, a broadcast arriving during settle window skips KEY_POWER (Issue #76)."""
+    from unittest.mock import AsyncMock
+
+    from custom_components.vidaa.tv.actions_power import async_turn_on_tv
+
+    client = VidaaClient(ip="192.168.1.100", client_id="cid")
+    client.connected = True
+    client.is_on = False
+    client.send_wake_on_lan = MagicMock(return_value=True)
+    client.async_send_key = AsyncMock(return_value=True)
+
+    async def fake_settle_sleep(delay: float) -> None:
+        # Simulate incoming livetv broadcast arriving during the 0.3s settle delay
+        client.is_on = True
+
+    with patch("custom_components.vidaa.tv.actions_power.asyncio.sleep", side_effect=fake_settle_sleep):
+        res = await async_turn_on_tv(client, mac_targets=["e8:51:77:aa:bb:cc"])
+
+    assert res is True
+    assert client.is_on is True
+    client.send_wake_on_lan.assert_called_once()
+    client.async_send_key.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_async_turn_on_tv_cooldown_prevents_duplicate_key_power_toggle() -> None:
+    """Rapid turn_on calls suppress duplicate KEY_POWER toggle within cooldown window (Issue #76)."""
+    import time
+    from unittest.mock import AsyncMock
+
+    from custom_components.vidaa.tv.actions_power import async_turn_on_tv
+
+    client = VidaaClient(ip="192.168.1.100", client_id="cid")
+    client.connected = True
+    client.is_on = False
+    client._last_power_toggle_time = time.time()  # Sent 0 seconds ago
+    client.send_wake_on_lan = MagicMock(return_value=True)
+    client.async_send_key = AsyncMock(return_value=True)
+
+    with patch("custom_components.vidaa.tv.actions_power.asyncio.sleep", new_callable=AsyncMock):
+        res = await async_turn_on_tv(client, mac_targets=["e8:51:77:aa:bb:cc"])
+
+    assert res is True
+    assert client.is_on is True
+    client.async_send_key.assert_not_called()
+
+
+@pytest.mark.anyio
 async def test_client_async_wait_until_awake_resolves_and_times_out() -> None:
     """Verify async_wait_until_awake reacts to wake event and handles timeouts cleanly."""
     client = VidaaClient(ip="192.168.1.100", client_id="cid")

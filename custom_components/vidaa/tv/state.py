@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import time
 from typing import TYPE_CHECKING, Any
 
 from .settings import (
@@ -28,6 +29,7 @@ def apply_state_update(client: VidaaClient, data: Any) -> None:
     # followed by remote_launcher) and must be reported ON, not off.
     if "off" in statetype or statetype == "fake_sleep_0":
         client.state = "off"
+        client._last_power_toggle_time = 0.0
         if isinstance(getattr(client, "sources", None), list):
             for s in client.sources:
                 if isinstance(s, dict):
@@ -37,8 +39,10 @@ def apply_state_update(client: VidaaClient, data: Any) -> None:
                     s["active"] = False
     elif statetype in ("screen_saver", "screensaver"):
         client.state = "screensaver"
+        client._last_wake_time = time.time()
     elif statetype or data.get("is_power_on") in (1, "1", True):
         client.state = "on"
+        client._last_wake_time = time.time()
 
     if "sourcename" in data:
         client.current_source = data["sourcename"]
@@ -150,12 +154,20 @@ def apply_device_info_update(client: VidaaClient, data: Any) -> None:
 
     # gettvinfo provides authoritative live power state via fake_sleep_state:
     # 0 = standby (fake_sleep_0), 1 = awake (fake_sleep_1 / on).
-    if data.get("fake_sleep", 1) in (1, "1", True) and "fake_sleep_state" in data:
+    fake_sleep_val = data.get("fake_sleep")
+    if fake_sleep_val in (0, "0", False):
+        # Fast Power On is disabled in TV settings. The TV cuts power completely
+        # during standby; receiving device info over active MQTT confirms the TV is awake.
+        if getattr(client, "state", "off") in ("off", ""):
+            client.state = "on"
+            client._last_wake_time = time.time()
+    elif "fake_sleep_state" in data:
         sleep_state = data["fake_sleep_state"]
         if sleep_state in (0, "0", False):
             client.state = "off"
         elif sleep_state in (1, "1", True) and getattr(client, "state", "off") in ("off", ""):
             client.state = "on"
+            client._last_wake_time = time.time()
 
 
 def apply_volume_update(client: VidaaClient, data: Any) -> None:
@@ -316,6 +328,31 @@ class TvStateMixin:
         self.clock_offset: int = 0
         self.last_clock_sync: float = 0.0
         self.tv_timestamp: int | None = None
+        self._last_wake_time: float = 0.0
+        self._last_power_toggle_time: float = 0.0
+        self._has_active_signal_override: bool | None = None
+
+    @property
+    def has_active_signal(self) -> bool:
+        """Returns True if any input source reports an active video signal."""
+        if getattr(self, "_has_active_signal_override", None) is not None:
+            return bool(self._has_active_signal_override)
+        sources = getattr(self, "sources", None)
+        if not isinstance(sources, list):
+            return False
+        for s in sources:
+            if isinstance(s, dict) and (
+                s.get("is_signal") in ("1", 1, True)
+                or s.get("is_active") in (True, "1", 1)
+                or s.get("isactive") in (True, "1", 1)
+                or s.get("active") in (True, "1", 1)
+            ):
+                return True
+        return False
+
+    @has_active_signal.setter
+    def has_active_signal(self, value: bool | None) -> None:
+        self._has_active_signal_override = value
 
     @property
     def is_on(self) -> bool:

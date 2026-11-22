@@ -69,6 +69,8 @@ class MediaPlayerStateHandlerMixin:
         parsed = parse_media_state_broadcast(data)
         if self._client:
             self._client.is_on = parsed["is_on"]
+            if not parsed["is_on"]:
+                self._client._last_power_toggle_time = 0.0
 
         # Cancel any pending debounce timer
         if self._debounce_handle:

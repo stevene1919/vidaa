@@ -11,6 +11,9 @@ from typing import TYPE_CHECKING
 
 from ..const import DEFAULT_WOL_TIMEOUT
 
+POWER_TOGGLE_COOLDOWN: float = 2.0
+STANDBY_WAKE_SETTLE_DELAY: float = 0.3
+
 if TYPE_CHECKING:
     from ..client import VidaaClient
 
@@ -83,6 +86,7 @@ async def async_query_initial_state(client: VidaaClient, min_interval: float = 3
 def turn_on_tv(
     client: VidaaClient,
     mac_targets: list[str] | None = None,
+    settle_delay: float = STANDBY_WAKE_SETTLE_DELAY,
 ) -> None:
     """Powers on or wakes the TV safely and idempotently."""
     targets = list(mac_targets) if mac_targets else []
@@ -95,19 +99,55 @@ def turn_on_tv(
         client.send_wake_on_lan(targets, ip=getattr(client, "ip", None))
 
     if client.connected:
-        if not client.is_on and getattr(client, "has_active_signal", False) is not True:
-            _LOGGER.debug(
-                "[%s] TV connected in standby/fake_sleep. Sending KEY_POWER to wake screen",
-                getattr(client, "ip", "unknown"),
-            )
-            client.send_key("KEY_POWER")
-            client.is_on = True
-        else:
+        if client.is_on or getattr(client, "has_active_signal", False) is True:
             client.is_on = True
             _LOGGER.debug(
                 "[%s] TV already connected and running. Skipping KEY_POWER to prevent powering down",
                 getattr(client, "ip", "unknown"),
             )
+            return
+
+        now = time.time()
+        last_wake = getattr(client, "_last_wake_time", 0.0)
+        if isinstance(last_wake, (int, float)) and now - last_wake < 3.0:
+            client.is_on = True
+            _LOGGER.debug(
+                "[%s] TV waking broadcast arrived recently (%.2fs ago). Skipping KEY_POWER to prevent inverting power",
+                getattr(client, "ip", "unknown"),
+                now - last_wake,
+            )
+            return
+
+        last_toggle = getattr(client, "_last_power_toggle_time", 0.0)
+        if isinstance(last_toggle, (int, float)) and now - last_toggle < POWER_TOGGLE_COOLDOWN:
+            client.is_on = True
+            _LOGGER.debug(
+                "[%s] Suppressing duplicate KEY_POWER toggle within %.1fs cooldown",
+                getattr(client, "ip", "unknown"),
+                POWER_TOGGLE_COOLDOWN,
+            )
+            return
+
+        if settle_delay > 0:
+            time.sleep(settle_delay)
+
+        lw_check = getattr(client, "_last_wake_time", 0.0)
+        recent_wake = isinstance(lw_check, (int, float)) and (time.time() - lw_check < 3.0)
+        if client.is_on or getattr(client, "has_active_signal", False) is True or recent_wake:
+            client.is_on = True
+            _LOGGER.debug(
+                "[%s] TV waking broadcast arrived during settle window. Skipping KEY_POWER",
+                getattr(client, "ip", "unknown"),
+            )
+            return
+
+        _LOGGER.debug(
+            "[%s] TV connected in standby/fake_sleep. Sending KEY_POWER to wake screen",
+            getattr(client, "ip", "unknown"),
+        )
+        client._last_power_toggle_time = time.time()
+        client.send_key("KEY_POWER")
+        client.is_on = True
     else:
         _LOGGER.debug(
             "[%s] TV MQTT not connected. Attempting reconnect to check power state",
@@ -148,6 +188,7 @@ async def async_turn_on_tv(
     client: VidaaClient,
     mac_targets: list[str] | None = None,
     timeout: float = DEFAULT_WOL_TIMEOUT,
+    settle_delay: float = STANDBY_WAKE_SETTLE_DELAY,
 ) -> bool:
     """Powers on or wakes the TV safely and idempotently asynchronously."""
     targets = list(mac_targets) if mac_targets else []
@@ -163,23 +204,58 @@ async def async_turn_on_tv(
         )
 
     if client.connected:
-        if not client.is_on and getattr(client, "has_active_signal", False) is not True:
+        if client.is_on or getattr(client, "has_active_signal", False) is True:
+            client.is_on = True
             _LOGGER.debug(
-                "[%s] TV connected in standby/fake_sleep. Sending KEY_POWER to wake screen",
+                "[%s] TV already connected and running. Skipping KEY_POWER to prevent powering down",
                 getattr(client, "ip", "unknown"),
             )
-            res = await client.async_send_key("KEY_POWER")
-            if res is not False:
-                client.is_on = True
-                return True
-            return False
+            return True
 
-        client.is_on = True
+        now = time.time()
+        last_wake = getattr(client, "_last_wake_time", 0.0)
+        if isinstance(last_wake, (int, float)) and now - last_wake < 3.0:
+            client.is_on = True
+            _LOGGER.debug(
+                "[%s] TV waking broadcast arrived recently (%.2fs ago). Skipping KEY_POWER to prevent inverting power",
+                getattr(client, "ip", "unknown"),
+                now - last_wake,
+            )
+            return True
+
+        last_toggle = getattr(client, "_last_power_toggle_time", 0.0)
+        if isinstance(last_toggle, (int, float)) and now - last_toggle < POWER_TOGGLE_COOLDOWN:
+            client.is_on = True
+            _LOGGER.debug(
+                "[%s] Suppressing duplicate KEY_POWER toggle within %.1fs cooldown",
+                getattr(client, "ip", "unknown"),
+                POWER_TOGGLE_COOLDOWN,
+            )
+            return True
+
+        if settle_delay > 0:
+            await asyncio.sleep(settle_delay)
+
+        lw_check = getattr(client, "_last_wake_time", 0.0)
+        recent_wake = isinstance(lw_check, (int, float)) and (time.time() - lw_check < 3.0)
+        if client.is_on or getattr(client, "has_active_signal", False) is True or recent_wake:
+            client.is_on = True
+            _LOGGER.debug(
+                "[%s] TV waking broadcast arrived during settle window. Skipping KEY_POWER",
+                getattr(client, "ip", "unknown"),
+            )
+            return True
+
         _LOGGER.debug(
-            "[%s] TV already connected and running. Skipping KEY_POWER to prevent powering down",
+            "[%s] TV connected in standby/fake_sleep. Sending KEY_POWER to wake screen",
             getattr(client, "ip", "unknown"),
         )
-        return True
+        client._last_power_toggle_time = time.time()
+        res = await client.async_send_key("KEY_POWER")
+        if res is not False:
+            client.is_on = True
+            return True
+        return False
 
     _LOGGER.debug(
         "[%s] TV MQTT not connected. Attempting reconnect to check power state",
@@ -201,20 +277,34 @@ async def async_turn_on_tv(
             # before deciding whether KEY_POWER is needed, preventing a race where
             # a TV waking from deep sleep via WoL is toggled right back off.
             await asyncio.sleep(1.0)
-            if not client.is_on and getattr(client, "has_active_signal", False) is not True:
-                _LOGGER.debug(
-                    "[%s] TV reconnected in standby/fake_sleep. Sending KEY_POWER to wake screen",
-                    getattr(client, "ip", "unknown"),
-                )
-                res = await client.async_send_key("KEY_POWER")
-                if res is not False:
-                    client.is_on = True
-                    return True
-            else:
+            now = time.time()
+            lw_check = getattr(client, "_last_wake_time", 0.0)
+            recent_wake = isinstance(lw_check, (int, float)) and (now - lw_check < 3.0)
+            if client.is_on or getattr(client, "has_active_signal", False) is True or recent_wake:
                 _LOGGER.debug(
                     "[%s] TV reconnected and is already awake. Skipping KEY_POWER to prevent powering down",
                     getattr(client, "ip", "unknown"),
                 )
+                client.is_on = True
+                return True
+
+            last_toggle = getattr(client, "_last_power_toggle_time", 0.0)
+            if isinstance(last_toggle, (int, float)) and now - last_toggle < POWER_TOGGLE_COOLDOWN:
+                _LOGGER.debug(
+                    "[%s] Suppressing duplicate KEY_POWER toggle within %.1fs cooldown",
+                    getattr(client, "ip", "unknown"),
+                    POWER_TOGGLE_COOLDOWN,
+                )
+                client.is_on = True
+                return True
+
+            _LOGGER.debug(
+                "[%s] TV reconnected in standby/fake_sleep. Sending KEY_POWER to wake screen",
+                getattr(client, "ip", "unknown"),
+            )
+            client._last_power_toggle_time = time.time()
+            res = await client.async_send_key("KEY_POWER")
+            if res is not False:
                 client.is_on = True
                 return True
             break
@@ -226,6 +316,7 @@ async def async_turn_on_tv(
 def turn_off_tv(client: VidaaClient) -> None:
     """Powers off the TV safely."""
     if client.connected and client.is_on:
+        client._last_power_toggle_time = time.time()
         client.send_key("KEY_POWER")
     client.is_on = False
 
@@ -233,11 +324,13 @@ def turn_off_tv(client: VidaaClient) -> None:
 async def async_turn_off_tv(client: VidaaClient) -> bool:
     """Powers off the TV safely asynchronously."""
     if client.connected and client.is_on:
+        client._last_power_toggle_time = time.time()
         res = await client.async_send_key("KEY_POWER")
         if res is not False:
             client.is_on = False
             return True
         return False
+    client.is_on = False
     return not client.is_on
 
 
@@ -252,13 +345,23 @@ class TvPowerActionsMixin:
         """Queries initial state, volume, source list, app list, and settings asynchronously."""
         await async_query_initial_state(self, min_interval=min_interval)  # type: ignore[arg-type]
 
-    def turn_on(self, mac_targets: list[str] | None = None) -> None:
+    def turn_on(self, mac_targets: list[str] | None = None, settle_delay: float = STANDBY_WAKE_SETTLE_DELAY) -> None:
         """Powers on or wakes the TV safely and idempotently."""
-        turn_on_tv(self, mac_targets=mac_targets)  # type: ignore[arg-type]
+        turn_on_tv(self, mac_targets=mac_targets, settle_delay=settle_delay)  # type: ignore[arg-type]
 
-    async def async_turn_on(self, mac_targets: list[str] | None = None, timeout: float = DEFAULT_WOL_TIMEOUT) -> bool:
+    async def async_turn_on(
+        self,
+        mac_targets: list[str] | None = None,
+        timeout: float = DEFAULT_WOL_TIMEOUT,
+        settle_delay: float = STANDBY_WAKE_SETTLE_DELAY,
+    ) -> bool:
         """Powers on or wakes the TV safely and idempotently asynchronously."""
-        return await async_turn_on_tv(self, mac_targets=mac_targets, timeout=timeout)  # type: ignore[arg-type]
+        return await async_turn_on_tv(
+            self,  # type: ignore[arg-type]
+            mac_targets=mac_targets,
+            timeout=timeout,
+            settle_delay=settle_delay,
+        )
 
     def turn_off(self) -> None:
         """Powers off the TV safely."""

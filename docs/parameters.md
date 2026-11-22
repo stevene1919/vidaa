@@ -20,8 +20,8 @@ The integration automatically registers entities across 9 Home Assistant platfor
 
 | Platform            | Entity Class                | Description & Features                                                                                                                                                                                |
 |:------------------- |:--------------------------- |:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`media_player`**  | `MediaPlayerDeviceClass.TV` | Power toggle, volume step/set, mute, source input switcher, Smart TV app launcher, media transport controls (Play, Pause, Stop, Next, Previous), active source/app artwork, display state, and state attributes (`hotel_mode`, `audio_output`, `raw_source`, `connected_device`). |
-| **`remote`**        | `RemoteEntity`              | Discrete key press commands, sequence dispatching (`vidaa.send_key_sequence`), configurable inter-key delays, and repeat counts.                                                              |
+| **`media_player`**  | `MediaPlayerDeviceClass.TV` | Power toggle, volume step/set, mute, source input switcher, Smart TV app launcher, media transport controls (Play, Pause, Stop, Next, Previous), active source/app artwork, display state, interactive **Media Browser** (`media_player.browse_media` for App and Input launching), and state attributes (`hotel_mode`, `audio_output`, `raw_source`, `connected_device`). |
+| **`remote`**        | `RemoteEntity`              | Discrete key press commands, sequence dispatching (`vidaa.send_key_sequence`), configurable inter-key delays, repeat counts, and **Remote Activity Tracking** (`RemoteEntityFeature.ACTIVITY`, active app as activity, with `remote.turn_on(activity=...)`). |
 | **`sensor`**        | `SensorEntity`              | Active Source, Active App, Audio Output Mode, Session Status, Auth Profile, and Hardware Clock Drift offset ($> 60\text{s}$ warning threshold).                                                       |
 | **`binary_sensor`** | `BinarySensorEntity`        | Live MQTT Connection state and In Use indicator.                                                                                                                                                      |
 | **`button`**        | `ButtonEntity`              | **Sync TV Clock**, **Force Reconnect**, **Start Re-authentication**, and **Probe Capabilities** diagnostic buttons.                                                                                                                |
@@ -95,13 +95,15 @@ To customize integration behavior for an existing TV, navigate to **Settings →
 
 ### 2.4 Connection & Security (`security`)
 
-| Parameter          | Type                 | Default       | Description                                                                                                                                                                                                                                                                                             |
-|:------------------ |:-------------------- |:------------- |:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`auth_profile`** | `select`             | `auto`        | Authentication handshake profile (`auto`, `modern`, `middle`, `remotenow`, `legacy`).                                                                                                                                                                                                                   |
-| **`brand`**        | `select`             | `auto`        | TV / Projector OEM Brand profile (`auto`, `his`, `tos`, `loe`, `tpv`, `shp`, `jvc`, `sch`, `aka`, `bek`, `tel`, `bus`, `vic`, `phi`, `nob`, `san`, `rca`, `sin`, `ves`, `bra`, `met`, `lei`, `tpo`). Switching brands automatically derives fresh OEM pairing credentials without resetting entity IDs. |
-| **`use_ssl`**      | `boolean`            | `true`        | Toggle SSL/TLS socket encryption for broker communications.                                                                                                                                                                                                                                             |
-| **`certfile`**     | `string` (file path) | Auto-resolved | Custom client certificate path (`.crt`, `.pem`, `.p12`).                                                                                                                                                                                                                                                |
-| **`keyfile`**      | `string` (file path) | Auto-resolved | Custom client private key path (`.key`, `.pem`).                                                                                                                                                                                                                                                        |
+| Parameter | Type | Default | Description |
+|:--- |:--- |:--- |:--- |
+| **`auth_profile`** | `select` | `auto` | Authentication handshake profile (`auto`, `modern`, `middle`, `remotenow`, `legacy`). |
+| **`brand`** | `select` | `auto` | TV / Projector OEM Brand profile (`auto`, `his`, `tos`, `loe`, `tpv`, `shp`, `jvc`, `sch`, `aka`, `bek`, `tel`, `bus`, `vic`, `phi`, `nob`, `san`, `rca`, `sin`, `ves`, `bra`, `met`, `lei`, `tpo`). Switching brands automatically derives fresh OEM pairing credentials without resetting entity IDs. |
+| **`cert_file`** | `file` (upload) | None | Direct browser keystore/app upload selector (`.apk`, `.xapk`, `.p12`, `.pfx`, `.pem`, `.crt`). Replaces current certificate bundle and updates storage automatically. |
+| **`manual_certificates`** | `section` (collapsible) | Collapsed | Collapsible section housing manual custom certificate file paths for advanced installations. |
+| **`use_ssl`** | `boolean` | `true` | Toggle SSL/TLS socket encryption for broker communications. |
+| **`certfile`** | `string` (file path) | Auto-resolved | Custom client certificate path (`.crt`, `.pem`, `.p12`). |
+| **`keyfile`** | `string` (file path) | Auto-resolved | Custom client private key path (`.key`, `.pem`). |
 
 ---
 

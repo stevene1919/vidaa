@@ -63,6 +63,15 @@ This release introduces native UI certificate uploads and an automated, zero-fri
 - **Native UI Certificate & App Upload (`FileSelector`)**:
   - No more SSH, Samba, terminal `openssl` commands, or manual directory creation.
   - If certificates are not detected on disk during setup or reconfigure, Home Assistant presents a native file selector accepting `.apk`, `.xapk`, `.p12`, `.pfx`, `.pem`, or `.crt` files.
+- **Interactive Media Browser (`media_player.browse_media`)**:
+  - Added native visual Media Browser integration! Browse all installed Smart TV streaming applications and external HDMI/hardware inputs directly from Home Assistant's Media Browser dialog or dashboard media cards, and click any item to launch or switch instantly.
+- **Remote Activity Feature (`RemoteEntityFeature.ACTIVITY`)**:
+  - The `remote` entity now exposes `current_activity` representing the active Smart TV application (e.g. Netflix, YouTube, Disney+) and supports selecting or launching activities via `remote.turn_on(activity=...)`.
+- **Modern Collapsible UI Sections & Repairs Upload**:
+  - Organized Options Flow with clean collapsible `section` controls (`manual_certificates`), keeping advanced file paths tidy.
+  - Interactive certificate upload flow integrated directly into Home Assistant's Repairs dashboard for fixing missing certificate issues on the fly.
+- **Enriched Device Registry Metadata**:
+  - Exposed hardware revision (`hw_version`), TV serial number (`serial_number`), and direct configuration URLs (`configuration_url`) in Home Assistant's device info.
 - **In-Memory Keystore Unpacking & Auto-Cleanup**:
   - Archives (including nested XAPKs) are inspected and unpacked in memory via Python's `zipfile` and `cryptography` off the event loop.
   - Uploaded archives are temporarily buffered in `/tmp/` and immediately deleted upon extraction via Home Assistant's `process_uploaded_file` context manager, leaving only the ~4 KB extracted PEM files.
@@ -73,6 +82,8 @@ This release introduces native UI certificate uploads and an automated, zero-fri
 - **Security & Extraction Guardrails**:
   - Hardened against Zip Slip path traversal exploits and oversized upload archives (>150 MB).
   - Client certificate and private key pairs are pre-validated in an `SSLContext` before saving to disk.
+- **Complete Internationalization (13 Locales)**:
+  - 100% string and translation key parity achieved across all 13 supported languages (`en`, `de`, `es`, `fr`, `it`, `pl`, `pt-BR`, `pt`, `ru`, `sr-Latn`, `sr`, `uk`, `zh-Hans`), including all new section and upload repair strings.
 
 ---
 
@@ -80,11 +91,14 @@ This release introduces native UI certificate uploads and an automated, zero-fri
 <summary>🛠️ <b>Full Technical Details & Refactoring</b> (Click to expand)</summary>
 
 - **Manifest**: Added `file_upload` to `dependencies` in `manifest.json`.
-- **Protocol**: Implemented `extract_and_install_certs` and `_extract_p12_bytes_from_archive` in `protocol/cert_extract.py`.
+- **Media Player**: Implemented `async_browse_media` and `async_play_media` supporting both `app` and `source` schema URIs in `media_player/browse.py`.
+- **Remote**: Added `RemoteEntityFeature.ACTIVITY`, dynamic `current_activity`, `activity_list`, and activity-delegated `async_turn_on`.
+- **Protocol**: Modularized certificate logic into `cert_extract.py`, `cert_candidates.py`, and `cert_profiles.py`. Implemented `extract_and_install_certs` and `_extract_p12_bytes_from_archive`.
 - **Search Resolution**: Prioritized `/config/.storage/vidaa/certs` ahead of `/config/ssl` in `_get_default_search_dirs()`.
 - **Config Flow**: Added `async_step_upload` with `FileSelector` in `flow/certs.py`, seamlessly routing to TV pairing or falling back to manual path entry.
-- **Options Flow**: Added certificate replacement upload support to `async_step_security`.
-- **Test Suite**: Added 13 new automated unit tests covering APK/XAPK extraction, raw P12, PEM bundles, Zip Slip rejection, and upload config flow transitions.
+- **Options Flow**: Modularized options into `flow/options_security.py` with collapsible sections and unwrapping helpers; added certificate replacement upload support to `async_step_security`.
+- **Repairs**: Enhanced `CertificateMissingRepairFlow` with interactive native file upload support.
+- **Test Suite**: Added comprehensive test suites (`test_modern_ha_features.py`, `test_crypto.py`) with 398 automated unit tests passing across all components.
 
 </details>
 

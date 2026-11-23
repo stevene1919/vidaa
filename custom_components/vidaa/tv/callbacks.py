@@ -7,6 +7,7 @@ from collections import defaultdict
 from collections.abc import Callable
 from typing import Any
 
+from .media import parse_applist_data, parse_sourcelist_data
 from .state import (
     apply_device_info_update,
     apply_picture_update,
@@ -203,6 +204,8 @@ class CallbackRegistryMixin:
                     if src_name and not self.current_source:
                         self.current_source = src_name
                     break
+        self.sources = list(self.sources) if isinstance(self.sources, list) else []
+        self.source_dict = parse_sourcelist_data(self.sources)
         self._dispatch("sourcelist", self.sources)
 
     def _dispatch_applist_update(self, data: Any) -> None:
@@ -210,6 +213,8 @@ class CallbackRegistryMixin:
             self.apps = data
         elif isinstance(data, dict) and "applist" in data:
             self.apps = data["applist"]
+        self.apps = list(self.apps) if isinstance(self.apps, list) else []
+        _, self.app_dict = parse_applist_data(self.apps)
         self._dispatch("applist", self.apps)
 
     def _dispatch_picture_update(self, data: Any) -> None:

@@ -190,12 +190,19 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-def _check_and_manage_legacy_repair(hass: HomeAssistant) -> None:
-    """Check for leftover legacy custom_components/hisense_vidaa directory."""
+async def _async_check_and_manage_legacy_repair(hass: HomeAssistant) -> None:
+    """Check for leftover legacy custom_components/hisense_vidaa directory off the event loop."""
     try:
         if hasattr(hass, "config") and hasattr(hass.config, "path"):
+            import inspect
+
             legacy_dir = hass.config.path("custom_components", LEGACY_DOMAIN)
-            if os.path.isdir(legacy_dir):
+            if hasattr(hass, "async_add_executor_job") and callable(hass.async_add_executor_job):
+                res = hass.async_add_executor_job(os.path.isdir, legacy_dir)
+                is_dir = await res if inspect.isawaitable(res) else res
+            else:
+                is_dir = os.path.isdir(legacy_dir)
+            if is_dir:
                 _LOGGER.warning(
                     "Legacy integration directory '%s' detected alongside '%s'. "
                     "Please remove 'custom_components/%s' and restart Home Assistant to avoid conflicts.",
@@ -222,12 +229,23 @@ def _check_and_manage_legacy_repair(hass: HomeAssistant) -> None:
         _LOGGER.debug("Could not inspect custom_components directory: %s", err)
 
 
+def _check_and_manage_legacy_repair(hass: HomeAssistant) -> None:
+    """Synchronous compatibility wrapper for tests."""
+    with contextlib.suppress(Exception):
+        loop = hass.loop if hasattr(hass, "loop") else None
+        if loop and loop.is_running():
+            hass.async_create_background_task(
+                _async_check_and_manage_legacy_repair(hass),
+                "vidaa_check_legacy_repair",
+            )
+
+
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     """Set up the VIDAA Smart TV integration services."""
     await async_setup_services(hass)
 
-    # Check for leftover legacy custom_components/hisense_vidaa directory
-    _check_and_manage_legacy_repair(hass)
+    # Check for leftover legacy custom_components/hisense_vidaa directory off event loop
+    await _async_check_and_manage_legacy_repair(hass)
 
     # Automatically check for and migrate any remaining legacy entries
     if hasattr(hass, "config_entries") and hasattr(hass.config_entries, "async_entries"):
@@ -242,7 +260,7 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> bool:
     """Set up VIDAA Smart TV from a config entry."""
-    _check_and_manage_legacy_repair(hass)
+    await _async_check_and_manage_legacy_repair(hass)
 
     version = getattr(entry, "version", None)
     minor_version = getattr(entry, "minor_version", 1)
@@ -273,28 +291,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
                 )
 
     sec_mac = entry.options.get(CONF_SECONDARY_MAC_ADDRESS) or data.get(CONF_SECONDARY_MAC_ADDRESS)
-    if not sec_mac and data.get(CONF_IP_ADDRESS):
-        with contextlib.suppress(Exception):
-            from homeassistant.helpers.device_registry import format_mac
-
-            from .tv.fingerprint import get_device_fingerprint
-
-            fp = await hass.async_add_executor_job(get_device_fingerprint, data[CONF_IP_ADDRESS])
-            mac_wifi = format_mac(fp["mac_wifi"]) if fp.get("mac_wifi") else None
-            mac_eth = format_mac(fp["mac_ethernet"]) if fp.get("mac_ethernet") else None
-            detected_sec = None
-            if mac_wifi and mac_eth and mac_wifi != mac_eth:
-                if mac == mac_wifi:
-                    detected_sec = mac_eth
-                elif mac == mac_eth:
-                    detected_sec = mac_wifi
-                else:
-                    detected_sec = mac_eth
-            if detected_sec:
-                hass.config_entries.async_update_entry(
-                    entry,
-                    data={**entry.data, CONF_SECONDARY_MAC_ADDRESS: detected_sec},
-                )
 
     use_ssl = entry.options.get(CONF_USE_SSL, data.get(CONF_USE_SSL, DEFAULT_USE_SSL))
     certfile = entry.options.get(CONF_CERTFILE, data.get(CONF_CERTFILE))
@@ -311,10 +307,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
         )
         ca_cert = await hass.async_add_executor_job(resolve_ca_certificate, None, config_dir)
     elif auth_profile in ("legacy", "static"):
-        if certfile and not os.path.isfile(certfile):
-            certfile = None
-        if keyfile and not os.path.isfile(keyfile):
-            keyfile = None
+
+        def _check_legacy_files(c: str | None, k: str | None) -> tuple[str | None, str | None]:
+            valid_c = c if (c and os.path.isfile(c)) else None
+            valid_k = k if (k and os.path.isfile(k)) else None
+            return valid_c, valid_k
+
+        certfile, keyfile = await hass.async_add_executor_job(_check_legacy_files, certfile, keyfile)
 
     brand_pref = entry.options.get(CONF_BRAND, data.get(CONF_BRAND, DEFAULT_BRAND_OPTION))
     if brand_pref == "auto":

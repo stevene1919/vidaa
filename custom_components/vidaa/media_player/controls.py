@@ -2,21 +2,18 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.const import STATE_OFF
 from homeassistant.exceptions import HomeAssistantError
 
 from ..const import (
     CONF_ENABLE_WOL,
     CONF_SECONDARY_MAC_ADDRESS,
     DEFAULT_ENABLE_WOL,
-    DEFAULT_WOL_TIMEOUT,
     DOMAIN,
 )
-from ..helpers import check_client_command_readiness
+from ..helpers import async_ensure_tv_on, check_client_command_readiness
 from ..tv.media import async_execute_play_media, async_execute_select_source
 
 if TYPE_CHECKING:
@@ -203,30 +200,11 @@ class MediaPlayerControlsMixin:
 
     async def async_play_media(self: VidaaMediaPlayer, media_type: str, media_id: str, **kwargs: Any) -> None:
         """Launch an app, tune to channel, open URL/deep-link, or execute key command."""
-        if self.state == STATE_OFF:
-            _LOGGER.debug(
-                "[%s] TV is off; powering on before playing media '%s:%s'",
-                getattr(self._client, "ip", "unknown"),
-                media_type,
-                media_id,
-            )
-            await self.async_turn_on()
-            wait_fn = getattr(self._client, "async_wait_until_awake", None)
-            if wait_fn is not None and callable(wait_fn):
-                res = wait_fn(timeout=DEFAULT_WOL_TIMEOUT)
-                if asyncio.iscoroutine(res) or isinstance(res, asyncio.Future):
-                    awake = await res
-                else:
-                    awake = bool(res)
-                if not awake:
-                    raise HomeAssistantError(
-                        f"Failed to power on TV before playing media '{media_id}': TV did not wake up",
-                        translation_domain=DOMAIN,
-                        translation_key="turn_on_failed",
-                    )
-            await asyncio.sleep(0.5)
-
-        check_client_command_readiness(self._client)
+        await async_ensure_tv_on(
+            self._client,
+            turn_on_coro=self.async_turn_on,
+            action_description=f"playing media '{media_id}'",
+        )
 
         res = await async_execute_play_media(self._client, self._app_dict, media_type, media_id)
         if res is False:
@@ -239,29 +217,11 @@ class MediaPlayerControlsMixin:
 
     async def async_select_source(self: VidaaMediaPlayer, source: str) -> None:
         """Select input source or smart application."""
-        if self.state == STATE_OFF:
-            _LOGGER.debug(
-                "[%s] TV is off; powering on before selecting source '%s'",
-                getattr(self._client, "ip", "unknown"),
-                source,
-            )
-            await self.async_turn_on()
-            wait_fn = getattr(self._client, "async_wait_until_awake", None)
-            if wait_fn is not None and callable(wait_fn):
-                res = wait_fn(timeout=DEFAULT_WOL_TIMEOUT)
-                if asyncio.iscoroutine(res) or isinstance(res, asyncio.Future):
-                    awake = await res
-                else:
-                    awake = bool(res)
-                if not awake:
-                    raise HomeAssistantError(
-                        f"Failed to power on TV before selecting source '{source}': TV did not wake up",
-                        translation_domain=DOMAIN,
-                        translation_key="turn_on_failed",
-                    )
-            await asyncio.sleep(0.5)
-
-        check_client_command_readiness(self._client)
+        await async_ensure_tv_on(
+            self._client,
+            turn_on_coro=self.async_turn_on,
+            action_description=f"selecting source '{source}'",
+        )
 
         res = await async_execute_select_source(self._client, self._source_dict, self._app_dict, source)
         if res is False:

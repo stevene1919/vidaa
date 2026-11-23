@@ -78,9 +78,9 @@ class VidaaMediaPlayer(
         self._source = None
         self._app_id: str | None = None
         self._source_list = []
-        self._source_dict = {}
-        self._app_list = []
-        self._app_dict = {}
+        self._source_dict = dict(getattr(client, "source_dict", {}) or {})
+        self._app_list = list(getattr(client, "apps", []) or [])
+        self._app_dict = dict(getattr(client, "app_dict", {}) or {})
         self._channel_infos = {}
         self._connected_device = None
         self._channel_name = None

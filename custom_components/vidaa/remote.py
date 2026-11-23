@@ -27,12 +27,11 @@ from .const import (
     DEFAULT_INCLUDE_APPS_IN_SOURCES,
     DEFAULT_KEY_DELAY,
     DEFAULT_KEY_REPEAT,
-    DEFAULT_WOL_TIMEOUT,
     DOMAIN,
     POWER_KEYS,
 )
 from .entity import VidaaEntity
-from .helpers import check_client_command_readiness
+from .helpers import async_ensure_tv_on, check_client_command_readiness
 from .tv.media import async_execute_select_source, build_media_player_current_source, build_media_player_source_list
 
 if TYPE_CHECKING:
@@ -177,23 +176,10 @@ class VidaaRemote(VidaaEntity, RemoteEntity):
 
         activity = kwargs.get("activity")
         if activity:
-            if not self.is_on:
-                wait_fn = getattr(self._client, "async_wait_until_awake", None)
-                if wait_fn is not None and callable(wait_fn):
-                    res = wait_fn(timeout=DEFAULT_WOL_TIMEOUT)
-                    if asyncio.iscoroutine(res) or isinstance(res, asyncio.Future):
-                        awake = await res
-                    else:
-                        awake = bool(res)
-                    if not awake:
-                        raise HomeAssistantError(
-                            f"Failed to power on TV before selecting activity '{activity}': TV did not wake up",
-                            translation_domain=DOMAIN,
-                            translation_key="turn_on_failed",
-                        )
-                await asyncio.sleep(0.5)
-
-            check_client_command_readiness(self._client)
+            await async_ensure_tv_on(
+                self._client,
+                action_description=f"selecting activity '{activity}'",
+            )
             sources = getattr(self._client, "source_dict", {}) or {}
             apps = getattr(self._client, "app_dict", {}) or {}
             await async_execute_select_source(self._client, sources, apps, str(activity))
@@ -302,11 +288,22 @@ class VidaaRemote(VidaaEntity, RemoteEntity):
         self._handle_update()
 
     def _handle_state_update(self, data: dict[str, Any]) -> None:
-        if isinstance(data, dict) and self._client:
-            statetype_l = str(data.get("statetype") or "").lower()
-            self._client.is_on = not (statetype_l == "fake_sleep_0" or "off" in statetype_l)
-            if not self._client.is_on:
+        if isinstance(data, dict) and self._client and "statetype" in data:
+            statetype_l = str(data["statetype"]).lower()
+            if "off" in statetype_l or statetype_l == "fake_sleep_0":
+                self._client.is_on = False
                 self._client._last_power_toggle_time = 0.0
+            elif statetype_l in (
+                "fake_sleep_1",
+                "screensaver",
+                "screen_saver",
+                "app",
+                "launcher",
+                "remote_launcher",
+                "sourceswitch",
+                "livetv",
+            ):
+                self._client.is_on = True
         self._handle_update()
 
 

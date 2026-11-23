@@ -338,10 +338,12 @@ class TvStateMixin:
         self.volume: int = 0
         self.muted: bool = False
         self.sources: list[dict[str, Any]] = []
+        self.source_dict: dict[str, dict[str, Any]] = {}
         self.current_source: str | None = None
         self.current_source_id: str | None = None
         self.connected_device: str | None = None
         self.apps: list[dict[str, Any]] = []
+        self.app_dict: dict[str, dict[str, Any]] = {}
         self.current_app: str | None = None
         self.current_app_id: str | None = None
         self.current_channel: str | None = None

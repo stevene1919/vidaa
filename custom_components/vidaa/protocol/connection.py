@@ -59,25 +59,27 @@ class ConnectionManagerMixin:
     # ------------------------------------------------------------------
     async def _async_build_ssl_context(self: VidaaClient) -> Any:
         """Builds and loads the client TLS context off the event loop (disk I/O)."""
-        loop = asyncio.get_running_loop()
-        has_client_cert = bool(
-            self.use_ssl
-            and self.certfile
-            and self.keyfile
-            and (
-                self.auth_profile not in ("legacy", "static")
-                or (os.path.isfile(self.certfile) and os.path.isfile(self.keyfile))
+
+        def _load_ssl() -> Any:
+            has_client_cert = bool(
+                self.use_ssl
+                and self.certfile
+                and self.keyfile
+                and (
+                    self.auth_profile not in ("legacy", "static")
+                    or (os.path.isfile(self.certfile) and os.path.isfile(self.keyfile))
+                )
             )
-        )
-        return await loop.run_in_executor(
-            None,
-            build_mqtt_ssl_context,
-            self.certfile if has_client_cert else None,
-            self.keyfile if has_client_cert else None,
-            self.ca_cert,
-            self.verify_ssl,
-            self.use_ssl,
-        )
+            return build_mqtt_ssl_context(
+                self.certfile if has_client_cert else None,
+                self.keyfile if has_client_cert else None,
+                self.ca_cert,
+                self.verify_ssl,
+                self.use_ssl,
+            )
+
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, _load_ssl)
 
     # ------------------------------------------------------------------
     # Connection lifecycle callbacks

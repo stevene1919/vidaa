@@ -24,10 +24,10 @@ from ..const import (
     ATTR_SEQUENCE,
     ATTR_TEXT,
     ATTR_URL,
-    DEFAULT_WOL_TIMEOUT,
     DOMAIN,
     POWER_KEYS,
 )
+from ..helpers import async_ensure_tv_on, check_client_command_readiness
 from .target import _resolve_service_targets, parse_key_sequence
 
 _LOGGER = logging.getLogger(__name__)
@@ -99,25 +99,7 @@ async def handle_send_key_sequence(hass: HomeAssistant, call: ServiceCall) -> di
         )
 
     for client in target_clients:
-        if getattr(client, "auth_failed", False) is True:
-            raise HomeAssistantError(
-                "Authentication required: Re-pair TV in Settings > Integrations.",
-                translation_domain=DOMAIN,
-                translation_key="auth_required",
-            )
-        if getattr(client, "connected", True) is False:
-            raise HomeAssistantError(
-                "Failed to execute key sequence: TV is disconnected",
-                translation_domain=DOMAIN,
-                translation_key="send_key_sequence_failed",
-                translation_placeholders={"key": str(sequence[0]), "error": "TV is disconnected"},
-            )
-        if getattr(client, "is_on", True) is False:
-            raise HomeAssistantError(
-                "Cannot perform action: TV is currently turned off.",
-                translation_domain=DOMAIN,
-                translation_key="device_off",
-            )
+        check_client_command_readiness(client, require_on=True)
         for i, key in enumerate(sequence):
             if i > 0 and delay > 0:
                 await asyncio.sleep(delay)
@@ -158,25 +140,7 @@ async def handle_change_channel(hass: HomeAssistant, call: ServiceCall) -> dict[
         )
 
     for client in target_clients:
-        if getattr(client, "auth_failed", False) is True:
-            raise HomeAssistantError(
-                "Authentication required: Re-pair TV in Settings > Integrations.",
-                translation_domain=DOMAIN,
-                translation_key="auth_required",
-            )
-        if getattr(client, "connected", True) is False:
-            raise HomeAssistantError(
-                "Failed to change channel: TV is disconnected",
-                translation_domain=DOMAIN,
-                translation_key="change_channel_digit_failed",
-                translation_placeholders={"digit": str(digits[0]), "error": "TV is disconnected"},
-            )
-        if getattr(client, "is_on", True) is False:
-            raise HomeAssistantError(
-                "Cannot perform action: TV is currently turned off.",
-                translation_domain=DOMAIN,
-                translation_key="device_off",
-            )
+        check_client_command_readiness(client, require_on=True)
         for i, digit in enumerate(digits):
             if i > 0 and delay > 0:
                 await asyncio.sleep(delay)
@@ -248,41 +212,7 @@ async def handle_launch_app(hass: HomeAssistant, call: ServiceCall) -> dict[str,
         app_name = str(call.data.get(ATTR_APP_NAME, app_name))
         app_url = str(call.data.get(ATTR_URL, app_url))
 
-        if getattr(client, "is_on", True) is False:
-            _LOGGER.debug(
-                "[%s] TV is off; powering on before launching app '%s'",
-                getattr(client, "ip", "unknown"),
-                app_name,
-            )
-            await client.async_turn_on()
-            wait_fn = getattr(client, "async_wait_until_awake", None)
-            if wait_fn is not None and callable(wait_fn):
-                res = wait_fn(timeout=DEFAULT_WOL_TIMEOUT)
-                if asyncio.iscoroutine(res) or isinstance(res, asyncio.Future):
-                    awake = await res
-                else:
-                    awake = bool(res)
-                if not awake:
-                    raise HomeAssistantError(
-                        f"Failed to launch app {app_name}: TV did not wake up",
-                        translation_domain=DOMAIN,
-                        translation_key="turn_on_failed",
-                    )
-            await asyncio.sleep(0.5)
-
-        if getattr(client, "connected", True) is False:
-            raise HomeAssistantError(
-                f"Failed to launch app {app_name}: TV is disconnected",
-                translation_domain=DOMAIN,
-                translation_key="launch_app_failed",
-                translation_placeholders={"app_name": str(app_name), "error": "TV is disconnected"},
-            )
-        if getattr(client, "is_on", True) is False:
-            raise HomeAssistantError(
-                "Cannot perform action: TV is currently turned off.",
-                translation_domain=DOMAIN,
-                translation_key="device_off",
-            )
+        await async_ensure_tv_on(client, action_description=f"launching app '{app_name}'")
 
         try:
             res = await client.async_launch_app(
@@ -322,25 +252,7 @@ async def handle_set_picture_setting(hass: HomeAssistant, call: ServiceCall) -> 
     menu_val = call.data.get(ATTR_MENU_VALUE)
     target_clients = _resolve_service_targets(hass, call)
     for client in target_clients:
-        if getattr(client, "auth_failed", False) is True:
-            raise HomeAssistantError(
-                "Authentication required: Re-pair TV in Settings > Integrations.",
-                translation_domain=DOMAIN,
-                translation_key="auth_required",
-            )
-        if getattr(client, "connected", True) is False:
-            raise HomeAssistantError(
-                f"Failed to set picture setting (menu_id={menu_id}): TV is disconnected",
-                translation_domain=DOMAIN,
-                translation_key="set_picture_setting_failed",
-                translation_placeholders={"menu_id": str(menu_id), "error": "TV is disconnected"},
-            )
-        if getattr(client, "is_on", True) is False:
-            raise HomeAssistantError(
-                "Cannot perform action: TV is currently turned off.",
-                translation_domain=DOMAIN,
-                translation_key="device_off",
-            )
+        check_client_command_readiness(client, require_on=True)
         try:
             res = await client.async_set_picture_setting(menu_id, menu_val)
             if res is False:
@@ -366,25 +278,7 @@ async def handle_set_sound_setting(hass: HomeAssistant, call: ServiceCall) -> di
     menu_val = call.data.get(ATTR_MENU_VALUE)
     target_clients = _resolve_service_targets(hass, call)
     for client in target_clients:
-        if getattr(client, "auth_failed", False) is True:
-            raise HomeAssistantError(
-                "Authentication required: Re-pair TV in Settings > Integrations.",
-                translation_domain=DOMAIN,
-                translation_key="auth_required",
-            )
-        if getattr(client, "connected", True) is False:
-            raise HomeAssistantError(
-                f"Failed to set sound setting (menu_id={menu_id}): TV is disconnected",
-                translation_domain=DOMAIN,
-                translation_key="set_sound_setting_failed",
-                translation_placeholders={"menu_id": str(menu_id), "error": "TV is disconnected"},
-            )
-        if getattr(client, "is_on", True) is False:
-            raise HomeAssistantError(
-                "Cannot perform action: TV is currently turned off.",
-                translation_domain=DOMAIN,
-                translation_key="device_off",
-            )
+        check_client_command_readiness(client, require_on=True)
         try:
             res = await client.async_set_sound_setting(menu_id, menu_val)
             if res is False:
@@ -410,25 +304,7 @@ async def handle_send_text_input(hass: HomeAssistant, call: ServiceCall) -> dict
     action = call.data.get(ATTR_ACTION, "insert")
     target_clients = _resolve_service_targets(hass, call)
     for client in target_clients:
-        if getattr(client, "auth_failed", False) is True:
-            raise HomeAssistantError(
-                "Authentication required: Re-pair TV in Settings > Integrations.",
-                translation_domain=DOMAIN,
-                translation_key="auth_required",
-            )
-        if getattr(client, "connected", True) is False:
-            raise HomeAssistantError(
-                "Failed to send text input: TV is disconnected",
-                translation_domain=DOMAIN,
-                translation_key="send_text_input_failed",
-                translation_placeholders={"error": "TV is disconnected"},
-            )
-        if getattr(client, "is_on", True) is False:
-            raise HomeAssistantError(
-                "Cannot perform action: TV is currently turned off.",
-                translation_domain=DOMAIN,
-                translation_key="device_off",
-            )
+        check_client_command_readiness(client, require_on=True)
         try:
             res = await client.async_send_text_input(text, action)
             if res is False:

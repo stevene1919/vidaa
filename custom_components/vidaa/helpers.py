@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from homeassistant.core import HomeAssistant, callback
@@ -9,7 +10,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
 
-from .const import DOMAIN
+from .const import DEFAULT_WOL_TIMEOUT, DOMAIN
 
 
 @callback
@@ -38,6 +39,49 @@ def check_client_command_readiness(client: Any, *, require_on: bool = False) -> 
             translation_domain=DOMAIN,
             translation_key="device_off",
         )
+
+
+async def async_ensure_tv_on(
+    client: Any,
+    *,
+    turn_on_coro: Any = None,
+    timeout: float = DEFAULT_WOL_TIMEOUT,
+    action_description: str | None = None,
+) -> None:
+    """Ensure the TV is powered on and connected before executing an action.
+
+    If the TV is off, triggers power-on and awaits wake state before proceeding.
+    Raises HomeAssistantError if power-on fails or TV does not wake up.
+    """
+    if getattr(client, "auth_failed", False) is True:
+        raise HomeAssistantError(
+            "Authentication required: Re-pair TV in Settings > Integrations.",
+            translation_domain=DOMAIN,
+            translation_key="auth_required",
+        )
+
+    if getattr(client, "is_on", True) is False:
+        if turn_on_coro is not None:
+            res = turn_on_coro() if callable(turn_on_coro) else turn_on_coro
+            if asyncio.iscoroutine(res):
+                await res
+        elif hasattr(client, "async_turn_on"):
+            await client.async_turn_on()
+
+        wait_fn = getattr(client, "async_wait_until_awake", None)
+        if wait_fn is not None and callable(wait_fn):
+            res = wait_fn(timeout=timeout)
+            awake = await res if (asyncio.iscoroutine(res) or isinstance(res, asyncio.Future)) else bool(res)
+            if not awake:
+                desc = f" before {action_description}" if action_description else ""
+                raise HomeAssistantError(
+                    f"Failed to power on TV{desc}: TV did not wake up",
+                    translation_domain=DOMAIN,
+                    translation_key="turn_on_failed",
+                )
+        await asyncio.sleep(0.5)
+
+    check_client_command_readiness(client, require_on=True)
 
 
 @callback

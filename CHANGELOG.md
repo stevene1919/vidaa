@@ -54,7 +54,17 @@ If this integration makes controlling your smart home entertainment a breeze, co
 
 Hey everyone! 👋
 
-This release introduces native UI certificate uploads and an automated, zero-friction storage architecture for Home Assistant OS and container setups!
+Welcome to the **v3.6.1 Beta 1** pre-release! 🎉
+
+This beta brings exciting new features, critical fixes for legacy TV models, and quality-of-life upgrades based directly on your community feedback and issue reports:
+
+- **Effortless UI Certificate Uploads**: No more dealing with Samba, SSH, or terminal commands—you can now upload app files or certificates straight through the Home Assistant UI!
+- **Interactive Media Browser**: Visual browsing and 1-click launching for all your TV's installed apps and HDMI inputs right inside Home Assistant.
+- **Remote Activity Support**: Clean activity tracking and switching directly from your remote cards.
+- **Connection Fixes for Older TVs ([#71](https://github.com/stevene1919/vidaa/issues/71))**: Fixed SSL/TLS connection hangs on older Hisense models (like the H43B7100) and removed erroneous "Certificate Missing" repair notifications.
+- **Laser Projector & Cold Boot Fixes ([#76](https://github.com/stevene1919/vidaa/issues/76), [#77](https://github.com/stevene1919/vidaa/issues/77))**: Expanded query retry cadence for slow cold-booting devices (like the C2 Ultra laser projector) and eliminated double-toggle power races.
+
+Please give this beta a test run via HACS (toggle **"Show beta versions"** on the VIDAA integration page) and let us know how it works with your TV!
 
 ---
 
@@ -92,9 +102,9 @@ This release introduces native UI certificate uploads and an automated, zero-fri
 - **Clean Activity Transitions & Client State Lifecycle**:
   - Unified the client-side state machine in `tv/state.py`: switching sources (`sourceswitch`), tuning Live TV (`livetv`), or entering standby (`fake_sleep_0`) now cleans up stale application attributes (`current_app`, `current_app_id`, `current_channel`, `current_program`).
   - The `remote` entity's `current_activity` now cleanly reflects HDMI/CEC sources and Live TV without sticking on Home Launcher. Added canonical `connected_device` tracking.
-- **Comprehensive Unit Testing & Quality Scale Expansion (466 Tests, 84% Coverage)**:
+- **Comprehensive Unit Testing & Quality Scale Expansion (467 Tests, 84% Coverage)**:
   - Systematically expanded unit tests across all under-tested engine modules: `actions_settings.py` (100%), `actions_input.py` (99%), `settings.py` (99%), `media.py` (98%), `remote.py` (98%), `actions_power.py` (94%), `ping.py` (90%), `upnp_desc.py` (87%), and `fingerprint.py` (86%).
-  - Total component coverage increased from 78% to 84% (575 fewer untested lines) across 466 passing tests with zero regressions.
+  - Total component coverage increased from 78% to 84% (575 fewer untested lines) across 467 passing tests with zero regressions.
 - **Complete Internationalization (13 Locales)**:
   - 100% string and translation key parity achieved across all 13 supported languages (`en`, `de`, `es`, `fr`, `it`, `pl`, `pt-BR`, `pt`, `ru`, `sr-Latn`, `sr`, `uk`, `zh-Hans`), including all new section and upload repair strings.
 
@@ -116,7 +126,7 @@ This release introduces native UI certificate uploads and an automated, zero-fri
 - **Cold Boot State Synchronization**: Expanded query retry cadence in `_async_delayed_initial_query` to `(2.0, 3.0, 5.0, 10.0, 15.0)` (~35s) to support slow cold-booting laser projectors and TVs where `mosquitto` starts well before `platform_service` and `ui_service` ([#76](https://github.com/stevene1919/vidaa/issues/76), [#77](https://github.com/stevene1919/vidaa/issues/77)).
 - **State Deduction & Reset**: Updated `apply_device_info_update` in `tv/state.py` to detect awake state when `fake_sleep == 0` (Fast Power On disabled), dispatching synthetic `fake_sleep_1` wake events upon MQTT reconnection. Added automatic clearing of `current_app`, `current_app_id`, `current_channel`, `channel_number`, and `current_program` on `sourceswitch`, `livetv`, and `fake_sleep_0`.
 - **Client Attributes**: Tracked `_connected_time`, `_last_standby_time`, `_last_wake_time`, `_last_power_toggle_time`, and canonical `connected_device` lifecycle attributes to coordinate safe wake and activity transitions.
-- **Test Suite**: Added 59 new unit tests covering input actions, media parsers, calibration mixins, UPnP/mDNS fingerprinting, and power lifecycle edge cases, expanding the automated test suite to 466 tests and 84% total coverage.
+- **Test Suite**: Added 60 new unit tests covering input actions, media parsers, calibration mixins, UPnP/mDNS fingerprinting, and power lifecycle edge cases, expanding the automated test suite to 467 tests and 84% total coverage.
 
 </details>
 

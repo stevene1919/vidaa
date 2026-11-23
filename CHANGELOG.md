@@ -42,7 +42,7 @@ You MUST adhere strictly to the following semantic structure for any new release
 Please report any issues or feedback on [GitHub Issues](https://github.com/stevene1919/vidaa/issues) or Discussions!
 -->
 
-## [3.6.1] - 2026-11-22
+## [3.6.1-beta.1] - 2026-11-23
 
 ### ☕ Support the Project
 

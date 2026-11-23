@@ -154,17 +154,22 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if getattr(entry, "domain", None) == LEGACY_DOMAIN:
             object.__setattr__(entry, "domain", DOMAIN)
 
+        new_data = dict(entry.data)
+        if new_data.get(CONF_AUTH_PROFILE) in ("legacy", "static") and new_data.get(CONF_USE_SSL) is False:
+            new_data[CONF_USE_SSL] = True
+
         hass.config_entries.async_update_entry(
             entry,
+            data=new_data,
             version=2,
-            minor_version=2,
+            minor_version=3,
         )
         _LOGGER.info(
-            "Successfully migrated config entry '%s' to version 2.2",
+            "Successfully migrated config entry '%s' to version 2.3",
             entry.title,
         )
 
-    if entry.version == 2 and getattr(entry, "minor_version", 1) < 2:
+    if entry.version == 2 and getattr(entry, "minor_version", 1) < 3:
         new_data = dict(entry.data)
         if new_data.get(CONF_AUTH_PROFILE) in ("legacy", "static") and new_data.get(CONF_USE_SSL) is False:
             new_data[CONF_USE_SSL] = True
@@ -175,10 +180,10 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.config_entries.async_update_entry(
             entry,
             data=new_data,
-            minor_version=2,
+            minor_version=3,
         )
         _LOGGER.info(
-            "Successfully migrated config entry '%s' to version 2.2",
+            "Successfully migrated config entry '%s' to version 2.3",
             entry.title,
         )
 
@@ -241,7 +246,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
 
     version = getattr(entry, "version", None)
     minor_version = getattr(entry, "minor_version", 1)
-    if isinstance(version, int) and (version < 2 or (version == 2 and minor_version < 2)):
+    if isinstance(version, int) and (version < 2 or (version == 2 and minor_version < 3)):
         await async_migrate_entry(hass, entry)
 
     # [F2-leg2/F2-leg4/F2-leg6]: services are registered by async_setup, but
@@ -295,6 +300,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
     certfile = entry.options.get(CONF_CERTFILE, data.get(CONF_CERTFILE))
     keyfile = entry.options.get(CONF_KEYFILE, data.get(CONF_KEYFILE))
     auth_profile = entry.options.get(CONF_AUTH_PROFILE, data.get(CONF_AUTH_PROFILE, "auto"))
+    if auth_profile in ("legacy", "static") and not use_ssl:
+        use_ssl = True
 
     ca_cert = None
     if use_ssl and auth_profile not in ("legacy", "static"):
@@ -359,6 +366,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
         data = new_data
 
     # Check for missing certificates off the event loop and manage Repairs issue
+    # Legacy and static authentication profiles use TLS without client certificates
+    is_legacy_static = auth_profile in ("legacy", "static")
     certs_valid = (
         await hass.async_add_executor_job(
             lambda: bool(
@@ -368,11 +377,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
                 and os.path.isfile(client.keyfile)
             )
         )
-        if use_ssl
+        if (use_ssl and not is_legacy_static)
         else True
     )
 
-    if use_ssl and not certs_valid:
+    if use_ssl and not is_legacy_static and not certs_valid:
         ir.async_create_issue(
             hass,
             DOMAIN,

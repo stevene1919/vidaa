@@ -100,11 +100,11 @@ class VidaaClient(
         self.username = username or ""
         self.password = password or ""
         self.access_token = access_token
-        self.access_token_time = int(access_token_time)
-        self.access_token_duration = int(access_token_duration)
+        self.access_token_time = int(access_token_time or 0)
+        self.access_token_duration = int(access_token_duration or 0)
         self.refresh_token = refresh_token
-        self.refresh_token_time = int(refresh_token_time)
-        self.refresh_token_duration = int(refresh_token_duration)
+        self.refresh_token_time = int(refresh_token_time or 0)
+        self.refresh_token_duration = int(refresh_token_duration or 0)
         self.auth_profile = auth_profile
         # Renew tokens while the TV is in standby (for TVs that keep their MQTT broker up when switched off).
         self.refresh_in_standby = refresh_in_standby
@@ -137,6 +137,9 @@ class VidaaClient(
         else:
             self.name = name
 
+        # Legacy static authentication connects over TLS on port 36669 without presenting client certs
+        if auth_profile in ("legacy", "static") and not use_ssl:
+            use_ssl = True
         self.use_ssl = use_ssl
         self.verify_ssl = verify_ssl
 

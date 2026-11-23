@@ -108,8 +108,8 @@ def resolve_ssl_certs(
 
     Returns: (success, certfile, keyfile, use_ssl)
     """
-    if auth_profile == "legacy":
-        return True, None, None, False
+    if auth_profile in ("legacy", "static"):
+        return True, None, None, True
 
     resolved_cert, resolved_key = resolve_certificates(auth_profile, config_dir=config_dir)
     if protocol.check_certs_exist(resolved_cert, resolved_key):

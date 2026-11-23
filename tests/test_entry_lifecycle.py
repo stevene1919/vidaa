@@ -168,6 +168,49 @@ async def test_connect_failure_raises_config_entry_not_ready(mock_entry, mock_cl
 
 
 @pytest.mark.anyio
+async def test_entry_setup_legacy_auth_suppresses_certificate_missing_issue(mock_entry, mock_client, monkeypatch):
+    """Legacy static auth uses TLS on port 36669 without client certs and must NOT trigger certificate_missing issue (#71)."""
+    hass = MagicMock()
+    hass.data = {}
+    hass.config_entries = MagicMock()
+    hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
+    hass.loop = MagicMock()
+
+    mock_entry.data = {
+        "ip_address": "192.168.1.100",
+        "auth_profile": "legacy",
+        "use_ssl": False,
+    }
+    mock_entry.options = {}
+    mock_entry.version = 2
+    mock_entry.minor_version = 3
+
+    created_issues = {}
+    deleted_issues = []
+
+    monkeypatch.setattr(
+        "custom_components.vidaa.ir.async_create_issue",
+        lambda hass_arg, domain, issue_id, **kw: created_issues.update({issue_id: kw}),
+    )
+    monkeypatch.setattr(
+        "custom_components.vidaa.ir.async_delete_issue",
+        lambda hass_arg, domain, issue_id: deleted_issues.append(issue_id),
+    )
+    hass.config_entries.async_forward_entry_setups = AsyncMock(return_value=True)
+
+    result = await async_setup_entry(hass, mock_entry)
+    assert result is True
+
+    # certificate_missing issue must NOT be created
+    issue_key = f"certificate_missing_{mock_entry.entry_id}"
+    assert issue_key not in created_issues
+    # Stale issue is deleted
+    assert issue_key in deleted_issues
+    # Client initialized with use_ssl=True
+    assert mock_entry.runtime_data.client.use_ssl is True
+
+
+@pytest.mark.anyio
 async def test_remove_entry_deletes_persistent_issues(mock_entry, monkeypatch):
     """[F4-leg2/F5-leg6] removing an entry must clear both persistent Repairs issues."""
     hass = MagicMock()

@@ -85,17 +85,19 @@ async def test_async_migrate_entry_v1_to_v2():
 
         hass.config_entries.async_update_entry.assert_called_once_with(
             mock_entry,
+            data={"ip_address": "192.168.1.100"},
             version=2,
-            minor_version=2,
+            minor_version=3,
         )
 
 
 @pytest.mark.anyio
-async def test_async_migrate_entry_v2_1_to_v2_2_legacy_ssl():
-    """Test migrating v2.1 legacy entry with use_ssl=False to v2.2 with use_ssl=True."""
+async def test_async_migrate_entry_v2_legacy_ssl_to_v2_3():
+    """Test migrating v2.1/v2.2 legacy entry with use_ssl=False to v2.3 with use_ssl=True."""
     hass = MagicMock(spec=HomeAssistant)
     hass.config_entries = MagicMock()
 
+    # Case 1: v2.1 entry
     mock_entry = MagicMock(spec=ConfigEntry)
     mock_entry.entry_id = "entry_legacy_ssl_123"
     mock_entry.title = "Older Hisense TV"
@@ -119,7 +121,35 @@ async def test_async_migrate_entry_v2_1_to_v2_2_legacy_ssl():
             "auth_profile": "legacy",
             "use_ssl": True,
         },
-        minor_version=2,
+        minor_version=3,
+    )
+
+    # Case 2: v2.2 entry (Issue #71 fix)
+    hass.config_entries.reset_mock()
+    mock_entry_v22 = MagicMock(spec=ConfigEntry)
+    mock_entry_v22.entry_id = "entry_legacy_ssl_v22"
+    mock_entry_v22.title = "Hisense H43B7100"
+    mock_entry_v22.version = 2
+    mock_entry_v22.minor_version = 2
+    mock_entry_v22.domain = DOMAIN
+    mock_entry_v22.data = {
+        "ip_address": "192.168.1.100",
+        "auth_profile": "legacy",
+        "use_ssl": False,
+    }
+    mock_entry_v22.options = {}
+
+    result_v22 = await async_migrate_entry(hass, mock_entry_v22)
+    assert result_v22 is True
+
+    hass.config_entries.async_update_entry.assert_called_once_with(
+        mock_entry_v22,
+        data={
+            "ip_address": "192.168.1.100",
+            "auth_profile": "legacy",
+            "use_ssl": True,
+        },
+        minor_version=3,
     )
 
 
@@ -242,8 +272,9 @@ async def test_async_setup_auto_migrates_legacy_entries():
         assert legacy_entry.domain == DOMAIN
         hass.config_entries.async_update_entry.assert_called_once_with(
             legacy_entry,
+            data={},
             version=2,
-            minor_version=2,
+            minor_version=3,
         )
 
 

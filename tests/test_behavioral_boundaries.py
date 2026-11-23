@@ -10,6 +10,7 @@ These tests assert real end-to-end component behavior at entity boundaries:
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -305,3 +306,95 @@ async def test_migration_and_repair_suppression_for_legacy_auth():
         await _async_check_and_manage_legacy_repair(hass)
         # Verify no false "certificate missing" issue was created
         mock_repair.assert_not_called()
+
+
+# -----------------------------------------------------------------------------
+# 5. Non-Blocking Discovery, Upload Processing, and Token Lifecycle Teardown
+# -----------------------------------------------------------------------------
+
+
+@pytest.mark.anyio
+async def test_token_lifecycle_manager_teardown_cancels_all_tracked_tasks():
+    """Verify stop_token_watch cancels all in-flight background refresh/tick tasks."""
+    from custom_components.vidaa.client import VidaaClient
+    from custom_components.vidaa.protocol.auth_lifecycle import TokenLifecycleManager
+
+    client = VidaaClient("192.168.50.12", "e8:51:77:ec:98:1c")
+    mgr = TokenLifecycleManager(client)
+
+    async def long_sleeping_coro():
+        await asyncio.sleep(100)
+
+    # Spawn tasks using _spawn_task
+    t1 = mgr._spawn_task(long_sleeping_coro())
+    t2 = mgr._spawn_task(long_sleeping_coro())
+    assert t1 is not None and not t1.done()
+    assert t2 is not None and not t2.done()
+    assert len(mgr._tracked_tasks) == 2
+
+    # Stopping token watch must cancel all tracked background tasks
+    mgr.stop_token_watch()
+    assert t1.cancelling() or t1.cancelled() or t1.done()
+    assert t2.cancelling() or t2.cancelled() or t2.done()
+
+
+@pytest.mark.anyio
+async def test_uploaded_cert_processing_error_translations():
+    """Verify shared async_process_uploaded_cert_file translates archive failures into UI translation keys."""
+    from custom_components.vidaa.flow.helpers import (
+        UploadedCertProcessingError,
+        async_process_uploaded_cert_file,
+    )
+
+    hass = MagicMock(spec=HomeAssistant)
+    hass.async_add_executor_job = AsyncMock()
+
+    # Case 1: Exceeds size limit
+    hass.async_add_executor_job.side_effect = ValueError("File size limit exceeds maximum allowable 50MB")
+    with pytest.raises(UploadedCertProcessingError) as exc_info:
+        await async_process_uploaded_cert_file(hass, "test_file_id")
+    assert exc_info.value.error_key == "file_too_large"
+
+    # Case 2: P12 password / decrypt error
+    hass.async_add_executor_job.side_effect = ValueError("Failed to decrypt PKCS#12 payload with provided password")
+    with pytest.raises(UploadedCertProcessingError) as exc_info:
+        await async_process_uploaded_cert_file(hass, "test_file_id")
+    assert exc_info.value.error_key == "p12_decrypt_failed"
+
+    # Case 3: Malformed PEM
+    hass.async_add_executor_job.side_effect = ValueError("Archive missing both a certificate and private key")
+    with pytest.raises(UploadedCertProcessingError) as exc_info:
+        await async_process_uploaded_cert_file(hass, "test_file_id")
+    assert exc_info.value.error_key == "invalid_pem_bundle"
+
+
+@pytest.mark.anyio
+async def test_discovery_flow_auto_resolves_legacy_without_upload():
+    """Verify discovery step detects legacy TV via probe and proceeds without forcing cert upload."""
+    from custom_components.vidaa.config_flow import VidaaConfigFlow
+
+    flow = VidaaConfigFlow()
+    flow.hass = MagicMock(spec=HomeAssistant)
+    flow.ip_address = "192.168.50.12"
+    flow.mac_address = "e8:51:77:ec:98:1c"
+    flow.auth_profile = "auto"
+    flow.discovered_title = "Hisense H43B7100"
+
+    # Mock cert resolution returning False (no certs on disk)
+    flow._async_resolve_ssl_certs = AsyncMock(return_value=False)
+    flow._async_init_client_and_auth = AsyncMock(return_value={"type": "form", "step_id": "auth"})
+    flow.async_step_upload = AsyncMock()
+
+    with patch(
+        "custom_components.vidaa.client.VidaaClient.async_probe_auth_methods", new_callable=AsyncMock
+    ) as mock_probe:
+        mock_probe.return_value = {"legacy_static": {"supported": True}}
+        res = await flow.async_step_discovery_confirm(user_input={"confirm": True})
+        assert res is not None
+
+        # Should NOT have redirected to upload
+        flow.async_step_upload.assert_not_called()
+        # Should have routed to _async_init_client_and_auth
+        flow._async_init_client_and_auth.assert_called_once()
+        assert flow.auth_profile == "legacy"
+        assert flow.use_ssl is True

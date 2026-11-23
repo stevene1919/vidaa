@@ -37,12 +37,15 @@ from ..const import (
 from ..protocol import (
     check_certs_exist,
     detect_brand_from_cert_paths,
-    extract_and_install_certs,
     extract_pkcs12_to_pem,
     get_profile_default_cert_paths,
     validate_ssl_certs,
 )
-from .helpers import resolve_ssl_certs
+from .helpers import (
+    UploadedCertProcessingError,
+    async_process_uploaded_cert_file,
+    resolve_ssl_certs,
+)
 
 if TYPE_CHECKING:
     from ..config_flow import VidaaConfigFlow
@@ -107,42 +110,12 @@ class CertsFlowMixin:
                 errors["base"] = "invalid_cert_archive"
             else:
                 try:
-                    storage_dir = (
-                        Path(self.hass.config.path(".storage", "vidaa", "certs"))
-                        if hasattr(self, "hass") and hasattr(self.hass, "config")
-                        else Path("/config/.storage/vidaa/certs")
+                    self.certfile, self.keyfile, upload_hint = await async_process_uploaded_cert_file(
+                        self.hass, uploaded_file_id
                     )
-
-                    def _extract(file_id: str, dest: Path) -> tuple[str, str, str | None]:
-                        with process_uploaded_file(self.hass, file_id) as uploaded_path:
-                            cert_p, key_p = extract_and_install_certs(uploaded_path, dest)
-                            hint = detect_brand_from_cert_paths(cert_p, key_p, str(uploaded_path), file_id)
-                            return cert_p, key_p, hint
-
-                    if hasattr(self, "hass") and self.hass:
-                        extracted = await self.hass.async_add_executor_job(_extract, uploaded_file_id, storage_dir)
-                    else:
-                        loop = asyncio.get_running_loop()
-                        extracted = await loop.run_in_executor(None, _extract, uploaded_file_id, storage_dir)
-
-                    self.certfile, self.keyfile, upload_hint = extracted
                     self.use_ssl = True
-                except ValueError as ex:
-                    _LOGGER.warning("[%s] Failed to extract certificates from upload: %s", self.ip_address, ex)
-                    err_msg = str(ex).lower()
-                    if "size limit" in err_msg or "exceeds maximum" in err_msg:
-                        errors["base"] = "file_too_large"
-                    elif "decrypt" in err_msg:
-                        errors["base"] = "p12_decrypt_failed"
-                    elif "both a certificate and" in err_msg or "malformed" in err_msg or "failed parsing" in err_msg:
-                        errors["base"] = "invalid_pem_bundle"
-                    elif "no vidaa pkcs#12" in err_msg:
-                        errors["base"] = "no_p12_found"
-                    else:
-                        errors["base"] = "invalid_cert_archive"
-                except Exception as ex:
-                    _LOGGER.warning("[%s] Unexpected error during certificate extraction: %s", self.ip_address, ex)
-                    errors["base"] = "invalid_cert_archive"
+                except UploadedCertProcessingError as ex:
+                    errors["base"] = ex.error_key
 
             if not errors:
                 brand_hint = upload_hint or detect_brand_from_cert_paths(self.certfile, self.keyfile)

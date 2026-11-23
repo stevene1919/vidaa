@@ -24,7 +24,16 @@ except ImportError:
 
 
 from .const import CONF_AUTH_PROFILE, CONF_CERT_FILE, CONF_CERTFILE, CONF_KEYFILE
-from .protocol import check_certs_exist, extract_and_install_certs, resolve_certificates
+from .flow.helpers import (
+    UploadedCertProcessingError,
+    async_process_uploaded_cert_file,
+    process_uploaded_file,  # noqa: F401
+)
+from .protocol import (
+    check_certs_exist,
+    extract_and_install_certs,  # noqa: F401
+    resolve_certificates,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,26 +58,7 @@ class CertificateMissingRepairFlow(RepairsFlow):
             uploaded_file_id = user_input.get(CONF_CERT_FILE)
             if uploaded_file_id:
                 try:
-                    storage_dir = (
-                        Path(self.hass.config.path(".storage", "vidaa", "certs"))
-                        if hasattr(self.hass, "config")
-                        else Path("/config/.storage/vidaa/certs")
-                    )
-
-                    def _extract(file_id: str, dest: Path) -> tuple[str, str]:
-                        with process_uploaded_file(self.hass, file_id) as uploaded_path:
-                            return extract_and_install_certs(uploaded_path, dest)
-
-                    if hasattr(self, "hass") and self.hass and hasattr(self.hass, "async_add_executor_job"):
-                        res = self.hass.async_add_executor_job(_extract, uploaded_file_id, storage_dir)
-                        if asyncio.iscoroutine(res) or isinstance(res, asyncio.Future):
-                            extracted = await res
-                        else:
-                            extracted = _extract(uploaded_file_id, storage_dir)
-                    else:
-                        loop = asyncio.get_running_loop()
-                        extracted = await loop.run_in_executor(None, _extract, uploaded_file_id, storage_dir)
-
+                    extracted = await async_process_uploaded_cert_file(self.hass, uploaded_file_id)
                     if entry is not None:
                         new_opts = dict(entry.options)
                         new_opts[CONF_CERTFILE] = extracted[0]
@@ -78,22 +68,8 @@ class CertificateMissingRepairFlow(RepairsFlow):
                         if asyncio.iscoroutine(reload_res) or isinstance(reload_res, asyncio.Future):
                             await reload_res
                     return self.async_create_entry(data={})
-                except ValueError as ex:
-                    _LOGGER.warning("Failed to extract uploaded cert in repair flow: %s", ex)
-                    err_msg = str(ex).lower()
-                    if "size limit" in err_msg or "exceeds maximum" in err_msg:
-                        errors["base"] = "file_too_large"
-                    elif "decrypt" in err_msg:
-                        errors["base"] = "p12_decrypt_failed"
-                    elif "both a certificate and" in err_msg or "malformed" in err_msg or "failed parsing" in err_msg:
-                        errors["base"] = "invalid_pem_bundle"
-                    elif "no vidaa pkcs#12" in err_msg:
-                        errors["base"] = "no_p12_found"
-                    else:
-                        errors["base"] = "invalid_cert_archive"
-                except Exception as ex:
-                    _LOGGER.warning("Unexpected error during cert extraction in repair flow: %s", ex)
-                    errors["base"] = "invalid_cert_archive"
+                except UploadedCertProcessingError as ex:
+                    errors["base"] = ex.error_key
 
             if not errors:
                 auth_profile = "auto"

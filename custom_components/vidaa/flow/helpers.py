@@ -5,11 +5,23 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import sys
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import format_mac
+
+try:
+    from homeassistant.components.file_upload import process_uploaded_file
+except ImportError:
+    from contextlib import contextmanager
+
+    @contextmanager
+    def process_uploaded_file(hass, file_id):
+        yield Path(file_id)
+
 
 from .. import protocol
 from ..const import (
@@ -49,13 +61,81 @@ from ..const import (
     DOMAIN,
     GENERIC_MANUFACTURERS,
 )
-from ..protocol import normalize_brand_code, resolve_certificates
+from ..protocol import (
+    detect_brand_from_cert_paths,
+    extract_and_install_certs,
+    normalize_brand_code,
+    resolve_certificates,
+)
 from ..tv.fingerprint import get_arp_mac
 
 if TYPE_CHECKING:
     from ..client import VidaaClient
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class UploadedCertProcessingError(Exception):
+    """Exception raised when processing an uploaded certificate file fails with an error translation key."""
+
+    def __init__(self, error_key: str, message: str | None = None) -> None:
+        super().__init__(message or error_key)
+        self.error_key = error_key
+
+
+async def async_process_uploaded_cert_file(hass: HomeAssistant, uploaded_file_id: str) -> tuple[str, str, str | None]:
+    """Process an uploaded certificate bundle/archive and extract client certificates.
+
+    Returns:
+        (cert_path, key_path, brand_hint)
+
+    Raises:
+        UploadedCertProcessingError: if file extraction or decryption fails.
+    """
+    storage_dir = (
+        Path(hass.config.path(".storage", "vidaa", "certs"))
+        if hasattr(hass, "config") and hasattr(hass.config, "path")
+        else Path("/config/.storage/vidaa/certs")
+    )
+
+    def _extract() -> tuple[str, str, str | None]:
+        fn_process = getattr(
+            sys.modules.get("custom_components.vidaa.repairs"), "process_uploaded_file", process_uploaded_file
+        )
+        fn_extract = getattr(
+            sys.modules.get("custom_components.vidaa.repairs"), "extract_and_install_certs", extract_and_install_certs
+        )
+        with fn_process(hass, uploaded_file_id) as uploaded_path:
+            cert_p, key_p = fn_extract(uploaded_path, storage_dir)
+            hint = detect_brand_from_cert_paths(cert_p, key_p, str(uploaded_path), uploaded_file_id)
+            return cert_p, key_p, hint
+
+    try:
+        if hasattr(hass, "async_add_executor_job") and callable(hass.async_add_executor_job):
+            res = hass.async_add_executor_job(_extract)
+            if asyncio.iscoroutine(res) or isinstance(res, asyncio.Future):
+                return await res
+            # If hass is a MagicMock whose async_add_executor_job returns a MagicMock
+            # that is not awaitable and not a tuple, fall back to executing _extract()
+            if isinstance(res, tuple):
+                return res
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, _extract)
+    except ValueError as ex:
+        _LOGGER.warning("Failed to extract certificates from upload: %s", ex)
+        err_msg = str(ex).lower()
+        if "size limit" in err_msg or "exceeds maximum" in err_msg:
+            raise UploadedCertProcessingError("file_too_large", str(ex)) from ex
+        if "decrypt" in err_msg:
+            raise UploadedCertProcessingError("p12_decrypt_failed", str(ex)) from ex
+        if "both a certificate and" in err_msg or "malformed" in err_msg or "failed parsing" in err_msg:
+            raise UploadedCertProcessingError("invalid_pem_bundle", str(ex)) from ex
+        if "no vidaa pkcs#12" in err_msg:
+            raise UploadedCertProcessingError("no_p12_found", str(ex)) from ex
+        raise UploadedCertProcessingError("invalid_cert_archive", str(ex)) from ex
+    except Exception as ex:
+        _LOGGER.warning("Unexpected error during certificate extraction: %s", ex)
+        raise UploadedCertProcessingError("invalid_cert_archive", str(ex)) from ex
 
 
 def unwrap_section_data(user_input: dict[str, Any] | None) -> dict[str, Any]:
@@ -144,8 +224,7 @@ async def async_discover_device_details(
         clean_wifi = format_mac(raw_wifi) if raw_wifi else None
         clean_eth = format_mac(raw_eth) if raw_eth else None
         if clean_wifi and clean_eth and clean_wifi != clean_eth:
-            raw_arp = get_arp_mac(default_ip) if default_ip else None
-            arp_mac = format_mac(raw_arp) if raw_arp else None
+            arp_mac = await async_resolve_mac(hass, default_ip) if default_ip else None
             if arp_mac == clean_eth:
                 details["mac_address"] = clean_eth
                 details["secondary_mac_address"] = clean_wifi

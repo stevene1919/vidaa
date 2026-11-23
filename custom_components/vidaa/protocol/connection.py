@@ -61,19 +61,40 @@ class ConnectionManagerMixin:
         """Builds and loads the client TLS context off the event loop (disk I/O)."""
 
         def _load_ssl() -> Any:
+            certfile = self.certfile
+            keyfile = self.keyfile
+            ca_cert = self.ca_cert
+            if self.use_ssl and self.auth_profile not in ("legacy", "static"):
+                from ..protocol import resolve_ca_certificate, resolve_certificates
+
+                if (
+                    not certfile
+                    or not keyfile
+                    or (
+                        (isinstance(certfile, str) and certfile.lower().endswith((".p12", ".pfx")))
+                        or (isinstance(keyfile, str) and keyfile.lower().endswith((".p12", ".pfx")))
+                    )
+                ):
+                    certfile, keyfile = resolve_certificates(
+                        auth_profile=self.auth_profile, certfile=certfile, keyfile=keyfile
+                    )
+                    self.certfile, self.keyfile = certfile, keyfile
+                ca_cert = resolve_ca_certificate(ca_cert)
+                self.ca_cert = ca_cert
+
             has_client_cert = bool(
                 self.use_ssl
-                and self.certfile
-                and self.keyfile
+                and certfile
+                and keyfile
                 and (
                     self.auth_profile not in ("legacy", "static")
-                    or (os.path.isfile(self.certfile) and os.path.isfile(self.keyfile))
+                    or (os.path.isfile(certfile) and os.path.isfile(keyfile))
                 )
             )
             return build_mqtt_ssl_context(
-                self.certfile if has_client_cert else None,
-                self.keyfile if has_client_cert else None,
-                self.ca_cert,
+                certfile if has_client_cert else None,
+                keyfile if has_client_cert else None,
+                ca_cert,
                 self.verify_ssl,
                 self.use_ssl,
             )

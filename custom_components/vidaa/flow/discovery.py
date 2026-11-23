@@ -72,7 +72,30 @@ class DiscoveryFlowMixin:
         """Confirm discovery setup with user."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            if await self._async_resolve_ssl_certs():
+            has_certs = await self._async_resolve_ssl_certs()
+            if not has_certs and self.ip_address and getattr(self, "auth_profile", "auto") == "auto":
+                # Check if this TV supports legacy static auth without client certs
+                try:
+                    from ..client import VidaaClient
+
+                    probe_client = VidaaClient(
+                        self.ip_address,
+                        self.mac_address,
+                        auth_profile="legacy",
+                        brand=self.brand,
+                        use_ssl=True,
+                    )
+                    probe = await probe_client.async_probe_auth_methods(1.5)
+                    if probe.get("legacy_static", {}).get("supported"):
+                        self.auth_profile = "legacy"
+                        self.certfile = None
+                        self.keyfile = None
+                        self.use_ssl = True
+                        has_certs = True
+                except Exception as probe_err:
+                    _LOGGER.debug("[%s] Discovery auth probe exception: %s", self.ip_address, probe_err)
+
+            if has_certs:
                 try:
                     return await self._async_init_client_and_auth()
                 except AbortFlow:

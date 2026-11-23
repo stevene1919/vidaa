@@ -6,7 +6,7 @@ import asyncio
 import contextlib
 import logging
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .auth import is_token_expired
 
@@ -36,21 +36,42 @@ class TokenLifecycleManager:
         self.rejected_retry_task: asyncio.Task | None = None
         self.broker_rejection_failures: int = 0
         self.last_refresh_connect_rc: int | None = None
+        self._tracked_tasks: set[asyncio.Task] = set()
+
+    def _spawn_task(self, coro: Any) -> asyncio.Task | None:
+        """Helper to spawn and track an internal background asyncio task."""
+        if hasattr(self.client, "_spawn"):
+            task = self.client._spawn(coro)
+            if task:
+                self._tracked_tasks.add(task)
+                task.add_done_callback(self._tracked_tasks.discard)
+            return task
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            if asyncio.iscoroutine(coro):
+                coro.close()
+            return None
+        task = loop.create_task(coro)
+        self._tracked_tasks.add(task)
+        task.add_done_callback(self._tracked_tasks.discard)
+        return task
 
     def start_token_watch(self) -> None:
         """Start the periodic token watch loop task."""
         self.token_watch_closed = False
         if self.token_watch_task is not None and not self.token_watch_task.done():
             return
-        with contextlib.suppress(RuntimeError):
-            self.token_watch_task = asyncio.create_task(self._token_watch_loop())
+        self.token_watch_task = self._spawn_task(self._token_watch_loop())
 
     def stop_token_watch(self) -> None:
-        """Stop the periodic token watch loop task."""
+        """Stop the periodic token watch loop task and cancel tracked tasks."""
         self.token_watch_closed = True
         if self.token_watch_task is not None:
             self.token_watch_task.cancel()
             self.token_watch_task = None
+        for task in list(self._tracked_tasks):
+            task.cancel()
 
     async def _token_watch_loop(self) -> None:
         """Runs periodic checks for token expiry while awake."""
@@ -66,8 +87,8 @@ class TokenLifecycleManager:
     def _token_watch_tick(self) -> None:
         """Synchronous tick helper for manual testing or timer callbacks."""
         try:
-            loop = asyncio.get_running_loop()
-            self._watch_tick_task = loop.create_task(self.async_maybe_refresh_while_awake())
+            asyncio.get_running_loop()
+            self._watch_tick_task = self._spawn_task(self.async_maybe_refresh_while_awake())
         except RuntimeError:
             asyncio.run(self.async_maybe_refresh_while_awake())
 
@@ -133,8 +154,8 @@ class TokenLifecycleManager:
     def maybe_refresh_while_awake(self) -> None:
         """Synchronous wrapper for async_maybe_refresh_while_awake."""
         try:
-            loop = asyncio.get_running_loop()
-            self._awake_refresh_task = loop.create_task(self.async_maybe_refresh_while_awake())
+            asyncio.get_running_loop()
+            self._awake_refresh_task = self._spawn_task(self.async_maybe_refresh_while_awake())
         except RuntimeError:
             asyncio.run(self.async_maybe_refresh_while_awake())
 
@@ -178,8 +199,8 @@ class TokenLifecycleManager:
     def proactive_token_refresh(self) -> None:
         """Synchronous wrapper for async_proactive_token_refresh."""
         try:
-            loop = asyncio.get_running_loop()
-            self._proactive_refresh_task = loop.create_task(self.async_proactive_token_refresh())
+            asyncio.get_running_loop()
+            self._proactive_refresh_task = self._spawn_task(self.async_proactive_token_refresh())
         except RuntimeError:
             asyncio.run(self.async_proactive_token_refresh())
 
@@ -204,7 +225,7 @@ class TokenLifecycleManager:
                     self.last_refresh_attempt = current_time
             if should_refresh:
                 _LOGGER.info("[%s] Authentication failed on connect. Refreshing token in background...", client.ip)
-                self.auth_refresh_task = asyncio.create_task(self.async_refresh_token_and_update_creds())
+                self.auth_refresh_task = self._spawn_task(self.async_refresh_token_and_update_creds())
             else:
                 self.client._schedule_rejected_retry(max(5.0, retry_after - (current_time - self.last_refresh_attempt)))
         else:
@@ -217,16 +238,15 @@ class TokenLifecycleManager:
     def handle_auth_rejection(self, rc: int) -> None:
         """Synchronous wrapper for async_handle_auth_rejection."""
         try:
-            loop = asyncio.get_running_loop()
-            self._handle_rejection_task = loop.create_task(self.async_handle_auth_rejection(rc))
+            asyncio.get_running_loop()
+            self._handle_rejection_task = self._spawn_task(self.async_handle_auth_rejection(rc))
         except RuntimeError:
             asyncio.run(self.async_handle_auth_rejection(rc))
 
     def schedule_rejected_retry(self, delay: float) -> None:
         """Schedules a delayed reconnection attempt after rejection."""
         self.cancel_rejected_retry()
-        with contextlib.suppress(RuntimeError):
-            self.rejected_retry_task = asyncio.create_task(self._rejected_retry_runner(delay))
+        self.rejected_retry_task = self._spawn_task(self._rejected_retry_runner(delay))
         _LOGGER.debug("[%s] Next reconnect attempt in %.0f s", self.client.ip, delay)
 
     async def _rejected_retry_runner(self, delay: float) -> None:
@@ -248,17 +268,17 @@ class TokenLifecycleManager:
     def _rejected_retry_fire(self) -> None:
         """Immediate retry trigger for tests or manual invocation."""
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
             if self.client.refresh_token and not is_token_expired(
                 self.client.refresh_token_time,
                 self.client.refresh_token_duration,
                 clock_offset=self.client.clock_offset,
             ):
-                self._retry_fire_task = loop.create_task(
+                self._retry_fire_task = self._spawn_task(
                     self.async_handle_auth_rejection(self.last_refresh_connect_rc or 5)
                 )
             else:
-                self._retry_fire_task = loop.create_task(self.client.async_connect_and_run())
+                self._retry_fire_task = self._spawn_task(self.client.async_connect_and_run())
         except RuntimeError:
             if self.client.refresh_token and not is_token_expired(
                 self.client.refresh_token_time,
@@ -345,7 +365,7 @@ class TokenLifecycleManager:
     def refresh_token_and_update_creds(self) -> None:
         """Synchronous wrapper for async_refresh_token_and_update_creds."""
         try:
-            loop = asyncio.get_running_loop()
-            self._creds_refresh_task = loop.create_task(self.async_refresh_token_and_update_creds())
+            asyncio.get_running_loop()
+            self._creds_refresh_task = self._spawn_task(self.async_refresh_token_and_update_creds())
         except RuntimeError:
             asyncio.run(self.async_refresh_token_and_update_creds())

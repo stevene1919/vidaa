@@ -157,6 +157,23 @@ An MQTT return code of `rc: 5` (MQTT 3.1.1) or `rc: 135` (MQTT 5.0) indicates th
   * These were intentionally retired in favor of the **`audio_output` state attribute** directly on the main `media_player.<tv_name>` entity (`TV Speakers` or `ARC / eARC`).
   * This eliminates entity registry clutter while keeping audio output state readily accessible in automations and templates (e.g. `state_attr('media_player.living_room_tv', 'audio_output')`). Note that VIDAA firmware only distinguishes `ARC / eARC` from internal speakers over MQTT; Optical/SPDIF and Bluetooth appear as `TV Speakers`.
 
+### 3. Picture or Sound Settings Change in Home Assistant but Physical TV Does Not Change
+* **Cause: Model Compatibility & Internal Loopback Services:**
+  * Picture mode, backlight, brightness, contrast sliders, and sound EQ presets rely on VIDAA's proprietary MQTT menu protocol (`actions/picturesetting` and `actions/soundsetting`).
+  * **These controls are disabled by default (`false`)** because support varies widely by TV model and firmware generation.
+  * Many models (including newer MediaTek MTK9602/MTK9603 boards and VIDAA U6/U7 firmwares) omit MQTT picture/sound handlers entirely. On these models, publishing MQTT packets succeeds at the network layer, but the TV OS drops the command without adjusting the physical display panel.
+* **How to Verify Support:**
+  * Enable and press the diagnostic button **Probe Capabilities** (`button.<tv_name>_probe_capabilities`).
+  * Check the Home Assistant log for the capability report:
+    ```text
+    [192.168.50.12] Capability probe complete: Picture Menu: Unsupported (0 items), Sound Menu: Unsupported (0 items)
+    ```
+  * If both menus report `Unsupported (0 items)`, your TV firmware does not implement MQTT picture/sound management. Disable **Enable Picture Mode & Calibration Controls** in `Configure → Entities & Remote Controls` to remove non-functional entities.
+* **Why Internal Phoenix APIs (`vowOS.tvinfo`) Cannot Be Used:**
+  * When inspecting the TV's internal web browser or local system logs, you may see Phoenix service calls (`vowOS.tvinfo.getBrightness()`, `setBrightness()`, `vowOS.tvinfo.getContrast()`).
+  * These services run via internal TV loopback daemons (`http://127.0.0.1:9009` / `https://127.0.0.1:9888`) bound strictly to `localhost` inside the TV's operating system.
+  * They are firewalled against inbound LAN connections for security and are **not bridged to the TV's external MQTT daemon**. Home Assistant communicates purely out-of-band over the local network via MQTT and cannot invoke TV-internal loopback APIs.
+
 ---
 
 ---

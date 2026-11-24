@@ -300,23 +300,40 @@ def extract_and_install_certs(
             p12_bytes = raw_data
 
     if not private_key or not certificate:
+        if not p12_bytes or len(p12_bytes) == 0:
+            raise ValueError("Uploaded file is empty")
+
         passwords_to_try: list[bytes | None] = []
         if password is not None:
             passwords_to_try.append(password.encode("utf-8") if isinstance(password, str) else password)
         passwords_to_try.extend(KNOWN_P12_PASSWORDS)
 
+        saw_valid_p12_structure = False
+        keystore_missing_key_or_cert = False
+
         for pwd in passwords_to_try:
             try:
                 private_key, certificate, _ = pkcs12.load_key_and_certificates(p12_bytes, pwd)
+                saw_valid_p12_structure = True
                 if private_key and certificate:
                     break
-            except (ValueError, TypeError):
+                keystore_missing_key_or_cert = True
+            except ValueError as ex:
+                err_str = str(ex).lower()
+                if "invalid password" in err_str:
+                    saw_valid_p12_structure = True
+                continue
+            except TypeError:
                 continue
             except Exception as ex:
                 _LOGGER.debug("Failed testing candidate password: %s", ex)
                 continue
 
     if not private_key or not certificate:
+        if keystore_missing_key_or_cert:
+            raise ValueError("Uploaded PKCS#12 keystore must contain both a certificate and an unencrypted private key")
+        if not saw_valid_p12_structure:
+            raise ValueError("Uploaded file is not a valid PKCS#12 keystore or archive")
         raise ValueError("Failed to decrypt PKCS#12 keystore from uploaded file")
 
     dest.mkdir(mode=0o700, parents=True, exist_ok=True)

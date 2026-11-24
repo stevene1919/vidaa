@@ -11,6 +11,7 @@ These tests assert real end-to-end component behavior at entity boundaries:
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -398,3 +399,137 @@ async def test_discovery_flow_auto_resolves_legacy_without_upload():
         flow._async_init_client_and_auth.assert_called_once()
         assert flow.auth_profile == "legacy"
         assert flow.use_ssl is True
+
+
+@pytest.mark.anyio
+async def test_extract_and_install_certs_invalid_file_classifications(tmp_path):
+    """Verify distinct error classifications for invalid, corrupted, mismatched, and empty uploads."""
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.hazmat.primitives.serialization import pkcs12
+
+    from custom_components.vidaa.flow.helpers import (
+        UploadedCertProcessingError,
+        async_process_uploaded_cert_file,
+    )
+    from custom_components.vidaa.protocol.cert_extract import extract_and_install_certs
+
+    target_dir = tmp_path / "installed"
+
+    # 1. Empty file
+    empty_file = tmp_path / "empty.bin"
+    empty_file.write_bytes(b"")
+    with pytest.raises(ValueError, match="empty"):
+        extract_and_install_certs(empty_file, target_dir)
+
+    # 2. Corrupt / random text file (not a valid PKCS#12 or archive)
+    corrupt_file = tmp_path / "not_p12.apk"
+    corrupt_file.write_bytes(b"This is plain text pretending to be an APK")
+    with pytest.raises(ValueError, match="not a valid PKCS#12"):
+        extract_and_install_certs(corrupt_file, target_dir)
+
+    # 3. Valid PKCS#12 bundle but missing private key (cert only)
+    key = rsa.generate_private_key(public_exponent=65537, key_size=1024)
+    subject = issuer = x509.Name([x509.NameAttribute(x509.oid.NameOID.COMMON_NAME, "NoKeyCert")])
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(subject)
+        .issuer_name(issuer)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(datetime.now(UTC) - timedelta(days=1))
+        .not_valid_after(datetime.now(UTC) + timedelta(days=1))
+        .sign(key, hashes.SHA256())
+    )
+    cert_only_p12 = pkcs12.serialize_key_and_certificates(
+        b"cert_only",
+        None,
+        cert,
+        None,
+        serialization.BestAvailableEncryption(b"186e990688070325a1c4b0ce275d2388"),
+    )
+    cert_only_file = tmp_path / "cert_only.p12"
+    cert_only_file.write_bytes(cert_only_p12)
+    with pytest.raises(ValueError, match="must contain both a certificate and an unencrypted private key"):
+        extract_and_install_certs(cert_only_file, target_dir)
+
+    # 4. PEM file with mismatched cert and private key
+    key2 = rsa.generate_private_key(public_exponent=65537, key_size=1024)
+    mismatched_pem = tmp_path / "mismatched.pem"
+    mismatched_pem.write_bytes(
+        cert.public_bytes(serialization.Encoding.PEM)
+        + b"\n"
+        + key2.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption(),
+        )
+    )
+    with pytest.raises(ValueError, match="does not match"):
+        extract_and_install_certs(mismatched_pem, target_dir)
+
+    # 5. Verify translation of mismatched PEM into invalid_pem_bundle error key
+    hass = MagicMock(spec=HomeAssistant)
+    hass.async_add_executor_job = AsyncMock(
+        side_effect=ValueError("Uploaded PEM certificate does not match the included private key")
+    )
+    with pytest.raises(UploadedCertProcessingError) as exc_info:
+        await async_process_uploaded_cert_file(hass, "test_file_id")
+    assert exc_info.value.error_key == "invalid_pem_bundle"
+
+
+@pytest.mark.anyio
+async def test_step_certs_corrupt_p12_reports_invalid_ssl_cert(tmp_path):
+    """Verify manual cert path step reports invalid_ssl_cert when given an unextractable .p12."""
+    from custom_components.vidaa.config_flow import VidaaConfigFlow
+
+    flow = VidaaConfigFlow()
+    flow.hass = MagicMock(spec=HomeAssistant)
+    flow.auth_profile = "modern"
+    flow.ip_address = "192.168.50.12"
+    flow.mac_address = "e8:51:77:ec:98:1c"
+
+    bad_p12 = tmp_path / "broken.p12"
+    bad_p12.write_bytes(b"garbage not pkcs12")
+
+    result = await flow.async_step_certs(user_input={"use_ssl": True, "certfile": str(bad_p12)})
+    assert result["type"] == "form"
+    assert result["step_id"] == "certs"
+    assert result["errors"].get("base") == "invalid_ssl_cert"
+
+
+@pytest.mark.anyio
+async def test_step_upload_cleans_up_storage_on_ssl_error(tmp_path):
+    """Verify that if TV TLS handshake fails after upload, installed files in .storage are removed."""
+    import ssl
+
+    from custom_components.vidaa.config_flow import VidaaConfigFlow
+
+    flow = VidaaConfigFlow()
+    flow.hass = MagicMock(spec=HomeAssistant)
+    flow.ip_address = "192.168.50.12"
+    flow.mac_address = "e8:51:77:ec:98:1c"
+
+    storage_cert = tmp_path / ".storage" / "vidaa" / "certs" / "hisense.crt"
+    storage_key = tmp_path / ".storage" / "vidaa" / "certs" / "hisense.key"
+    storage_cert.parent.mkdir(parents=True, exist_ok=True)
+    storage_cert.write_text("DUMMY CERT")
+    storage_key.write_text("DUMMY KEY")
+
+    with (
+        patch(
+            "custom_components.vidaa.flow.certs.async_process_uploaded_cert_file",
+            new_callable=AsyncMock,
+            return_value=(str(storage_cert), str(storage_key), "his"),
+        ),
+        patch.object(flow, "_async_init_client_and_auth", side_effect=ssl.SSLError("handshake failure")),
+    ):
+        result = await flow.async_step_upload(user_input={"cert_file": "file_id_123"})
+        assert result["type"] == "form"
+        assert result["errors"]["base"] == "invalid_ssl_cert"
+        # Verify the dummy files in .storage were unlinked so future flows are not poisoned
+        assert not storage_cert.exists()
+        assert not storage_key.exists()
+        assert flow.certfile is None
+        assert flow.keyfile is None

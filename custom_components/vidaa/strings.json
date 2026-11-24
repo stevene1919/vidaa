@@ -143,8 +143,8 @@
           "key_repeat": "Remote Key Repeat Count"
         },
         "data_description": {
-          "enable_picture_controls": "Creates picture mode selector and backlight, brightness, and contrast slider entities. Disabling removes these entities from Home Assistant.",
-          "enable_sound_controls": "Creates an equalizer sound preset selector entity (Standard, Theatre, Music, Speech, Late Night, Sports).",
+          "enable_picture_controls": "Creates picture mode selector and backlight, brightness, and contrast slider entities. Disabled by default; only supported on select TV models with MQTT picture menus. Run Probe Capabilities first.",
+          "enable_sound_controls": "Creates an equalizer sound preset selector entity (Standard, Theatre, Music, Speech, Late Night, Sports). Disabled by default; model dependent.",
           "enable_audio_only": "Creates a switch entity to turn off the display panel while keeping audio streaming active (ideal for music, radio, and podcasts).",
           "key_delay": "Delay between sequential keystrokes when sending remote button sequences or automated commands.",
           "key_repeat": "Number of times a keystroke is transmitted per command when no explicit repeat count is specified."

@@ -189,6 +189,13 @@ All `vidaa.*` action services support targeting via standard Home Assistant sele
 
 ## 🎛️ Picture & Sound Controls (`number` and `select` entities)
 
+> [!NOTE]
+> **Hardware & Firmware Compatibility (Disabled by Default):**
+> Picture calibration sliders (`backlight`, `brightness`, `contrast`), picture mode, and sound mode selectors are **disabled by default (`false`)** in integration options. They require the TV's internal MQTT broker to support VIDAA's proprietary `/actions/picturesetting` and `/actions/soundsetting` menu protocol.
+> - Many newer TV models and firmwares (including MTK9602/MTK9603 boards on VIDAA U6/U7) omit these MQTT endpoints entirely.
+> - Use the **Probe Capabilities** button (`button.<tv>_probe_capabilities`) to test whether your TV responds to MQTT picture/sound queries before enabling these entities in options.
+> - Internal TV browser APIs (such as Phoenix / `vowOS.tvinfo.*` on loopback ports `9009`/`9888`) are TV-local loopback services that are firewalled from the LAN and cannot be accessed over external MQTT.
+
 ### Adjust Backlight, Brightness, and Contrast Sliders
 Control display parameters in automations using standard `number.set_value`:
 

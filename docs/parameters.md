@@ -87,11 +87,18 @@ To customize integration behavior for an existing TV, navigate to **Settings →
 
 | Parameter                     | Type                      | Default | Description                                                                                                |
 |:----------------------------- |:------------------------- |:------- |:---------------------------------------------------------------------------------------------------------- |
-| **`enable_picture_controls`** | `boolean`                 | `true`  | Exposes `select.<tv>_picture_mode` and calibration number entities (Backlight, Brightness, Contrast).      |
-| **`enable_sound_controls`**   | `boolean`                 | `true`  | Exposes `select.<tv>_sound_mode` for switching audio modes (Standard, Theater, Music, Speech, Late Night). |
+| **`enable_picture_controls`** | `boolean`                 | `false` | Exposes `select.<tv>_picture_mode` and calibration number entities (Backlight, Brightness, Contrast). Disabled by default; requires model-specific MQTT menu support. |
+| **`enable_sound_controls`**   | `boolean`                 | `false` | Exposes `select.<tv>_sound_mode` for switching audio modes (Standard, Theater, Music, Speech, Late Night). Disabled by default; model dependent. |
 | **`enable_audio_only`**       | `boolean`                 | `true`  | Exposes `switch.<tv>_audio_only` to turn off the TV display backlight while keeping audio playing.         |
 | **`key_delay`**               | `float` (slider, seconds) | `0.2`   | Delay in seconds between consecutive key commands when sending sequences or repeated keystrokes.           |
 | **`key_repeat`**              | `integer` (box)           | `1`     | Default number of times each keypress command is repeated.                                                 |
+
+> [!IMPORTANT]
+> **Picture & Sound Controls Model Compatibility (`false` by default):**
+> Picture mode switching, calibration sliders (brightness, contrast, backlight), and sound EQ selectors are **disabled by default**. These features rely on VIDAA's proprietary MQTT menu protocol (`actions/picturesetting` and `actions/soundsetting`), which is only implemented on select TV models and firmware revisions.
+> - Many models (such as newer MediaTek MTK9602/MTK9603 chipsets and recent VIDAA U6/U7 firmwares) do not implement or expose picture/sound menu trees over the local MQTT broker.
+> - Before enabling these entities, run the **Probe Capabilities** button (`button.<tv>_probe_capabilities`). If it logs `Picture Menu: Unsupported (0 items)`, your TV firmware does not expose MQTT picture controls; enabling the entities will create non-functional controls.
+> - **Internal Phoenix APIs (`vowOS.tvinfo`):** Developers inspecting the TV browser DOM may discover internal Phoenix JavaScript bridge APIs (`vowOS.tvinfo.getBrightness()`, `setBrightness()`, `TvInfo_getParam`) running on TV ports `9009` and `9888`. These are strictly internal TV-local system daemons bound to `127.0.0.1` inside the TV OS. They are firewalled from the LAN and **are not bridged to VIDAA's external MQTT broker**, so external network integrations like Home Assistant cannot access or support them.
 
 ### 2.4 Connection & Security (`security`)
 

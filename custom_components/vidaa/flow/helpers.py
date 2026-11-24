@@ -128,7 +128,13 @@ async def async_process_uploaded_cert_file(hass: HomeAssistant, uploaded_file_id
             raise UploadedCertProcessingError("file_too_large", str(ex)) from ex
         if "decrypt" in err_msg:
             raise UploadedCertProcessingError("p12_decrypt_failed", str(ex)) from ex
-        if "both a certificate and" in err_msg or "malformed" in err_msg or "failed parsing" in err_msg:
+        if (
+            "both a certificate and" in err_msg
+            or "both a client certificate and" in err_msg
+            or "malformed" in err_msg
+            or "failed parsing" in err_msg
+            or "does not match" in err_msg
+        ):
             raise UploadedCertProcessingError("invalid_pem_bundle", str(ex)) from ex
         if "no vidaa pkcs#12" in err_msg:
             raise UploadedCertProcessingError("no_p12_found", str(ex)) from ex

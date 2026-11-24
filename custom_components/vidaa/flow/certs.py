@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import ssl
 from pathlib import Path
@@ -56,18 +57,36 @@ _LOGGER = logging.getLogger(__name__)
 class CertsFlowMixin:
     """Mixin for SSL certificate selection and validation in config flows."""
 
+    def _cleanup_installed_certs(self: VidaaConfigFlow) -> None:
+        """Removes installed certificates from storage if client auth fails after upload."""
+        for path_str in (getattr(self, "certfile", None), getattr(self, "keyfile", None)):
+            if path_str:
+                path = Path(path_str)
+                if ".storage" in path.parts and "vidaa" in path.parts and path.is_file():
+                    with contextlib.suppress(OSError):
+                        path.unlink()
+        self.certfile = None
+        self.keyfile = None
+
+    async def _run_executor(self: VidaaConfigFlow, func: Any, *args: Any) -> Any:
+        """Run a function in the executor, handling both live HA and MagicMock."""
+        if (
+            hasattr(self, "hass")
+            and hasattr(self.hass, "async_add_executor_job")
+            and callable(self.hass.async_add_executor_job)
+        ):
+            res = self.hass.async_add_executor_job(func, *args)
+            if asyncio.iscoroutine(res) or isinstance(res, asyncio.Future):
+                return await res
+            if type(self.hass.async_add_executor_job).__name__ == "MagicMock":
+                return func(*args)
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, func, *args)
+
     async def _async_resolve_ssl_certs(self: VidaaConfigFlow) -> bool:
         """Attempts to resolve certificates from disk or profile off the event loop."""
         config_dir = self.hass.config.config_dir if hasattr(self, "hass") and hasattr(self.hass, "config") else None
-        if hasattr(self, "hass") and self.hass:
-            success, cert, key, use_ssl = await self.hass.async_add_executor_job(
-                resolve_ssl_certs, self.auth_profile, config_dir
-            )
-        else:
-            loop = asyncio.get_running_loop()
-            success, cert, key, use_ssl = await loop.run_in_executor(
-                None, resolve_ssl_certs, self.auth_profile, config_dir
-            )
+        success, cert, key, use_ssl = await self._run_executor(resolve_ssl_certs, self.auth_profile, config_dir)
         if success:
             self.certfile = cert
             self.keyfile = key
@@ -132,9 +151,11 @@ class CertsFlowMixin:
                     raise
                 except ssl.SSLError as e:
                     _LOGGER.warning("[%s] SSL handshake failed after cert upload: %s", self.ip_address, e)
+                    self._cleanup_installed_certs()
                     errors["base"] = "invalid_ssl_cert"
                 except Exception as e:
                     _LOGGER.warning("[%s] Failed to connect after cert upload: %s", self.ip_address, e)
+                    self._cleanup_installed_certs()
                     errors["base"] = "cannot_connect"
 
         upload_schema = vol.Schema(
@@ -158,23 +179,13 @@ class CertsFlowMixin:
         """Handle certificate file configuration step."""
         errors: dict[str, str] = {}
         config_dir = self.hass.config.config_dir if hasattr(self.hass, "config") else "/config"
-        if hasattr(self, "hass") and self.hass:
-            (
-                default_cert_path,
-                default_key_path,
-                default_cert_dir,
-                default_cert_name,
-                default_key_name,
-            ) = await self.hass.async_add_executor_job(get_profile_default_cert_paths, self.auth_profile, config_dir)
-        else:
-            loop = asyncio.get_running_loop()
-            (
-                default_cert_path,
-                default_key_path,
-                default_cert_dir,
-                default_cert_name,
-                default_key_name,
-            ) = await loop.run_in_executor(None, get_profile_default_cert_paths, self.auth_profile, config_dir)
+        (
+            default_cert_path,
+            default_key_path,
+            default_cert_dir,
+            default_cert_name,
+            default_key_name,
+        ) = await self._run_executor(get_profile_default_cert_paths, self.auth_profile, config_dir)
 
         if user_input is not None:
             self.use_ssl = user_input.get(CONF_USE_SSL, DEFAULT_USE_SSL)
@@ -183,46 +194,32 @@ class CertsFlowMixin:
 
             if self.use_ssl:
                 if self.certfile and (self.certfile.lower().endswith(".p12") or self.certfile.lower().endswith(".pfx")):
-                    if hasattr(self, "hass") and self.hass:
-                        extracted = await self.hass.async_add_executor_job(extract_pkcs12_to_pem, self.certfile)
-                    else:
-                        loop = asyncio.get_running_loop()
-                        extracted = await loop.run_in_executor(None, extract_pkcs12_to_pem, self.certfile)
+                    extracted = await self._run_executor(extract_pkcs12_to_pem, self.certfile)
                     if extracted:
                         self.certfile, self.keyfile = extracted
-
-                async def _check_exist(c: str | None, k: str | None) -> bool:
-                    if hasattr(self, "hass") and self.hass:
-                        return await self.hass.async_add_executor_job(check_certs_exist, c, k)
-                    loop = asyncio.get_running_loop()
-                    return await loop.run_in_executor(None, check_certs_exist, c, k)
-
-                certs_exist = await _check_exist(self.certfile, self.keyfile)
-                if not certs_exist:
-                    if self.auth_profile in ("legacy", "static"):
-                        self.certfile = None
-                        self.keyfile = None
                     else:
-                        cert_exists = await _check_exist(self.certfile, self.certfile)
-                        key_exists = await _check_exist(self.keyfile, self.keyfile)
-                        if not cert_exists:
-                            errors[CONF_CERTFILE] = "certs_not_found"
-                        elif not key_exists:
-                            errors[CONF_KEYFILE] = "certs_not_found"
-                        else:
-                            errors["base"] = "certs_not_found"
-                else:
-
-                    async def _validate(c: str | None, k: str | None) -> tuple[bool, str | None]:
-                        if hasattr(self, "hass") and self.hass:
-                            return await self.hass.async_add_executor_job(validate_ssl_certs, c, k)
-                        loop = asyncio.get_running_loop()
-                        return await loop.run_in_executor(None, validate_ssl_certs, c, k)
-
-                    valid, err_reason = await _validate(self.certfile, self.keyfile)
-                    if not valid:
-                        _LOGGER.warning("[%s] SSL certificate validation failed: %s", self.ip_address, err_reason)
                         errors["base"] = "invalid_ssl_cert"
+
+                if not errors:
+                    certs_exist = await self._run_executor(check_certs_exist, self.certfile, self.keyfile)
+                    if not certs_exist:
+                        if self.auth_profile in ("legacy", "static"):
+                            self.certfile = None
+                            self.keyfile = None
+                        else:
+                            cert_exists = await self._run_executor(check_certs_exist, self.certfile, self.certfile)
+                            key_exists = await self._run_executor(check_certs_exist, self.keyfile, self.keyfile)
+                            if not cert_exists:
+                                errors[CONF_CERTFILE] = "certs_not_found"
+                            elif not key_exists:
+                                errors[CONF_KEYFILE] = "certs_not_found"
+                            else:
+                                errors["base"] = "certs_not_found"
+                    else:
+                        valid, err_reason = await self._run_executor(validate_ssl_certs, self.certfile, self.keyfile)
+                        if not valid:
+                            _LOGGER.warning("[%s] SSL certificate validation failed: %s", self.ip_address, err_reason)
+                            errors["base"] = "invalid_ssl_cert"
 
             if not errors:
                 brand_hint = detect_brand_from_cert_paths(self.certfile, self.keyfile)

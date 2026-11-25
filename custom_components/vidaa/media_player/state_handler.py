@@ -15,6 +15,7 @@ from ..tv.media import (
     parse_sourcelist_payload,
     parse_volume_broadcast,
 )
+from ..tv.navigation import resolve_canonical_app
 
 if TYPE_CHECKING:
     from . import VidaaMediaPlayer
@@ -76,6 +77,17 @@ class MediaPlayerStateHandlerMixin:
             return
 
         parsed = parse_media_state_broadcast(data)
+        if parsed.get("statetype") == "app" and self._client:
+            canonical_name, canonical_id = resolve_canonical_app(
+                parsed.get("source"),
+                getattr(self._client, "apps", None),
+                parsed.get("app_id"),
+                data.get("url"),
+            )
+            if canonical_name:
+                parsed["source"] = canonical_name
+            if canonical_id:
+                parsed["app_id"] = canonical_id
         if self._client:
             self._client.is_on = parsed["is_on"]
             if not parsed["is_on"]:

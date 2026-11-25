@@ -13,7 +13,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from ..client import VidaaClient
 from ..const import DOMAIN, LEGACY_DOMAIN
 from ..tv.media import parse_applist_payload, parse_sourcelist_payload
-from ..tv.navigation import get_app_icon, get_source_icon
+from ..tv.navigation import get_app_icon, get_source_icon, resolve_canonical_app
 from .diagnostic import (
     HisenseVidaaBaseSensor,
     HisenseVidaaClockDriftSensor,
@@ -220,9 +220,16 @@ class VidaaActiveAppSensor(VidaaMqttTrackingSensor):
         elif statetype == "fake_sleep_0" or not self._client.is_on:
             self._attr_native_value = "Standby"
         elif statetype == "app":
-            name = state.get("name") or state.get("appName") or state.get("appname")
+            raw_name = state.get("name") or state.get("appName") or state.get("appname")
             app_id = str(state.get("appId") or state.get("activeAppId") or state.get("appid") or "")
-            self._attr_native_value = name or self._app_dict.get(app_id, "App")
+            canonical_name, canonical_id = resolve_canonical_app(
+                str(raw_name) if raw_name else None,
+                getattr(self._client, "apps", None),
+                app_id or None,
+                state.get("url"),
+            )
+            resolved_id = canonical_id or app_id
+            self._attr_native_value = canonical_name or self._app_dict.get(resolved_id, "App")
             self._last_known_app = self._attr_native_value
         elif statetype == "livetv":
             self._attr_native_value = "Live TV"

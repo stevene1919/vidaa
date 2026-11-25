@@ -369,10 +369,12 @@ async def test_sensors_hydrate_from_cached_client_state_on_startup(mock_entry):
     assert source_sensor.extra_state_attributes["connected_inputs"] == ["HDMI1", "HDMI2"]
     assert source_sensor.extra_state_attributes["last_known_source"] == "HDMI2"
 
-    # Also verify app-state and Home Launcher hydration on async_added_to_hass
-    client._dispatch_state_update({"statetype": "app", "appname": "Netflix", "appid": "1"})
+    # Also verify app-state with lowercase TV broadcast ("netflix", no appId) resolves to canonical "Netflix" + artwork
+    client._dispatch_state_update({"statetype": "app", "name": "netflix", "url": "netflix"})
     await app_sensor.async_added_to_hass()
     await source_sensor.async_added_to_hass()
+    assert client.current_app == "Netflix"
+    assert client.current_app_id == "1"
     assert app_sensor.native_value == "Netflix"
     assert app_sensor.entity_picture == "https://example.com/nf.png"
     assert source_sensor.native_value == "App"

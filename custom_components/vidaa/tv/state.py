@@ -65,12 +65,20 @@ def apply_state_update(client: VidaaClient, data: Any) -> None:
         client.current_app_id = None
         client.connected_device = None
     elif statetype == "app":
-        app_name = data.get("name") or data.get("appName") or data.get("appname")
-        if app_name:
-            client.current_app = str(app_name)
+        from .navigation import resolve_canonical_app
+
+        raw_name = data.get("name") or data.get("appName") or data.get("appname")
         raw_app_id = data.get("appId") or data.get("activeAppId") or data.get("appid")
-        if raw_app_id is not None and str(raw_app_id):
-            client.current_app_id = str(raw_app_id)
+        canonical_name, canonical_id = resolve_canonical_app(
+            str(raw_name) if raw_name else None,
+            getattr(client, "apps", None),
+            str(raw_app_id) if raw_app_id is not None and str(raw_app_id) else None,
+            data.get("url"),
+        )
+        if canonical_name:
+            client.current_app = canonical_name
+        if canonical_id:
+            client.current_app_id = canonical_id
         client.connected_device = None
         client.current_channel = None
         client.channel_number = None

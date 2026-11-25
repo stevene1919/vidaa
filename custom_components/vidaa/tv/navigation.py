@@ -23,6 +23,7 @@ __all__ = [
     "launch_app_by_name",
     "match_app",
     "normalize_string",
+    "resolve_canonical_app",
     "resolve_command_key",
     "resolve_source",
 ]
@@ -31,6 +32,53 @@ __all__ = [
 def normalize_string(s: str) -> str:
     """Normalizes a string by stripping non-alphanumeric characters and lowercasing."""
     return re.sub(r"[^a-z0-9]", "", str(s).lower())
+
+
+def resolve_canonical_app(
+    app_name: str | None,
+    apps: list[dict[str, Any]] | None = None,
+    app_id: str | None = None,
+    url: str | None = None,
+) -> tuple[str | None, str | None]:
+    """Resolve an incoming app name/id/url to its canonical applist (name, appId)."""
+    clean_name = str(app_name).strip() if isinstance(app_name, str) and app_name.strip() else None
+    clean_id = str(app_id).strip() if app_id is not None and str(app_id).strip() else None
+    clean_url = str(url).strip() if isinstance(url, str) and url.strip() else None
+
+    if not isinstance(apps, list) or not apps:
+        return clean_name, clean_id
+
+    if clean_id:
+        for app in apps:
+            if not isinstance(app, dict):
+                continue
+            cand_id = str(app.get("appId") or app.get("appid") or "").strip()
+            if cand_id and cand_id == clean_id:
+                cand_name = str(app.get("name") or app.get("appName") or "").strip()
+                return (cand_name or clean_name), cand_id
+
+    if clean_name:
+        target_low = clean_name.lower()
+        for app in apps:
+            if not isinstance(app, dict):
+                continue
+            cand_name = str(app.get("name") or app.get("appName") or "").strip()
+            if cand_name and cand_name.lower() == target_low:
+                cand_id = str(app.get("appId") or app.get("appid") or "").strip() or clean_id
+                return cand_name, cand_id
+
+    if clean_url:
+        url_low = clean_url.lower()
+        for app in apps:
+            if not isinstance(app, dict):
+                continue
+            cand_url = str(app.get("url") or "").strip()
+            if cand_url and cand_url.lower() == url_low:
+                cand_name = str(app.get("name") or app.get("appName") or "").strip()
+                cand_id = str(app.get("appId") or app.get("appid") or "").strip() or clean_id
+                return (cand_name or clean_name), cand_id
+
+    return clean_name, clean_id
 
 
 def get_app_icon(app_name: str | None) -> str:

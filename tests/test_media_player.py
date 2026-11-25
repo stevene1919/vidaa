@@ -290,3 +290,102 @@ def test_media_player_mro_precedence():
     assert VidaaMediaPlayer.async_mute_volume == MediaPlayerControlsMixin.async_mute_volume
     assert VidaaMediaPlayer.async_select_source == MediaPlayerControlsMixin.async_select_source
     assert VidaaMediaPlayer.async_play_media == MediaPlayerControlsMixin.async_play_media
+
+
+def test_media_player_initial_state_hydration_from_client(mock_client, mock_entry):
+    """Media player hydrates volume, mute, and source state directly from client on init."""
+    mock_client.volume = 35
+    mock_client.volume_type = 1
+    mock_client.muted = True
+    mock_client.current_source = "HDMI1"
+    mock_client.current_app_id = "netflix"
+    mock_client.connected_device = "Apple TV"
+    mock_client.current_channel = "BBC One"
+    mock_client.channel_number = "101"
+    mock_client.is_on = True
+    mock_client.connected = True
+
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    assert mp.volume_level == 0.35
+    assert mp.is_volume_muted is True
+    assert mp._source == "HDMI1"
+    assert mp._app_id == "netflix"
+    assert mp._connected_device == "Apple TV"
+    assert mp._channel_name == "BBC One"
+    assert mp._channel_num == "101"
+    assert mp.state == STATE_ON
+    assert mp.is_on is True
+
+
+def test_media_player_launcher_transition_clears_app(mock_client, mock_entry):
+    """Launcher and remote_launcher broadcasts reset source to Home Launcher and clear app attributes."""
+    mock_client.is_on = True
+    mock_client.connected = True
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    mp.hass = None
+
+    mp._source = "Netflix"
+    mp._app_id = "1"
+    mp._connected_device = "Cast"
+    mp._channel_name = "Ch 1"
+    mp._channel_num = "1"
+    mp._app_dict = {"Netflix": {"httpIcon": "http://tv.local/netflix.png"}}
+
+    assert mp.app_name == "Netflix"
+    assert mp.media_image_url == "http://tv.local/netflix.png"
+
+    # Transition to launcher
+    mp._handle_state_update({"statetype": "launcher", "source": "launcher"})
+    assert mp._source == "Home Launcher"
+    assert mp._app_id is None
+    assert mp._connected_device is None
+    assert mp._channel_name is None
+    assert mp._channel_num is None
+    assert mp.app_name is None
+    assert mp.media_image_url is None
+
+    # Set back to app, then transition via remote_launcher
+    mp._source = "YouTube"
+    mp._app_id = "2"
+    mp._handle_state_update({"statetype": "remote_launcher"})
+    assert mp._source == "Home Launcher"
+    assert mp._app_id is None
+    assert mp.app_name is None
+
+
+def test_media_player_volume_broadcast_variants(mock_client, mock_entry):
+    """Volume update parser handles volume_type=None, is_mute, and vol_type="2"."""
+    mock_client.connected = True
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    mp.hass = None
+
+    # volume_type None retains previous or defaults to TV speakers, is_mute sets muted
+    mp._handle_volume_update({"volume_type": None, "volume_value": 20, "is_mute": True})
+    assert mp.volume_level == 0.20
+    assert mp.is_volume_muted is True
+
+    # volume_type="1" maps to ARC/eARC
+    mp._handle_volume_update({"volume_type": "1", "volume": 15, "muted": False})
+    assert mp.volume_level == 0.15
+    assert mp.is_volume_muted is False
+    assert mp.extra_state_attributes["audio_output"] == "ARC / eARC"
+
+    # vol_type="2" is mute update for TV speaker/receiver, preserves audio output
+    mp._handle_volume_update({"vol_type": "2", "volume_value": 1})
+    assert mp.is_volume_muted is True
+    assert mp.extra_state_attributes["audio_output"] == "ARC / eARC"
+
+
+def test_media_player_is_on_state_consistency(mock_client, mock_entry):
+    """is_on property helper and icons align consistently with connection and power."""
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    mock_client.connected = False
+    mock_client.is_on = False
+    assert mp.is_on is False
+    assert mp.icon == "mdi:television-off"
+
+    mock_client.connected = True
+    mock_client.is_on = True
+    mp._state = STATE_ON
+    assert mp.is_on is True
+    assert mp.icon == "mdi:television"

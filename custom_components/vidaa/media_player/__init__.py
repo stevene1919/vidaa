@@ -72,20 +72,35 @@ class VidaaMediaPlayer(
         """Initialize the media player entity."""
         super().__init__(client=client, entry=entry)
         self._attr_unique_id = f"{self._entry_id}_media_player"
-        self._volume = 0
-        self._volume_type = 0
-        self._muted = False
-        self._source = None
-        self._app_id: str | None = None
+        vol = getattr(client, "volume", None)
+        self._volume = int(vol) if isinstance(vol, (int, float)) else 0
+        vol_type = getattr(client, "volume_type", None)
+        self._volume_type = int(vol_type) if isinstance(vol_type, (int, str)) and str(vol_type).isdigit() else 0
+        muted = getattr(client, "muted", None)
+        self._muted = bool(muted) if isinstance(muted, bool) else False
+        src = getattr(client, "current_source", None)
+        self._source = src if isinstance(src, str) else None
+        app_id = getattr(client, "current_app_id", None)
+        self._app_id = app_id if isinstance(app_id, str) else None
         self._source_list = []
-        self._source_dict = dict(getattr(client, "source_dict", {}) or {})
-        self._app_list = list(getattr(client, "apps", []) or [])
-        self._app_dict = dict(getattr(client, "app_dict", {}) or {})
+        src_dict = getattr(client, "source_dict", None)
+        self._source_dict = dict(src_dict) if isinstance(src_dict, dict) else {}
+        apps = getattr(client, "apps", None)
+        self._app_list = list(apps) if isinstance(apps, list) else []
+        app_dict = getattr(client, "app_dict", None)
+        self._app_dict = dict(app_dict) if isinstance(app_dict, dict) else {}
         self._channel_infos = {}
-        self._connected_device = None
-        self._channel_name = None
-        self._channel_num = None
-        self._state = STATE_ON if getattr(client, "connected", False) else STATE_OFF
+        conn_dev = getattr(client, "connected_device", None)
+        self._connected_device = conn_dev if isinstance(conn_dev, str) else None
+        ch_name = getattr(client, "current_channel", None)
+        self._channel_name = ch_name if isinstance(ch_name, str) else None
+        ch_num = getattr(client, "channel_number", None)
+        self._channel_num = ch_num if isinstance(ch_num, str) else None
+        self._state = (
+            STATE_ON
+            if (getattr(client, "connected", False) is True and getattr(client, "is_on", False) is True)
+            else STATE_OFF
+        )
         self._paused = False
         self._debounce_handle: asyncio.TimerHandle | None = None
 
@@ -104,8 +119,22 @@ class VidaaMediaPlayer(
 
         # Sync state now that callbacks are registered and active.
         # Do not assume "on": the broker is also reachable in standby (fake_sleep).
-        if getattr(self._client, "connected", False):
-            self._state = STATE_ON if self._client.is_on else STATE_OFF
+        if getattr(self._client, "connected", False) is True:
+            self._state = STATE_ON if getattr(self._client, "is_on", False) is True else STATE_OFF
+            if isinstance(getattr(self._client, "volume", None), (int, float)):
+                self._volume = int(self._client.volume)
+            if isinstance(getattr(self._client, "muted", None), bool):
+                self._muted = self._client.muted
+            if isinstance(getattr(self._client, "current_source", None), str):
+                self._source = self._client.current_source
+            if isinstance(getattr(self._client, "current_app_id", None), str):
+                self._app_id = self._client.current_app_id
+            if isinstance(getattr(self._client, "connected_device", None), str):
+                self._connected_device = self._client.connected_device
+            if isinstance(getattr(self._client, "current_channel", None), str):
+                self._channel_name = self._client.current_channel
+            if isinstance(getattr(self._client, "channel_number", None), str):
+                self._channel_num = self._client.channel_number
             if not self._source_dict or not self._app_dict:
                 await self._client.async_query_initial_state()
 
@@ -199,9 +228,20 @@ class VidaaMediaPlayer(
         return None
 
     @property
+    def is_on(self) -> bool:
+        """Return True if the TV is connected and in an active power state."""
+        if self._state == STATE_OFF or not self.available:
+            return False
+        return bool(
+            self._client
+            and getattr(self._client, "connected", False) is True
+            and getattr(self._client, "is_on", False) is True
+        )
+
+    @property
     def app_name(self) -> str | None:
         """Return the name of the currently running application."""
-        if self._state == STATE_OFF:
+        if not self.is_on:
             return None
         if (app_info := self._resolve_active_app_info()) is not None:
             return str(app_info.get("name") or app_info.get("appName") or self._source)
@@ -212,7 +252,7 @@ class VidaaMediaPlayer(
     @property
     def app_id(self) -> str | None:
         """Return the ID of the currently running application."""
-        if self._state == STATE_OFF:
+        if not self.is_on:
             return None
         if (app_info := self._resolve_active_app_info()) is not None:
             raw_id = app_info.get("appId") or app_info.get("app_id")
@@ -233,7 +273,7 @@ class VidaaMediaPlayer(
     @property
     def icon(self) -> str | None:
         """Return dynamic MDI icon based on active source or application."""
-        if self._state == STATE_OFF:
+        if self._state == STATE_OFF or not self.is_on:
             return "mdi:television-off"
         src = (self.source or self._source or "").lower()
         if "netflix" in src:
@@ -306,7 +346,7 @@ class VidaaMediaPlayer(
     @property
     def media_content_type(self) -> MediaType | None:
         """Return the content type of currently playing media."""
-        if self._state == STATE_OFF:
+        if not self.is_on:
             return None
         if self.is_live_tv():
             return MediaType.CHANNEL
@@ -333,7 +373,7 @@ class VidaaMediaPlayer(
     @property
     def media_title(self) -> str | None:
         """Return the Live TV program title or connected CEC/custom input device label."""
-        if self._state == STATE_OFF:
+        if not self.is_on:
             return None
         prog = getattr(self._client, "current_program", None) if self._client else None
         if isinstance(prog, str) and prog:
@@ -343,7 +383,7 @@ class VidaaMediaPlayer(
     @property
     def media_series_title(self) -> str | None:
         """Return the channel or series title if watching Live TV."""
-        if self._state == STATE_OFF:
+        if not self.is_on:
             return None
         if self._channel_name or (self._client and self._client.current_channel):
             ch_name = self._channel_name or self._client.current_channel

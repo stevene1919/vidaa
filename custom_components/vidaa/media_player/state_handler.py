@@ -47,6 +47,15 @@ class MediaPlayerStateHandlerMixin:
                 self._connected_device = parsed["connected_device"]
                 self._channel_name = parsed["channel_name"]
                 self._channel_num = parsed["channel_num"]
+            elif statetype in ("launcher", "remote_launcher"):
+                self._source = parsed.get("source") or "Home Launcher"
+                self._app_id = None
+                self._connected_device = None
+                self._channel_name = None
+                self._channel_num = None
+            elif parsed.get("source"):
+                self._source = parsed["source"]
+                self._app_id = parsed.get("app_id")
         elif not parsed["is_on"]:
             self._paused = False
             self._app_id = None

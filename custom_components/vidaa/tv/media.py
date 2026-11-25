@@ -450,17 +450,26 @@ def parse_media_state_broadcast(
         result["is_on"] = True
         result["state"] = "on"
     elif statetype == "sourceswitch":
-        result["source"] = data.get("sourcename") or data.get("displayname")
+        result["source"] = data.get("sourcename") or data.get("displayname") or data.get("sourceid")
         result["connected_device"] = data.get("displayname2") or data.get("source_detail")
     elif statetype == "app":
-        result["source"] = data.get("name") or data.get("appName")
-        raw_app_id = data.get("appId") or data.get("activeAppId")
+        result["source"] = data.get("name") or data.get("appName") or data.get("appname")
+        raw_app_id = data.get("appId") or data.get("activeAppId") or data.get("appid")
         if raw_app_id is not None and str(raw_app_id):
             result["app_id"] = str(raw_app_id)
+    elif statetype in ("launcher", "remote_launcher"):
+        result["source"] = "Home Launcher"
+        result["app_id"] = None
+        result["connected_device"] = None
     elif statetype == "livetv":
         result["source"] = "TV"
         result["channel_name"] = data.get("channel_name")
         result["channel_num"] = data.get("channel_num")
+
+    if result["source"] is None and "sourcename" in data:
+        result["source"] = data["sourcename"]
+    elif result["source"] is None and "appname" in data:
+        result["source"] = data["appname"]
 
     return result
 
@@ -472,19 +481,33 @@ def parse_volume_broadcast(
     current_muted: bool,
 ) -> tuple[int, int, bool]:
     """Parses incoming volume broadcast. Returns (volume, volume_type, muted)."""
-    # Coerce string payloads (the TV sometimes sends "0"/"1"/"2") the same way
-    # tv/state.py::apply_volume_update tolerates them.
-    vol_type = data.get("volume_type")
+    vol_type = data.get("volume_type") if "volume_type" in data else data.get("vol_type")
     volume = current_volume
     volume_type = current_volume_type
     muted = current_muted
 
-    if vol_type in (0, "0", 1, "1"):
-        volume_type = int(vol_type)
-        with contextlib.suppress(ValueError, TypeError):
-            volume = int(data.get("volume_value", current_volume))
-    elif vol_type in (2, "2"):
-        muted = data.get("volume_value") in (1, "1", True)
+    if vol_type in (0, "0", 1, "1", None):
+        if vol_type is not None:
+            with contextlib.suppress(ValueError, TypeError):
+                volume_type = int(vol_type)
+        if "volume_value" in data:
+            with contextlib.suppress(ValueError, TypeError):
+                volume = int(data["volume_value"])
+        elif "volume" in data:
+            with contextlib.suppress(ValueError, TypeError):
+                volume = int(data["volume"])
+
+    if vol_type in (2, "2"):
+        if "volume_value" in data:
+            muted = data["volume_value"] in (1, "1", True)
+        elif "is_mute" in data:
+            muted = data["is_mute"] in (1, "1", True)
+        elif "muted" in data:
+            muted = bool(data["muted"])
+    elif "is_mute" in data:
+        muted = data["is_mute"] in (1, "1", True)
+    elif "muted" in data:
+        muted = bool(data["muted"])
 
     return volume, volume_type, muted
 

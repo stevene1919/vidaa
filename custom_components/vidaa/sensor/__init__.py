@@ -129,6 +129,18 @@ class VidaaMqttTrackingSensor(VidaaBaseSensor):
         raise NotImplementedError
 
 
+def _format_input_app_label(source: str | None) -> str:
+    """Return a user-friendly active_app label for a physical input source."""
+    low = (source or "").strip().lower()
+    if low == "tv":
+        return "Live TV"
+    if "hdmi" in low:
+        return "HDMI Input"
+    if "av" in low or "component" in low or "composite" in low:
+        return "AV Input"
+    return "TV Input"
+
+
 class VidaaActiveAppSensor(VidaaMqttTrackingSensor):
     """Sensor reporting the foreground active application."""
 
@@ -171,11 +183,10 @@ class VidaaActiveAppSensor(VidaaMqttTrackingSensor):
         current_src = getattr(self._client, "current_source", None)
         resolved_src = current_src if isinstance(current_src, str) and current_src else active_src
         if resolved_src:
-            if resolved_src.lower() == "tv":
-                self._attr_native_value = "Live TV"
+            label = _format_input_app_label(resolved_src)
+            self._attr_native_value = label
+            if label == "Live TV":
                 self._last_known_app = "Live TV"
-            else:
-                self._attr_native_value = "TV Input"
 
     def _register_custom_callbacks(self) -> None:
         self._client.register_applist_callback(self._handle_applist_update)
@@ -194,11 +205,10 @@ class VidaaActiveAppSensor(VidaaMqttTrackingSensor):
         if sources and self._client.connected and self._client.is_on:
             _, _, _, active_src = parse_sourcelist_payload(sources)
             if active_src and self._attr_native_value in ("Off", "Standby"):
-                if active_src.lower() == "tv":
-                    self._attr_native_value = "Live TV"
+                label = _format_input_app_label(active_src)
+                self._attr_native_value = label
+                if label == "Live TV":
                     self._last_known_app = "Live TV"
-                else:
-                    self._attr_native_value = "TV Input"
                 self._schedule_state_update()
 
     def _handle_state_update(self, state: dict[str, Any]) -> None:
@@ -218,7 +228,17 @@ class VidaaActiveAppSensor(VidaaMqttTrackingSensor):
             self._attr_native_value = "Live TV"
             self._last_known_app = "Live TV"
         elif statetype == "sourceswitch":
-            self._attr_native_value = "TV Input"
+            src = (
+                state.get("sourcename")
+                or state.get("sourceName")
+                or state.get("displayname")
+                or state.get("sourceid")
+                or getattr(self._client, "current_source", None)
+            )
+            label = _format_input_app_label(src if isinstance(src, str) else None)
+            self._attr_native_value = label
+            if label == "Live TV":
+                self._last_known_app = "Live TV"
         elif statetype in ("launcher", "remote_launcher"):
             self._attr_native_value = "Home Launcher"
             self._last_known_app = "Home Launcher"

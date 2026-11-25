@@ -360,7 +360,8 @@ async def test_sensors_hydrate_from_cached_client_state_on_startup(mock_entry):
     app_sensor = VidaaActiveAppSensor(client, mock_entry)
     source_sensor = VidaaActiveSourceSensor(client, mock_entry)
 
-    assert app_sensor.native_value == "TV Input"
+    assert app_sensor.native_value == "HDMI Input"
+    assert app_sensor.icon == "mdi:video-input-hdmi"
     assert app_sensor.extra_state_attributes["total_installed_apps"] == 2
 
     assert source_sensor.native_value == "HDMI2"
@@ -376,10 +377,16 @@ async def test_sensors_hydrate_from_cached_client_state_on_startup(mock_entry):
     assert app_sensor.entity_picture == "https://example.com/nf.png"
     assert source_sensor.native_value == "App"
 
-    # Verify sourceswitch with sourceid-only payload resolves friendly name
+    # Verify sourceswitch with sourceid-only payload resolves friendly name and input label
     client._dispatch_state_update({"statetype": "sourceswitch", "sourceid": "HDMI1"})
     assert source_sensor.native_value == "HDMI1"
     assert source_sensor.extra_state_attributes["connected_device"] == "Chromecast"
+    assert app_sensor.native_value == "HDMI Input"
+
+    # Verify AV physical input reports AV Input with component icon
+    client._dispatch_state_update({"statetype": "sourceswitch", "sourceid": "AVS", "sourcename": "AV"})
+    assert app_sensor.native_value == "AV Input"
+    assert app_sensor.icon == "mdi:video-input-component"
 
     # Verify SessionStatusSensor hydrates pre-existing auth_failed=True on init
     client.connected = False

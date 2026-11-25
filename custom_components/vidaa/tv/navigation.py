@@ -52,8 +52,10 @@ def get_app_icon(app_name: str | None) -> str:
         return "mdi:television-box"
     if "home launcher" in val or "launcher" in val:
         return "mdi:view-dashboard"
-    if "tv input" in val or "none" in val:
+    if "hdmi input" in val or "tv input" in val or "none" in val:
         return "mdi:video-input-hdmi"
+    if "av input" in val:
+        return "mdi:video-input-component"
     if "standby" in val:
         return "mdi:television-ambient-light"
     if "off" in val:

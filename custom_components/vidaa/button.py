@@ -130,7 +130,7 @@ class VidaaSyncClockButton(VidaaBaseButton):
 
     async def async_press(self) -> None:
         """Handle button press."""
-        offset = await self._client.async_sync_clock(2.0)
+        offset = await self._client.async_sync_clock(2.0, force=True)
         if offset is not None:
             _LOGGER.info(
                 "[%s] Successfully synchronized TV clock (offset: %d s)",

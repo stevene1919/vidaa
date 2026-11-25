@@ -58,6 +58,7 @@ Please report any issues or feedback on [GitHub Issues](https://github.com/steve
 - **Non-Blocking Startup & Lifecycle Hardening**:
   - Deferred certificate resolution out of synchronous client initialization to a non-blocking executor and consolidated Wake-on-LAN helpers across platforms.
   - Tracked all background token-lifecycle tasks to guarantee clean cancellation on reload or teardown.
+  - Added clock-sync coalescing/cooldown (`5s`) and eliminated redundant synchronous `urllib` UPnP retries, cutting ~4 seconds of wasted stall during cold-boot wake and token recovery.
 
 ---
 
@@ -70,7 +71,8 @@ Please report any issues or feedback on [GitHub Issues](https://github.com/steve
 - **Flows & Certificates (`flow/certs.py`, `flow/discovery.py`, `flow/helpers.py`, `flow/options_security.py`, `protocol/cert_extract.py`, `repairs.py`)**: Deduplicated uploaded certificate extraction into `async_process_uploaded_cert_file`, hardened upload validation/cleanup on failure, added non-blocking MAC resolution and legacy auto-probing during discovery, and updated picture settings troubleshooting docs ([#78](https://github.com/stevene1919/vidaa/issues/78)).
 - **Startup & Wake Helpers (`__init__.py`, `helpers.py`, `media_player/controls.py`, `remote.py`, `services/handlers.py`, `protocol/connection.py`)**: Deferred certificate resolution out of `VidaaClient.__init__` and consolidated Wake-on-LAN/command readiness helpers.
 - **Dependencies**: Bumped lockfile dependencies to `homeassistant 2026.11.3`.
-- **Tests**: Expanded suite to 487 passing unit tests including comprehensive behavioral boundary tests (`tests/test_behavioral_boundaries.py`), fast rejection cadence, exponential fallback, duplicate repair suppression, media player state hydration, and launcher transitions.
+- **Clock Sync Optimization (`tv/tokens.py`, `button.py`)**: Added 5-second attempt cooldown and in-flight task coalescing to `async_sync_clock()` (`force=True` on manual **Sync TV Clock** button), and removed redundant synchronous `urllib` fallback probing when `upnp.async_get_tv_timestamp()` already checked the same ports via `aiohttp`.
+- **Tests**: Expanded suite to 489 passing unit tests including comprehensive behavioral boundary tests (`tests/test_behavioral_boundaries.py`), fast rejection cadence, exponential fallback, duplicate repair suppression, clock-sync cooldown/coalescing, media player state hydration, and launcher transitions.
 
 </details>
 

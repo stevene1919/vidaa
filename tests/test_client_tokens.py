@@ -1,5 +1,6 @@
 """Unit tests for VidaaClient token lifecycle, proactive refresh, and clock drift."""
 
+import asyncio
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -408,3 +409,46 @@ async def test_async_sync_clock_fallback_uses_thread():
 
     assert offset == mock_tv_ts - host_now
     assert client.tv_timestamp == mock_tv_ts
+
+
+@pytest.mark.anyio
+async def test_async_sync_clock_cooldown_and_dedup():
+    """Back-to-back async_sync_clock calls are throttled unless force=True, and concurrent calls coalesce."""
+    client = VidaaClient(ip="192.168.1.100")
+    mock_tv_ts = int(time.time()) - 42
+    upnp_mock = AsyncMock(return_value=mock_tv_ts)
+
+    with patch.object(client.upnp, "async_get_tv_timestamp", upnp_mock):
+        # Concurrent calls coalesce into a single UPnP probe
+        r1, r2 = await asyncio.gather(client.async_sync_clock(), client.async_sync_clock())
+        assert r1 == r2 == client.clock_offset
+        assert upnp_mock.call_count == 1
+
+        # Subsequent call within cooldown returns cached offset without re-probing
+        r3 = await client.async_sync_clock()
+        assert r3 == client.clock_offset
+        assert upnp_mock.call_count == 1
+
+        # force=True bypasses cooldown
+        r4 = await client.async_sync_clock(force=True)
+        assert r4 == client.clock_offset
+        assert upnp_mock.call_count == 2
+
+
+@pytest.mark.anyio
+async def test_async_sync_clock_skips_redundant_sync_urllib_fallback():
+    """When UPnP fails in normal runtime, async_sync_clock does not spawn redundant sync get_tv_timestamp."""
+    client = VidaaClient(ip="192.168.1.100")
+
+    with (
+        patch.object(client.upnp, "async_get_tv_timestamp", AsyncMock(return_value=None)),
+        patch("custom_components.vidaa.tv.fingerprint.get_tv_timestamp") as mock_urllib_fn,
+    ):
+        offset = await client.async_sync_clock()
+
+    assert offset is None
+    mock_urllib_fn.assert_not_called()
+    # Second immediate call within cooldown also returns None without probing UPnP again
+    with patch.object(client.upnp, "async_get_tv_timestamp", AsyncMock(return_value=1700000000)) as upnp_mock:
+        assert await client.async_sync_clock() is None
+        upnp_mock.assert_not_called()

@@ -149,7 +149,9 @@ class TvTokenLifecycleMixin:
     # --------------------------------------------------------------------------
     # Clock Synchronization & Token Refresh
     # --------------------------------------------------------------------------
-    async def async_sync_clock(self: VidaaClient, timeout: float = 2.0) -> int | None:
+    CLOCK_SYNC_COOLDOWN_SECONDS = 5.0
+
+    async def async_sync_clock(self: VidaaClient, timeout: float = 2.0, force: bool = False) -> int | None:
         """Queries TV UPnP HTTP header to synchronize system clocks and calculate drift offset."""
         sync_fn = self.__dict__.get("sync_clock")
         if sync_fn is not None and callable(sync_fn):
@@ -158,33 +160,61 @@ class TvTokenLifecycleMixin:
                 return await res
             return res
 
-        tv_timestamp = await self.upnp.async_get_tv_timestamp(timeout=timeout)
-        if tv_timestamp is None:
-            try:
-                fn = _get_tv_timestamp_fn()
-                if inspect.iscoroutinefunction(fn):
-                    tv_timestamp = await fn(self.ip, timeout=timeout)
-                else:
-                    tv_timestamp = await asyncio.to_thread(fn, self.ip, timeout=timeout)
-            except Exception:
-                tv_timestamp = None
-        if tv_timestamp:
-            self.tv_timestamp = tv_timestamp
-            self.clock_offset = tv_timestamp - int(time.time())
-            self.last_clock_sync = time.time()
-            _LOGGER.debug(
-                "[%s] Synchronized TV clock: %d (offset: %d s)",
-                self.ip,
-                tv_timestamp,
-                self.clock_offset,
-            )
-            self._dispatch_clock_drift_update(self.clock_offset)
-            return self.clock_offset
-        return None
+        now = time.monotonic()
+        if not force:
+            last_attempt = getattr(self, "_last_clock_sync_attempt", None)
+            if isinstance(last_attempt, (int, float)) and (now - last_attempt) < self.CLOCK_SYNC_COOLDOWN_SECONDS:
+                if getattr(self, "_last_clock_sync_ok", False):
+                    return self.clock_offset
+                return None
 
-    def sync_clock(self: VidaaClient, timeout: float = 2.0) -> int | None:
+        in_flight = getattr(self, "_clock_sync_task", None)
+        if in_flight is not None and not in_flight.done():
+            return await asyncio.shield(in_flight)
+
+        async def _do_sync() -> int | None:
+            self._last_clock_sync_attempt = time.monotonic()
+            tv_timestamp = await self.upnp.async_get_tv_timestamp(timeout=timeout)
+            if tv_timestamp is None:
+                fn = _get_tv_timestamp_fn()
+                # Only run legacy synchronous fallback when explicitly monkeypatched
+                # (e.g. unit tests); in runtime, self.upnp.async_get_tv_timestamp
+                # already probed the exact same UPnP ports asynchronously via aiohttp.
+                if fn is not get_tv_timestamp:
+                    try:
+                        if inspect.iscoroutinefunction(fn):
+                            tv_timestamp = await fn(self.ip, timeout=timeout)
+                        else:
+                            tv_timestamp = await asyncio.to_thread(fn, self.ip, timeout=timeout)
+                    except Exception:
+                        tv_timestamp = None
+            if tv_timestamp:
+                self._last_clock_sync_ok = True
+                self.tv_timestamp = tv_timestamp
+                self.clock_offset = tv_timestamp - int(time.time())
+                self.last_clock_sync = time.time()
+                _LOGGER.debug(
+                    "[%s] Synchronized TV clock: %d (offset: %d s)",
+                    self.ip,
+                    tv_timestamp,
+                    self.clock_offset,
+                )
+                self._dispatch_clock_drift_update(self.clock_offset)
+                return self.clock_offset
+            self._last_clock_sync_ok = False
+            return None
+
+        task = asyncio.create_task(_do_sync())
+        self._clock_sync_task = task
+        try:
+            return await task
+        finally:
+            if getattr(self, "_clock_sync_task", None) is task:
+                self._clock_sync_task = None
+
+    def sync_clock(self: VidaaClient, timeout: float = 2.0, force: bool = False) -> int | None:
         """Synchronous (CLI) wrapper for async_sync_clock."""
-        return _run_sync(self.async_sync_clock(timeout))
+        return _run_sync(self.async_sync_clock(timeout, force=force))
 
     async def async_check_and_refresh_token(
         self: VidaaClient,

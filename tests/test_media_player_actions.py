@@ -420,3 +420,19 @@ async def test_media_player_play_media_auto_wakes_and_handles_wake_failure(mock_
         await mp.async_play_media("app", "Netflix")
     assert exc_info.value.translation_key == "turn_on_failed"
     mock_client.async_turn_on.assert_awaited_once()
+
+
+@pytest.mark.anyio
+async def test_media_player_turn_on_skips_wol_when_disabled(mock_client, mock_entry):
+    """Disabling enable_wol passes an empty MAC target list instead of falling back to defaults."""
+    mock_entry.data["mac_address"] = "e8:51:77:aa:bb:cc"
+    mock_entry.data["secondary_mac_address"] = "e4:3b:c9:aa:bb:cc"
+    mock_entry.options["enable_wol"] = False
+
+    mp = VidaaMediaPlayer(client=mock_client, entry=mock_entry)
+    mp.hass = MagicMock(spec=HomeAssistant)
+    mock_client.async_turn_on = AsyncMock(return_value=True)
+
+    await mp.async_turn_on()
+
+    mock_client.async_turn_on.assert_awaited_once_with([])

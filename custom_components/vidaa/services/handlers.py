@@ -27,8 +27,8 @@ from ..const import (
     DOMAIN,
     POWER_KEYS,
 )
-from ..helpers import async_ensure_tv_on, check_client_command_readiness
-from .target import _resolve_service_targets, parse_key_sequence
+from ..helpers import async_ensure_tv_on, async_turn_on_entry, check_client_command_readiness
+from .target import _find_entry_for_client, _resolve_service_targets, parse_key_sequence
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -212,7 +212,13 @@ async def handle_launch_app(hass: HomeAssistant, call: ServiceCall) -> dict[str,
         app_name = str(call.data.get(ATTR_APP_NAME, app_name))
         app_url = str(call.data.get(ATTR_URL, app_url))
 
-        await async_ensure_tv_on(client, action_description=f"launching app '{app_name}'")
+        entry = _find_entry_for_client(hass, client)
+        turn_on_coro = (
+            (lambda c=client, e=entry: async_turn_on_entry(hass, e, c, context=getattr(call, "context", None)))
+            if entry is not None
+            else None
+        )
+        await async_ensure_tv_on(client, turn_on_coro=turn_on_coro, action_description=f"launching app '{app_name}'")
 
         try:
             res = await client.async_launch_app(

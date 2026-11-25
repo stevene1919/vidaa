@@ -9,8 +9,16 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
+from homeassistant.helpers.trigger import PluggableAction
 
-from .const import DEFAULT_WOL_TIMEOUT, DOMAIN
+from .const import (
+    CONF_ENABLE_WOL,
+    CONF_MAC_ADDRESS,
+    CONF_SECONDARY_MAC_ADDRESS,
+    DEFAULT_ENABLE_WOL,
+    DEFAULT_WOL_TIMEOUT,
+    DOMAIN,
+)
 
 
 @callback
@@ -82,6 +90,70 @@ async def async_ensure_tv_on(
         await asyncio.sleep(0.5)
 
     check_client_command_readiness(client, require_on=True)
+
+
+def resolve_wol_mac_targets(
+    entry: Any,
+    *,
+    fallback_mac: str | None = None,
+    client: Any = None,
+) -> list[str]:
+    """Return deduplicated Wake-on-LAN MAC targets for an entry, or [] when disabled."""
+    options = getattr(entry, "options", None) if entry is not None else None
+    options_dict = options if isinstance(options, dict) else {}
+    if not options_dict.get(CONF_ENABLE_WOL, DEFAULT_ENABLE_WOL):
+        return []
+
+    data = getattr(entry, "data", None) if entry is not None else None
+    data_dict = data if isinstance(data, dict) else {}
+
+    client_mac = getattr(client, "mac", None) if client is not None else None
+    client_sec_mac = getattr(client, "secondary_mac", None) if client is not None else None
+
+    primary = fallback_mac or data_dict.get(CONF_MAC_ADDRESS) or (client_mac if isinstance(client_mac, str) else None)
+    secondary = (
+        options_dict.get(CONF_SECONDARY_MAC_ADDRESS)
+        or data_dict.get(CONF_SECONDARY_MAC_ADDRESS)
+        or (client_sec_mac if isinstance(client_sec_mac, str) else None)
+    )
+
+    targets: list[str] = []
+    for candidate in (primary, secondary):
+        if isinstance(candidate, str) and candidate and candidate not in targets:
+            targets.append(candidate)
+    return targets
+
+
+async def async_turn_on_entry(
+    hass: HomeAssistant | None,
+    entry: Any,
+    client: Any,
+    *,
+    fallback_mac: str | None = None,
+    context: Any = None,
+) -> None:
+    """Turn on a TV entry via custom Turn On trigger or client Wake-on-LAN/power."""
+    if getattr(client, "auth_failed", False) is True:
+        raise HomeAssistantError(
+            "Authentication required: Re-pair TV in Settings > Integrations.",
+            translation_domain=DOMAIN,
+            translation_key="auth_required",
+        )
+
+    runtime_data = getattr(entry, "runtime_data", None) if entry is not None else None
+    turn_on_action = getattr(runtime_data, "turn_on", None) if runtime_data is not None else None
+    if isinstance(turn_on_action, PluggableAction) and bool(turn_on_action):
+        await turn_on_action.async_run(hass, context)
+        return
+
+    mac_targets = resolve_wol_mac_targets(entry, fallback_mac=fallback_mac, client=client)
+    success = await client.async_turn_on(mac_targets)
+    if success is False:
+        raise HomeAssistantError(
+            "Wake-on-LAN failed: TV did not wake up.",
+            translation_domain=DOMAIN,
+            translation_key="turn_on_failed",
+        )
 
 
 @callback

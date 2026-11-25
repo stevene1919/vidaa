@@ -392,3 +392,63 @@ async def test_remote_send_command_edge_options_and_hold(mock_client, mock_entry
     with pytest.raises(HomeAssistantError) as exc_info:
         await rem.async_send_command(["left"], hold_secs=0.2)
     assert exc_info.value.translation_key == "send_key_failed"
+
+
+@pytest.mark.anyio
+async def test_remote_turn_on_skips_wol_when_disabled(mock_client, mock_entry):
+    """Remote turn_on passes an empty MAC list when enable_wol is False."""
+    mock_entry.data = {"mac_address": "e8:51:77:aa:bb:cc"}
+    mock_entry.options = {"enable_wol": False}
+    rem = VidaaRemote(client=mock_client, entry=mock_entry)
+    rem.async_write_ha_state = MagicMock()
+    mock_client.async_turn_on = AsyncMock(return_value=True)
+
+    await rem.async_turn_on()
+
+    mock_client.async_turn_on.assert_awaited_once_with([])
+
+
+@pytest.mark.anyio
+async def test_remote_turn_on_delegates_to_pluggable_action_and_selects_activity(mock_client, mock_entry):
+    """Remote turn_on honors attached PluggableAction Turn On trigger and still launches activity."""
+    from homeassistant.helpers.trigger import PluggableAction
+
+    from custom_components.vidaa import VidaaData
+    from custom_components.vidaa.triggers.turn_on import async_get_turn_on_trigger
+
+    hass = MagicMock(spec=HomeAssistant)
+    hass.data = {}
+    pluggable = PluggableAction()
+    action_ran: list[bool] = []
+
+    def _custom_action(variables, description, context=None):
+        action_ran.append(True)
+        mock_client.connected = True
+        mock_client.is_on = True
+
+    PluggableAction.async_attach_trigger(hass, async_get_turn_on_trigger("device_tv"), _custom_action, {})
+    pluggable.async_register(hass, async_get_turn_on_trigger("device_tv"))
+
+    mock_entry.runtime_data = VidaaData(
+        client=mock_client,
+        platforms=["remote"],
+        options={},
+        turn_on=pluggable,
+    )
+    mock_client.connected = True
+    mock_client.is_on = False
+    mock_client.async_turn_on = AsyncMock(return_value=True)
+
+    rem = VidaaRemote(client=mock_client, entry=mock_entry)
+    rem.hass = hass
+    rem.async_write_ha_state = MagicMock()
+
+    with (
+        patch("custom_components.vidaa.remote.async_execute_select_source", AsyncMock()) as mock_sel,
+        patch("custom_components.vidaa.helpers.asyncio.sleep", AsyncMock()),
+    ):
+        await rem.async_turn_on(activity="Netflix")
+
+    assert action_ran == [True]
+    mock_client.async_turn_on.assert_not_awaited()
+    mock_sel.assert_awaited_once()

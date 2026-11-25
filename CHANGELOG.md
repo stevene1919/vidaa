@@ -46,6 +46,10 @@ Please report any issues or feedback on [GitHub Issues](https://github.com/steve
 
 ### 🌟 What's New & Highlights
 
+- **Wake-on-LAN & Power-On Consistency**:
+  - Fixed `enable_wol = false` being silently ignored by distinguishing disabled WoL (`[]`) from omitted targets and removing the fallback that still sent Wake-on-LAN packets using stored MAC addresses.
+  - Stopped spraying Wake-on-LAN UDP broadcasts and scheduling executor jobs when the TV is already connected and awake.
+  - Unified custom **Turn On** device trigger (`PluggableAction`) and `enable_wol` handling across `media_player.turn_on`, `remote.turn_on`, and `vidaa.launch_app`.
 - **Faster Re-authentication Recovery (~40s vs 6 min) & Single Clean Repair Card**:
   - When a TV wipes its volatile RAM session tokens (e.g. after a cold shutdown or power cut), the integration now retries active broker auth rejections (`rc: 4/5/134/135`) on a tight `15s → 25s` cadence (~40 seconds total across 3 attempts, safely clearing slow projector cold-boot windows) instead of waiting 6 minutes before surfacing a Repair.
   - Eliminated the duplicate custom Repair card and duplicate persistent notification during automatic auth failures—Home Assistant now shows only the single native Core repair card (**Authentication expired for \<TV\>**), which launches the 4-digit PIN flow directly.

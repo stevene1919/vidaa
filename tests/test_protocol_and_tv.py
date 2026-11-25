@@ -548,6 +548,8 @@ async def test_has_active_signal_does_not_prevent_turn_on_in_standby() -> None:
 @pytest.mark.anyio
 async def test_async_turn_on_tv_defaults_to_client_mac_and_secondary_mac_when_targets_omitted() -> None:
     """Verify async_turn_on_tv broadcasts to client.mac and client.secondary_mac when mac_targets is None."""
+    from unittest.mock import AsyncMock
+
     from custom_components.vidaa.tv.actions_power import async_turn_on_tv
 
     client = VidaaClient(
@@ -557,10 +559,11 @@ async def test_async_turn_on_tv_defaults_to_client_mac_and_secondary_mac_when_ta
         client_id="cid",
     )
     client.connected = True
-    client.is_on = True
+    client.is_on = False
     client.send_wake_on_lan = MagicMock(return_value=True)
+    client.async_send_key = AsyncMock(return_value=True)
 
-    await async_turn_on_tv(client, mac_targets=None)
+    await async_turn_on_tv(client, mac_targets=None, settle_delay=0)
 
     client.send_wake_on_lan.assert_called_once_with(
         ["e8:51:77:aa:bb:cc", "e4:3b:c9:aa:bb:cc"],

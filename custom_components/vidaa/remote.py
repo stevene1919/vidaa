@@ -16,14 +16,11 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .client import VidaaClient
 from .const import (
     CONF_ENABLE_CEC_NAMES,
-    CONF_ENABLE_WOL,
     CONF_INCLUDE_APPS_IN_SOURCES,
     CONF_KEY_DELAY,
     CONF_KEY_REPEAT,
-    CONF_SECONDARY_MAC_ADDRESS,
     CONF_SOURCES,
     DEFAULT_ENABLE_CEC_NAMES,
-    DEFAULT_ENABLE_WOL,
     DEFAULT_INCLUDE_APPS_IN_SOURCES,
     DEFAULT_KEY_DELAY,
     DEFAULT_KEY_REPEAT,
@@ -31,7 +28,7 @@ from .const import (
     POWER_KEYS,
 )
 from .entity import VidaaEntity
-from .helpers import async_ensure_tv_on, check_client_command_readiness
+from .helpers import async_ensure_tv_on, async_turn_on_entry, check_client_command_readiness
 from .tv.media import async_execute_select_source, build_media_player_current_source, build_media_player_source_list
 
 if TYPE_CHECKING:
@@ -150,34 +147,19 @@ class VidaaRemote(VidaaEntity, RemoteEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the TV on and optionally launch an activity."""
-        if getattr(self._client, "auth_failed", False) is True:
-            raise HomeAssistantError(
-                "Authentication required: Re-pair TV in Settings > Integrations.",
-                translation_domain=DOMAIN,
-                translation_key="auth_required",
-            )
-        mac_targets = []
-        if self._options.get(CONF_ENABLE_WOL, DEFAULT_ENABLE_WOL):
-            if self._mac:
-                mac_targets.append(self._mac)
-            sec_mac = self._options.get(CONF_SECONDARY_MAC_ADDRESS) or getattr(self._entry, "data", {}).get(
-                CONF_SECONDARY_MAC_ADDRESS
-            )
-            if sec_mac and sec_mac not in mac_targets:
-                mac_targets.append(sec_mac)
-
-        success = await self._client.async_turn_on(mac_targets if mac_targets else None)
-        if success is False:
-            raise HomeAssistantError(
-                "Wake-on-LAN failed: TV did not wake up.",
-                translation_domain=DOMAIN,
-                translation_key="turn_on_failed",
-            )
+        await async_turn_on_entry(
+            getattr(self, "hass", None),
+            self._entry,
+            self._client,
+            fallback_mac=self._mac,
+            context=getattr(self, "_context", None),
+        )
 
         activity = kwargs.get("activity")
         if activity:
             await async_ensure_tv_on(
                 self._client,
+                turn_on_coro=lambda: None,
                 action_description=f"selecting activity '{activity}'",
             )
             sources = getattr(self._client, "source_dict", {}) or {}

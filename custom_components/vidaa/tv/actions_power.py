@@ -89,24 +89,27 @@ def turn_on_tv(
     settle_delay: float = STANDBY_WAKE_SETTLE_DELAY,
 ) -> None:
     """Powers on or wakes the TV safely and idempotently."""
-    targets = list(mac_targets) if mac_targets else []
-    if not targets:
+    if client.connected and client.is_on:
+        client.is_on = True
+        _LOGGER.debug(
+            "[%s] TV already connected and running. Skipping KEY_POWER to prevent powering down",
+            getattr(client, "ip", "unknown"),
+        )
+        return
+
+    if mac_targets is None:
+        targets: list[str] = []
         if getattr(client, "mac", None):
             targets.append(client.mac)
         if getattr(client, "secondary_mac", None) and client.secondary_mac not in targets:
             targets.append(client.secondary_mac)
+    else:
+        targets = [m for m in mac_targets if m]
+
     if targets:
         client.send_wake_on_lan(targets, ip=getattr(client, "ip", None))
 
     if client.connected:
-        if client.is_on:
-            client.is_on = True
-            _LOGGER.debug(
-                "[%s] TV already connected and running. Skipping KEY_POWER to prevent powering down",
-                getattr(client, "ip", "unknown"),
-            )
-            return
-
         now = time.time()
         last_wake = getattr(client, "_last_wake_time", 0.0)
         if isinstance(last_wake, (int, float)) and now - last_wake < 3.0:
@@ -199,12 +202,23 @@ async def async_turn_on_tv(
     settle_delay: float = STANDBY_WAKE_SETTLE_DELAY,
 ) -> bool:
     """Powers on or wakes the TV safely and idempotently asynchronously."""
-    targets = list(mac_targets) if mac_targets else []
-    if not targets:
+    if client.connected and client.is_on:
+        client.is_on = True
+        _LOGGER.debug(
+            "[%s] TV already connected and running. Skipping KEY_POWER to prevent powering down",
+            getattr(client, "ip", "unknown"),
+        )
+        return True
+
+    if mac_targets is None:
+        targets: list[str] = []
         if getattr(client, "mac", None):
             targets.append(client.mac)
         if getattr(client, "secondary_mac", None) and client.secondary_mac not in targets:
             targets.append(client.secondary_mac)
+    else:
+        targets = [m for m in mac_targets if m]
+
     if targets:
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
@@ -212,14 +226,6 @@ async def async_turn_on_tv(
         )
 
     if client.connected:
-        if client.is_on:
-            client.is_on = True
-            _LOGGER.debug(
-                "[%s] TV already connected and running. Skipping KEY_POWER to prevent powering down",
-                getattr(client, "ip", "unknown"),
-            )
-            return True
-
         now = time.time()
         last_wake = getattr(client, "_last_wake_time", 0.0)
         if isinstance(last_wake, (int, float)) and now - last_wake < 3.0:

@@ -7,13 +7,12 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.exceptions import HomeAssistantError
 
-from ..const import (
-    CONF_ENABLE_WOL,
-    CONF_SECONDARY_MAC_ADDRESS,
-    DEFAULT_ENABLE_WOL,
-    DOMAIN,
+from ..const import DOMAIN
+from ..helpers import (
+    async_ensure_tv_on,
+    async_turn_on_entry,
+    check_client_command_readiness,
 )
-from ..helpers import async_ensure_tv_on, check_client_command_readiness
 from ..tv.media import async_execute_play_media, async_execute_select_source
 
 if TYPE_CHECKING:
@@ -27,35 +26,13 @@ class MediaPlayerControlsMixin:
 
     async def async_turn_on(self: VidaaMediaPlayer) -> None:
         """Turn on or wake the TV."""
-        if getattr(self._client, "auth_failed", False) is True:
-            raise HomeAssistantError(
-                "Authentication required: Re-pair TV in Settings > Integrations.",
-                translation_domain=DOMAIN,
-                translation_key="auth_required",
-            )
-        runtime_data = getattr(self._entry, "runtime_data", None)
-        if runtime_data and getattr(runtime_data, "turn_on", None):
-            await runtime_data.turn_on.async_run(self.hass, getattr(self, "_context", None))
-            self.async_write_ha_state()
-            return
-
-        mac_targets = []
-        if self._options.get(CONF_ENABLE_WOL, DEFAULT_ENABLE_WOL):
-            if self._mac:
-                mac_targets.append(self._mac)
-            sec_mac = self._options.get(CONF_SECONDARY_MAC_ADDRESS) or getattr(self._entry, "data", {}).get(
-                CONF_SECONDARY_MAC_ADDRESS
-            )
-            if sec_mac and sec_mac not in mac_targets:
-                mac_targets.append(sec_mac)
-
-        success = await self._client.async_turn_on(mac_targets if mac_targets else None)
-        if success is False:
-            raise HomeAssistantError(
-                "Wake-on-LAN failed: TV did not wake up.",
-                translation_domain=DOMAIN,
-                translation_key="turn_on_failed",
-            )
+        await async_turn_on_entry(
+            getattr(self, "hass", None),
+            self._entry,
+            self._client,
+            fallback_mac=self._mac,
+            context=getattr(self, "_context", None),
+        )
         self.async_write_ha_state()
 
     async def async_turn_off(self: VidaaMediaPlayer) -> None:

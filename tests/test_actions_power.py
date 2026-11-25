@@ -237,3 +237,46 @@ async def test_tv_power_actions_mixin():
     assert await client.async_turn_on(settle_delay=0) is True
     client.turn_off()
     assert await client.async_turn_off() is True
+
+
+def test_turn_on_tv_skips_wol_when_empty_targets_or_already_on():
+    """Explicit mac_targets=[] or an already-awake TV must not emit Wake-on-LAN broadcasts."""
+    client = DummyPowerClient()
+
+    # 1. Standby with explicit empty mac_targets=[] -> sends KEY_POWER without WoL
+    client.connected = True
+    client.is_on = False
+    turn_on_tv(client, mac_targets=[], settle_delay=0)
+    client.send_wake_on_lan.assert_not_called()
+    client.send_key.assert_called_once_with("KEY_POWER")
+
+    # 2. Already connected and awake with mac_targets=None -> skips both WoL and KEY_POWER
+    client.send_wake_on_lan.reset_mock()
+    client.send_key.reset_mock()
+    client.connected = True
+    client.is_on = True
+    turn_on_tv(client, mac_targets=None, settle_delay=0)
+    client.send_wake_on_lan.assert_not_called()
+    client.send_key.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_async_turn_on_tv_skips_wol_when_empty_targets_or_already_on():
+    """Async turn_on skips Wake-on-LAN when mac_targets=[] or TV is already awake."""
+    client = DummyPowerClient()
+
+    # 1. Standby with explicit empty mac_targets=[] -> sends KEY_POWER without WoL
+    client.connected = True
+    client.is_on = False
+    assert await async_turn_on_tv(client, mac_targets=[], settle_delay=0) is True
+    client.send_wake_on_lan.assert_not_called()
+    client.async_send_key.assert_awaited_once_with("KEY_POWER")
+
+    # 2. Already connected and awake with mac_targets=None -> skips both WoL and KEY_POWER
+    client.send_wake_on_lan.reset_mock()
+    client.async_send_key.reset_mock()
+    client.connected = True
+    client.is_on = True
+    assert await async_turn_on_tv(client, mac_targets=None, settle_delay=0) is True
+    client.send_wake_on_lan.assert_not_called()
+    client.async_send_key.assert_not_awaited()

@@ -781,3 +781,76 @@ async def test_service_action_exceptions_when_tv_off():
     assert res_app["app"] == "YouTube"
     client_living.async_turn_on.assert_called_once()
     client_living.async_launch_app.assert_called_once()
+
+
+@pytest.mark.anyio
+async def test_launch_app_wakes_with_wol_option_and_pluggable_action():
+    """Verify launch_app respects enable_wol=False and attached Turn On PluggableAction triggers."""
+    from types import SimpleNamespace
+
+    from homeassistant.helpers.trigger import PluggableAction
+
+    from custom_components.vidaa import VidaaData
+    from custom_components.vidaa.const import CONF_ENABLE_WOL
+    from custom_components.vidaa.triggers.turn_on import async_get_turn_on_trigger
+
+    hass = MagicMock(spec=HomeAssistant)
+    hass.data = {}
+    client = MagicMock()
+    client.ip = "192.168.1.200"
+    client.mac = "e8:51:77:aa:bb:cc"
+    client.connected = True
+    client.auth_failed = False
+    client.is_on = False
+    client.apps = [{"name": "YouTube", "appId": "3", "url": "https://youtube.com"}]
+    client.async_launch_app = AsyncMock(return_value=True)
+
+    async def _wake_client(*args, **kwargs):
+        client.is_on = True
+        return True
+
+    client.async_turn_on = AsyncMock(side_effect=_wake_client)
+
+    pluggable = PluggableAction()
+    entry = SimpleNamespace(
+        entry_id="entry_1",
+        data={"mac_address": "e8:51:77:aa:bb:cc"},
+        options={CONF_ENABLE_WOL: False},
+        runtime_data=VidaaData(
+            client=client,
+            platforms=["media_player"],
+            options={CONF_ENABLE_WOL: False},
+            turn_on=pluggable,
+        ),
+    )
+    hass.config_entries = MagicMock()
+    hass.config_entries.async_loaded_entries = MagicMock(return_value=[entry])
+    handlers = await _register_handlers(hass)
+
+    # 1. No custom trigger + enable_wol=False -> async_turn_on receives []
+    with patch("custom_components.vidaa.helpers.asyncio.sleep", AsyncMock()):
+        await handlers[SERVICE_LAUNCH_APP](
+            ServiceCall(domain=DOMAIN, service=SERVICE_LAUNCH_APP, data={ATTR_APP: "YouTube"})
+        )
+    client.async_turn_on.assert_awaited_once_with([])
+
+    # 2. Attached PluggableAction intercepts client.async_turn_on
+    client.async_turn_on.reset_mock()
+    client.is_on = False
+    client.async_wait_until_awake = AsyncMock(side_effect=_wake_client)
+    action_ran: list[bool] = []
+
+    def _custom_action(variables, description, context=None):
+        action_ran.append(True)
+
+    PluggableAction.async_attach_trigger(hass, async_get_turn_on_trigger("dev_1"), _custom_action, {})
+    pluggable.async_register(hass, async_get_turn_on_trigger("dev_1"))
+
+    with patch("custom_components.vidaa.helpers.asyncio.sleep", AsyncMock()):
+        await handlers[SERVICE_LAUNCH_APP](
+            ServiceCall(domain=DOMAIN, service=SERVICE_LAUNCH_APP, data={ATTR_APP: "YouTube"})
+        )
+
+    assert action_ran == [True]
+    client.async_turn_on.assert_not_awaited()
+    client.async_wait_until_awake.assert_awaited_once()

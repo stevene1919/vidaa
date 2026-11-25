@@ -18,6 +18,7 @@ __all__ = [
     "_as_id_set",
     "_async_target_entry_ids_from_registries",
     "_extract_entry_client",
+    "_find_entry_for_client",
     "_get_target_clients",
     "_resolve_service_targets",
     "_target_selector_fields",
@@ -33,6 +34,39 @@ def _extract_entry_client(entry: Any) -> Any:
         return runtime_data.get("client")
     if runtime_data is not None:
         return getattr(runtime_data, "client", runtime_data)
+    return None
+
+
+def _get_loaded_entries(hass: HomeAssistant) -> list[Any]:
+    """Return loaded VIDAA config entries or hass.data shim entries."""
+    loaded_entries: list[Any] = []
+
+    if hasattr(hass, "config_entries") and hasattr(hass.config_entries, "async_loaded_entries"):
+        with contextlib.suppress(Exception):
+            res = hass.config_entries.async_loaded_entries(DOMAIN)
+            if isinstance(res, list):
+                loaded_entries = res
+
+    if not loaded_entries and hasattr(hass, "config_entries") and hasattr(hass.config_entries, "async_entries"):
+        with contextlib.suppress(Exception):
+            res = hass.config_entries.async_entries(DOMAIN)
+            if isinstance(res, list):
+                loaded_entries = [e for e in res if getattr(e, "runtime_data", None) is not None]
+
+    if not loaded_entries and hasattr(hass, "data") and isinstance(hass.data, dict) and DOMAIN in hass.data:
+        from types import SimpleNamespace
+
+        for eid, edata in hass.data.get(DOMAIN, {}).items():
+            loaded_entries.append(SimpleNamespace(entry_id=eid, runtime_data=edata))
+
+    return loaded_entries
+
+
+def _find_entry_for_client(hass: HomeAssistant, client: Any) -> Any | None:
+    """Return the loaded config entry matching a client instance, if any."""
+    for entry in _get_loaded_entries(hass):
+        if _extract_entry_client(entry) is client:
+            return entry
     return None
 
 
@@ -86,25 +120,7 @@ def _async_target_entry_ids_from_registries(hass: HomeAssistant, call_data: dict
 def _get_target_clients(hass: HomeAssistant, call: ServiceCall) -> list[Any]:
     """Resolve target clients from service call parameters."""
     clients: list[Any] = []
-    loaded_entries: list[Any] = []
-
-    if hasattr(hass, "config_entries") and hasattr(hass.config_entries, "async_loaded_entries"):
-        with contextlib.suppress(Exception):
-            res = hass.config_entries.async_loaded_entries(DOMAIN)
-            if isinstance(res, list):
-                loaded_entries = res
-
-    if not loaded_entries and hasattr(hass, "config_entries") and hasattr(hass.config_entries, "async_entries"):
-        with contextlib.suppress(Exception):
-            res = hass.config_entries.async_entries(DOMAIN)
-            if isinstance(res, list):
-                loaded_entries = [e for e in res if getattr(e, "runtime_data", None) is not None]
-
-    if not loaded_entries and hasattr(hass, "data") and isinstance(hass.data, dict) and DOMAIN in hass.data:
-        from types import SimpleNamespace
-
-        for eid, edata in hass.data.get(DOMAIN, {}).items():
-            loaded_entries.append(SimpleNamespace(entry_id=eid, runtime_data=edata))
+    loaded_entries = _get_loaded_entries(hass)
 
     target_ip = call.data.get("ip_address") or call.data.get("ip")
     target_mac = call.data.get("mac_address") or call.data.get("mac")

@@ -619,3 +619,29 @@ def test_extract_and_install_certs_no_keystore_rejected(tmp_path):
     target_dir = tmp_path / "target_empty"
     with pytest.raises(ValueError, match="No VIDAA PKCS#12 keystore found"):
         extract_and_install_certs(empty_apk, target_dir)
+
+
+def test_resolve_certificates_and_ca_with_config_dir_and_string_search_dirs(tmp_path):
+    """config_dir resolves nested HA dirs and string search_dirs is treated as one dir."""
+    certs_dir = tmp_path / ".storage" / "vidaa" / "certs"
+    certs_dir.mkdir(parents=True)
+    cert_file = certs_dir / "hisense.crt"
+    key_file = certs_dir / "hisense.key"
+    cert_file.write_text("CERT")
+    key_file.write_text("KEY")
+
+    ssl_dir = tmp_path / "ssl"
+    ssl_dir.mkdir()
+    ca_file = ssl_dir / "remote_ca.pem"
+    ca_file.write_text("CA")
+
+    resolved_cert, resolved_key = resolve_certificates("auto", None, None, None, str(tmp_path))
+    assert resolved_cert == str(cert_file)
+    assert resolved_key == str(key_file)
+    assert resolve_ca_certificate(None, None, str(tmp_path)) == str(ca_file)
+
+    # Single string search_dirs must not iterate character-by-character
+    str_cert, str_key = resolve_certificates(auth_profile="auto", search_dirs=str(certs_dir))
+    assert str_cert == str(cert_file)
+    assert str_key == str(key_file)
+    assert resolve_ca_certificate(search_dirs=str(ssl_dir)) == str(ca_file)

@@ -46,6 +46,8 @@ Please report any issues or feedback on [GitHub Issues](https://github.com/steve
 
 ### 🌟 What's New & Highlights
 
+- **Startup Certificate & CA Auto-Discovery Fix**:
+  - Fixed a positional argument bug during integration startup (`resolve_certificates` / `resolve_ca_certificate`) where Home Assistant's `config_dir` string was passed into `search_dirs`, preventing auto-discovery of TLS client and CA certificates inside `<config>/.storage/vidaa/certs`, `<config>/ssl`, and `<config>/certs`.
 - **Wake-on-LAN & Power-On Consistency**:
   - Fixed `enable_wol = false` being silently ignored by distinguishing disabled WoL (`[]`) from omitted targets and removing the fallback that still sent Wake-on-LAN packets using stored MAC addresses.
   - Stopped spraying Wake-on-LAN UDP broadcasts and scheduling executor jobs when the TV is already connected and awake.

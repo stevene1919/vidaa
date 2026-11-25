@@ -301,11 +301,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
 
     ca_cert = None
     if use_ssl and auth_profile not in ("legacy", "static"):
-        config_dir = hass.config.config_dir if hasattr(hass, "config") else None
+        raw_config_dir = getattr(getattr(hass, "config", None), "config_dir", None)
+        config_dir = os.fspath(raw_config_dir) if isinstance(raw_config_dir, (str, os.PathLike)) else None
         certfile, keyfile = await hass.async_add_executor_job(
-            resolve_certificates, auth_profile, certfile, keyfile, config_dir
+            resolve_certificates, auth_profile, certfile, keyfile, None, config_dir
         )
-        ca_cert = await hass.async_add_executor_job(resolve_ca_certificate, None, config_dir)
+        ca_cert = await hass.async_add_executor_job(resolve_ca_certificate, None, None, config_dir)
     elif auth_profile in ("legacy", "static"):
 
         def _check_legacy_files(c: str | None, k: str | None) -> tuple[str | None, str | None]:

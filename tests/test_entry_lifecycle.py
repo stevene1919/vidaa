@@ -732,3 +732,78 @@ async def test_setup_entry_missing_credentials_sets_auth_failed(mock_entry, mock
 
     await async_setup_entry(hass, mock_entry)
     assert mock_client.auth_failed is True
+
+
+@pytest.mark.anyio
+async def test_setup_entry_resolves_certs_and_ca_from_config_dir(tmp_path):
+    """Verify async_setup_entry resolves certs and CA from hass.config.config_dir without mocks."""
+    certs_dir = tmp_path / ".storage" / "vidaa" / "certs"
+    certs_dir.mkdir(parents=True)
+    cert_file = certs_dir / "hisense.crt"
+    key_file = certs_dir / "hisense.key"
+    cert_file.write_text("CERT")
+    key_file.write_text("KEY")
+
+    ssl_dir = tmp_path / "ssl"
+    ssl_dir.mkdir()
+    ca_file = ssl_dir / "remote_ca.pem"
+    ca_file.write_text("CA")
+
+    hass = MagicMock(spec=HomeAssistant)
+    hass.data = {}
+    hass.loop = MagicMock()
+    hass.config = MagicMock()
+    hass.config.config_dir = str(tmp_path)
+    hass.config.path = MagicMock(side_effect=lambda *parts: str(tmp_path.joinpath(*parts)))
+    hass.config_entries = MagicMock()
+    hass.config_entries.async_forward_entry_setups = AsyncMock(return_value=True)
+    hass.async_create_background_task = MagicMock(
+        side_effect=lambda coro, *a, **kw: coro.close() if hasattr(coro, "close") else MagicMock()
+    )
+    hass.services = FakeServices()
+    hass.async_add_executor_job = AsyncMock(side_effect=lambda func, *args: func(*args))
+
+    entry = MagicMock()
+    entry.entry_id = "test_real_cert_resolve"
+    entry.unique_id = "e8:51:77:aa:bb:cc"
+    entry.data = {
+        CONF_IP_ADDRESS: "192.168.1.100",
+        CONF_MAC_ADDRESS: "e8:51:77:aa:bb:cc",
+        CONF_CLIENT_ID: "E85177AABBCC$his$123456_vidaacommon_001",
+        CONF_ACCESS_TOKEN: "valid_token",
+        CONF_BRAND: "his",
+        CONF_USE_SSL: True,
+    }
+    entry.options = {
+        CONF_USE_SSL: True,
+        CONF_AUTH_PROFILE: "auto",
+    }
+
+    mock_client = MagicMock()
+    mock_client.has_notifications = False
+    mock_client.async_check_and_refresh_token = AsyncMock(return_value=False)
+    mock_client.async_connect_and_run = AsyncMock()
+    captured = {}
+
+    def _capture_client(*args, **kwargs):
+        captured.update(kwargs)
+        mock_client.certfile = kwargs.get("certfile")
+        mock_client.keyfile = kwargs.get("keyfile")
+        mock_client.ca_cert = kwargs.get("ca_cert")
+        mock_client.brand = kwargs.get("brand", "his")
+        mock_client.client_id = kwargs.get("client_id")
+        return mock_client
+
+    with (
+        patch("custom_components.vidaa.VidaaClient", side_effect=_capture_client),
+        patch("homeassistant.helpers.issue_registry.async_create_issue") as mock_create_issue,
+        patch("homeassistant.helpers.issue_registry.async_delete_issue") as mock_delete_issue,
+    ):
+        res = await async_setup_entry(hass, entry)
+
+    assert res is True
+    assert captured["certfile"] == str(cert_file)
+    assert captured["keyfile"] == str(key_file)
+    assert captured["ca_cert"] == str(ca_file)
+    mock_create_issue.assert_not_called()
+    mock_delete_issue.assert_any_call(hass, DOMAIN, "certificate_missing_test_real_cert_resolve")

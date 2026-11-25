@@ -21,9 +21,10 @@ __all__ = [
 def _get_default_search_dirs(config_dir: str | None = None) -> list[str]:
     """Build list of candidate certificate search paths, scanning upwards to repo root."""
     search_dirs: list[str] = []
-    if config_dir:
+    if config_dir and isinstance(config_dir, (str, os.PathLike)):
+        cfg_root = os.fspath(config_dir)
         for sub in (".storage/vidaa/certs", ".storage/vidaa", "ssl", "certs"):
-            candidate = os.path.join(config_dir, sub)
+            candidate = os.path.join(cfg_root, sub)
             if candidate not in search_dirs:
                 search_dirs.append(candidate)
 
@@ -63,6 +64,8 @@ def resolve_ca_certificate(
 
     if search_dirs is None:
         search_dirs = _get_default_search_dirs(config_dir)
+    elif isinstance(search_dirs, (str, os.PathLike)):
+        search_dirs = [os.fspath(search_dirs)]
 
     ca_names = [
         "remote_ca.pem",
@@ -93,6 +96,8 @@ def resolve_certificates(
     """Resolves certificate and private key paths based on profile and candidate locations."""
     if search_dirs is None:
         search_dirs = _get_default_search_dirs(config_dir)
+    elif isinstance(search_dirs, (str, os.PathLike)):
+        search_dirs = [os.fspath(search_dirs)]
 
     # Handle direct PKCS#12 bundle input
     if certfile and (certfile.lower().endswith(".p12") or certfile.lower().endswith(".pfx")):

@@ -186,7 +186,7 @@ The primary `media_player.<tv>` entity exposes rich runtime state attributes acc
 > Instead, clicking **Start Re-authentication** initiates a standard Home Assistant config flow:
 > 1. A persistent notification appears with direct links to [Settings → System → Repairs](/config/repairs) and [Settings → Devices & Services](/config/integrations).
 > 2. The entry is marked as requiring re-authentication (`binary_sensor.<tv>_authentication_problem` turns `on`).
-> 3. Opening the repair card prompts a confirmation dialog. Once confirmed, Home Assistant initiates the live TLS handshake to the TV, causing the **4-digit PIN** to appear on screen.
+> 3. Opening the Home Assistant repair card (**Authentication expired for \<TV\>**) directly launches the re-authentication flow, initiating the live TLS handshake to the TV and causing the **4-digit PIN** to appear on screen.
 > 4. Enter the 4-digit PIN in the dialog. Upon completion, credentials are saved, entities return to available, and the notification and repair issue are automatically dismissed.
 
 ---

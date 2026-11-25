@@ -184,7 +184,7 @@ Different VIDAA models expose varying subsets of the MQTT protocol depending on 
    - In standard manual standby (**Tier 1 / `fake_sleep` / Fast Power On**), the embedded MQTT daemon stays resident and active tokens are preserved.
    - Under statutory automated energy-saving shutdowns (**Tier 2 / Auto Standby with No Signal / Auto Sleep**), the TV powers down the application processor to meet mandatory standby thresholds ($\le 0.5\text{W}$), terminating the broker process.
    - Upon next power-up or wake, the broker starts with an unpopulated token table and actively rejects previously valid credentials with `rc: 4` (*Bad username or password*) or MQTT v5 reason code `134` (*Bad authentication data*).
-   - The integration specifically tracks broker rejection return codes (`connect_rc in (4, 5, 134, 135)`) versus standard standby timeouts (`connect_rc == 0`), auto-escalating to the Home Assistant Repairs dashboard after 3 consecutive rejections while preserving retry backoff for ordinary standby.
+   - The integration specifically tracks broker rejection return codes (`connect_rc in (4, 5, 134, 135)`) versus standard standby timeouts (`connect_rc == 0`). On active broker auth rejection, it uses a dedicated fast retry cadence (`15s` → `25s`, ~40s total across 3 attempts—safely exceeding slow cold-boot projector init windows) before auto-escalating to Home Assistant's native Core Repairs re-authentication flow, while preserving exponential backoff for ordinary standby timeouts.
 
 > [!WARNING]
 > **Dirty Resets & USB Power Brownouts**:

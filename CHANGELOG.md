@@ -42,6 +42,40 @@ You MUST adhere strictly to the following semantic structure for any new release
 Please report any issues or feedback on [GitHub Issues](https://github.com/stevene1919/vidaa/issues) or Discussions!
 -->
 
+## [Unreleased]
+
+### 🌟 What's New & Highlights
+
+- **Faster Re-authentication Recovery (~40s vs 6 min) & Single Clean Repair Card**:
+  - When a TV wipes its volatile RAM session tokens (e.g. after a cold shutdown or power cut), the integration now retries active broker auth rejections (`rc: 4/5/134/135`) on a tight `15s → 25s` cadence (~40 seconds total across 3 attempts, safely clearing slow projector cold-boot windows) instead of waiting 6 minutes before surfacing a Repair.
+  - Eliminated the duplicate custom Repair card and duplicate persistent notification during automatic auth failures—Home Assistant now shows only the single native Core repair card (**Authentication expired for \<TV\>**), which launches the 4-digit PIN flow directly.
+- **Media Player State Sync & Home Launcher Fixes**:
+  - Fixed split-brain state desync where `media_player` attributes (volume, mute, source, channel, app) could lag behind the live client on startup or stay stale when returning to the Home Launcher.
+  - Consistently gated app name, artwork, and media titles behind active power state (`is_on`) and expanded payload key fallbacks (`sourceid`, `sourcename`, `appname`, `vol_type`).
+- **Auto-Detect Legacy TVs in Discovery & Hardened Certificate Uploads**:
+  - Automatically probes legacy static authentication during SSDP/Zeroconf discovery when no client certificates are present, streamlining setup for older TVs.
+  - Improved certificate upload validation and automatic temporary file cleanup on failed uploads, and documented picture-setting firmware constraints ([#78](https://github.com/stevene1919/vidaa/issues/78)).
+- **Non-Blocking Startup & Lifecycle Hardening**:
+  - Deferred certificate resolution out of synchronous client initialization to a non-blocking executor and consolidated Wake-on-LAN helpers across platforms.
+  - Tracked all background token-lifecycle tasks to guarantee clean cancellation on reload or teardown.
+
+---
+
+<details>
+<summary>🛠️ <b>Full Technical Details & Refactoring</b> (Click to expand)</summary>
+
+- **Auth Lifecycle (`protocol/auth_lifecycle.py`, `client.py`)**: Added `BROKER_REJECTION_DELAYS = (15.0, 25.0)` for hard broker rejection codes (`rc in (4, 5, 134, 135)`) while preserving exponential backoff (`min(60 * 2**failures, 1800)`) for standby/network timeouts; tracked internal background tasks in `TokenLifecycleManager._tracked_tasks` for guaranteed teardown cancellation.
+- **Repairs Cleanup (`__init__.py`, `docs/parameters.md`, `docs/protocol_architecture.md`)**: Removed redundant `ir.async_create_issue(..., "auth_token_invalidated_...")` and duplicate `persistent_notification.async_create` from `_handle_auth_failed`, actively deleting any legacy custom issue and relying on `entry.async_start_reauth(hass)`.
+- **Media Player (`media_player/__init__.py`, `media_player/state_handler.py`, `tv/media.py`)**: Hydrated initial entity attributes from active client on init/mount, handled `launcher`/`remote_launcher` resets to `"Home Launcher"`, and unified broadcast parser fallbacks.
+- **Flows & Certificates (`flow/certs.py`, `flow/discovery.py`, `flow/helpers.py`, `flow/options_security.py`, `protocol/cert_extract.py`, `repairs.py`)**: Deduplicated uploaded certificate extraction into `async_process_uploaded_cert_file`, hardened upload validation/cleanup on failure, added non-blocking MAC resolution and legacy auto-probing during discovery, and updated picture settings troubleshooting docs ([#78](https://github.com/stevene1919/vidaa/issues/78)).
+- **Startup & Wake Helpers (`__init__.py`, `helpers.py`, `media_player/controls.py`, `remote.py`, `services/handlers.py`, `protocol/connection.py`)**: Deferred certificate resolution out of `VidaaClient.__init__` and consolidated Wake-on-LAN/command readiness helpers.
+- **Dependencies**: Bumped lockfile dependencies to `homeassistant 2026.11.3`.
+- **Tests**: Expanded suite to 487 passing unit tests including comprehensive behavioral boundary tests (`tests/test_behavioral_boundaries.py`), fast rejection cadence, exponential fallback, duplicate repair suppression, media player state hydration, and launcher transitions.
+
+</details>
+
+---
+
 ## [3.6.1-beta.1] - 2026-11-23
 
 ### ☕ Support the Project

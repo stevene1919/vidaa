@@ -96,12 +96,16 @@ class VidaaMqttTrackingSensor(VidaaBaseSensor):
         self._client.register_state_callback(self._handle_state_update)
         self._client.register_disconnected_callback(self._handle_disconnected)
         self._register_custom_callbacks()
+        self._sync_from_client()
 
     async def async_will_remove_from_hass(self) -> None:
         self._client.unregister_connected_callback(self._handle_connected)
         self._client.unregister_state_callback(self._handle_state_update)
         self._client.unregister_disconnected_callback(self._handle_disconnected)
         self._unregister_custom_callbacks()
+
+    def _sync_from_client(self) -> None:
+        """Hydrate cached client telemetry when entity initializes or attaches."""
 
     def _register_custom_callbacks(self) -> None:
         pass
@@ -138,6 +142,40 @@ class VidaaActiveAppSensor(VidaaMqttTrackingSensor):
         self._app_icons: dict[str, str] = {}
         self._favorite_apps: list[str] = []
         self._last_known_app: str | None = None
+        self._sync_from_client()
+
+    def _sync_from_client(self) -> None:
+        """Hydrate app catalog and foreground app state from already-received client telemetry."""
+        apps = getattr(self._client, "apps", None)
+        if isinstance(apps, list) and apps:
+            self._app_dict, self._app_icons, self._favorite_apps = parse_applist_payload(apps)
+
+        active_src: str | None = None
+        sources = getattr(self._client, "sources", None)
+        if isinstance(sources, list) and sources:
+            _, _, _, active_src = parse_sourcelist_payload(sources)
+
+        if getattr(self._client, "connected", False) is not True:
+            self._attr_native_value = self._default_off
+            return
+        if getattr(self._client, "is_on", False) is not True:
+            self._attr_native_value = "Standby"
+            return
+
+        current_app = getattr(self._client, "current_app", None)
+        if isinstance(current_app, str) and current_app:
+            self._attr_native_value = current_app
+            self._last_known_app = current_app
+            return
+
+        current_src = getattr(self._client, "current_source", None)
+        resolved_src = current_src if isinstance(current_src, str) and current_src else active_src
+        if resolved_src:
+            if resolved_src.lower() == "tv":
+                self._attr_native_value = "Live TV"
+                self._last_known_app = "Live TV"
+            else:
+                self._attr_native_value = "TV Input"
 
     def _register_custom_callbacks(self) -> None:
         self._client.register_applist_callback(self._handle_applist_update)
@@ -172,8 +210,8 @@ class VidaaActiveAppSensor(VidaaMqttTrackingSensor):
         elif statetype == "fake_sleep_0" or not self._client.is_on:
             self._attr_native_value = "Standby"
         elif statetype == "app":
-            name = state.get("name") or state.get("appName")
-            app_id = str(state.get("appId") or state.get("activeAppId") or "")
+            name = state.get("name") or state.get("appName") or state.get("appname")
+            app_id = str(state.get("appId") or state.get("activeAppId") or state.get("appid") or "")
             self._attr_native_value = name or self._app_dict.get(app_id, "App")
             self._last_known_app = self._attr_native_value
         elif statetype == "livetv":
@@ -185,7 +223,7 @@ class VidaaActiveAppSensor(VidaaMqttTrackingSensor):
             self._attr_native_value = "Home Launcher"
             self._last_known_app = "Home Launcher"
         else:
-            app_id = str(state.get("appId") or state.get("activeAppId") or "")
+            app_id = str(state.get("appId") or state.get("activeAppId") or state.get("appid") or "")
             if app_id:
                 self._attr_native_value = self._app_dict.get(app_id, app_id)
                 self._last_known_app = self._attr_native_value
@@ -224,6 +262,43 @@ class VidaaActiveSourceSensor(VidaaMqttTrackingSensor):
         self._custom_labels: dict[str, str] = {}
         self._connected_device: str | None = None
         self._last_known_source: str | None = None
+        self._sync_from_client()
+
+    def _sync_from_client(self) -> None:
+        """Hydrate source catalog and active physical input from cached client telemetry."""
+        active_src: str | None = None
+        sources = getattr(self._client, "sources", None)
+        if isinstance(sources, list) and sources:
+            self._available_sources, self._connected_inputs, self._custom_labels, active_src = parse_sourcelist_payload(
+                sources
+            )
+            if active_src:
+                self._last_known_source = active_src
+
+        if getattr(self._client, "connected", False) is not True:
+            self._attr_native_value = self._default_off
+            self._connected_device = None
+            return
+        if getattr(self._client, "is_on", False) is not True:
+            self._attr_native_value = "Standby"
+            self._connected_device = None
+            return
+
+        current_app = getattr(self._client, "current_app", None)
+        if isinstance(current_app, str) and current_app:
+            self._attr_native_value = "Home Launcher" if current_app == "Home Launcher" else "App"
+            self._connected_device = None
+            return
+
+        current_src = getattr(self._client, "current_source", None)
+        resolved_src = current_src if isinstance(current_src, str) and current_src else active_src
+        if resolved_src:
+            self._attr_native_value = resolved_src
+            self._last_known_source = resolved_src
+            conn_dev = getattr(self._client, "connected_device", None)
+            self._connected_device = (
+                conn_dev if isinstance(conn_dev, str) and conn_dev else self._custom_labels.get(resolved_src)
+            )
 
     def _register_custom_callbacks(self) -> None:
         self._client.register_sourcelist_callback(self._handle_sourcelist_update)
@@ -240,9 +315,11 @@ class VidaaActiveSourceSensor(VidaaMqttTrackingSensor):
             self._attr_native_value = "Standby"
             self._connected_device = None
         elif statetype == "sourceswitch":
-            self._attr_native_value = (
-                state.get("sourcename") or state.get("sourceName") or state.get("displayname") or "HDMI"
-            )
+            resolved = state.get("sourcename") or state.get("sourceName") or state.get("displayname")
+            if not resolved and "sourceid" in state:
+                client_src = getattr(self._client, "current_source", None)
+                resolved = client_src if isinstance(client_src, str) and client_src else str(state["sourceid"])
+            self._attr_native_value = resolved or "HDMI"
             self._last_known_source = self._attr_native_value
             self._connected_device = (
                 state.get("displayname2")

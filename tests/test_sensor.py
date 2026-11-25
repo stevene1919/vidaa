@@ -326,3 +326,63 @@ def test_sensor_disabled_by_default(mock_client, mock_entry):
 
     s_name = VidaaReportedNameSensor(mock_client, mock_entry)
     assert s_name.entity_registry_enabled_default is False
+
+
+@pytest.mark.anyio
+async def test_sensors_hydrate_from_cached_client_state_on_startup(mock_entry):
+    """Active App, Active Source, and Session Status hydrate from telemetry received before platform setup."""
+    from custom_components.vidaa.client import VidaaClient
+
+    client = VidaaClient(ip="192.168.50.12", mac="e8:51:77:ec:98:1c", client_id="cid")
+    client.connected = True
+    client.is_on = True
+    client._dispatch_applist_update(
+        [
+            {"appId": "1", "name": "Netflix", "isFav": True, "httpIcon": "iconDownloadhttps://example.com/nf.png"},
+            {"appId": "3", "name": "YouTube", "isFav": False},
+        ]
+    )
+    client._dispatch_sourcelist_update(
+        [
+            {"sourceid": "TV", "sourcename": "TV", "is_signal": "0", "has_signal": "0"},
+            {
+                "sourceid": "HDMI1",
+                "sourcename": "HDMI1",
+                "displayname2": "Chromecast",
+                "is_signal": "0",
+                "has_signal": "1",
+            },
+            {"sourceid": "HDMI2", "sourcename": "HDMI2", "is_signal": "1", "has_signal": "1"},
+        ]
+    )
+
+    # Sensors instantiated AFTER MQTT telemetry already arrived
+    app_sensor = VidaaActiveAppSensor(client, mock_entry)
+    source_sensor = VidaaActiveSourceSensor(client, mock_entry)
+
+    assert app_sensor.native_value == "TV Input"
+    assert app_sensor.extra_state_attributes["total_installed_apps"] == 2
+
+    assert source_sensor.native_value == "HDMI2"
+    assert source_sensor.extra_state_attributes["available_sources"] == ["TV", "HDMI1", "HDMI2"]
+    assert source_sensor.extra_state_attributes["connected_inputs"] == ["HDMI1", "HDMI2"]
+    assert source_sensor.extra_state_attributes["last_known_source"] == "HDMI2"
+
+    # Also verify app-state and Home Launcher hydration on async_added_to_hass
+    client._dispatch_state_update({"statetype": "app", "appname": "Netflix", "appid": "1"})
+    await app_sensor.async_added_to_hass()
+    await source_sensor.async_added_to_hass()
+    assert app_sensor.native_value == "Netflix"
+    assert app_sensor.entity_picture == "https://example.com/nf.png"
+    assert source_sensor.native_value == "App"
+
+    # Verify sourceswitch with sourceid-only payload resolves friendly name
+    client._dispatch_state_update({"statetype": "sourceswitch", "sourceid": "HDMI1"})
+    assert source_sensor.native_value == "HDMI1"
+    assert source_sensor.extra_state_attributes["connected_device"] == "Chromecast"
+
+    # Verify SessionStatusSensor hydrates pre-existing auth_failed=True on init
+    client.connected = False
+    client.auth_failed = True
+    status_sensor = VidaaSessionStatusSensor(client, mock_entry)
+    assert status_sensor.native_value == "Reauth Required"

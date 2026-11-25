@@ -47,7 +47,7 @@ class VidaaSessionStatusSensor(VidaaBaseSensor):
     def __init__(self, client: VidaaClient, entry: ConfigEntry) -> None:
         super().__init__(client, entry)
         self._attr_unique_id = f"{self._entry_id}_session_status"
-        self._reauth_required = False
+        self._reauth_required = getattr(client, "auth_failed", False) is True
         self._update_state()
 
     async def async_added_to_hass(self) -> None:
@@ -56,6 +56,8 @@ class VidaaSessionStatusSensor(VidaaBaseSensor):
         self._client.register_token_refreshed_callback(self._handle_state_change)
         self._client.register_auth_failed_callback(self._handle_auth_failed)
         self._client.register_device_info_callback(self._handle_state_change)
+        if getattr(self._client, "auth_failed", False) is True:
+            self._reauth_required = True
         self._update_state()
 
     async def async_will_remove_from_hass(self) -> None:

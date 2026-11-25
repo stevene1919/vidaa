@@ -55,9 +55,9 @@ Please report any issues or feedback on [GitHub Issues](https://github.com/steve
 - **Faster Re-authentication Recovery (~40s vs 6 min) & Single Clean Repair Card**:
   - When a TV wipes its volatile RAM session tokens (e.g. after a cold shutdown or power cut), the integration now retries active broker auth rejections (`rc: 4/5/134/135`) on a tight `15s → 25s` cadence (~40 seconds total across 3 attempts, safely clearing slow projector cold-boot windows) instead of waiting 6 minutes before surfacing a Repair.
   - Eliminated the duplicate custom Repair card and duplicate persistent notification during automatic auth failures—Home Assistant now shows only the single native Core repair card (**Authentication expired for \<TV\>**), which launches the 4-digit PIN flow directly.
-- **Media Player State Sync & Home Launcher Fixes**:
-  - Fixed split-brain state desync where `media_player` attributes (volume, mute, source, channel, app) could lag behind the live client on startup or stay stale when returning to the Home Launcher.
-  - Consistently gated app name, artwork, and media titles behind active power state (`is_on`) and expanded payload key fallbacks (`sourceid`, `sourcename`, `appname`, `vol_type`).
+- **Media Player & Sensor Startup State Sync & Home Launcher Fixes**:
+  - Fixed split-brain state desync where `media_player` attributes (volume, mute, source, channel, app) and `active_app` / `active_source` / `session_status` sensors could lag behind the live client on startup (stuck on `Standby` with `0` apps when telemetry arrived before platform setup) or stay stale when returning to the Home Launcher.
+  - Consistently gated app name, artwork, and media titles behind active power state (`is_on`) and expanded payload key fallbacks (`sourceid`, `sourcename`, `appname`, `appid`, `vol_type`).
 - **Auto-Detect Legacy TVs in Discovery & Hardened Certificate Uploads**:
   - Automatically probes legacy static authentication during SSDP/Zeroconf discovery when no client certificates are present, streamlining setup for older TVs.
   - Improved certificate upload validation and automatic temporary file cleanup on failed uploads, and documented picture-setting firmware constraints ([#78](https://github.com/stevene1919/vidaa/issues/78)).

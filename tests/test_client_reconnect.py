@@ -140,6 +140,84 @@ def test_broker_rejection_mqtt5_reason_code_134_triggers_auth_failed():
     mock_auth_failed.assert_called_once()
 
 
+def test_broker_rejection_uses_fast_cadence():
+    """Broker rejections (rc: 4, 5, 134, 135) use fast retry cadence (15s, 25s) before auth_failed."""
+    now = int(time.time())
+    client = VidaaClient(
+        ip="192.168.1.100",
+        refresh_token="valid_refresh",
+        refresh_token_time=now - 3600,
+        refresh_token_duration=30,
+    )
+    client._last_refresh_connect_rc = 134
+    mock_auth_failed = MagicMock()
+    client.register_auth_failed_callback(mock_auth_failed)
+
+    scheduled_delays: list[float] = []
+
+    def fake_schedule(delay: float) -> None:
+        scheduled_delays.append(delay)
+
+    # Attempt 1: broker rejection -> delay is 15.0s
+    client._refreshing_token = False
+    with (
+        patch.object(client, "check_and_refresh_token", return_value=False),
+        patch.object(client, "_schedule_rejected_retry", side_effect=fake_schedule),
+    ):
+        client._refresh_token_and_update_creds()
+    assert client._broker_rejection_failures == 1
+    assert scheduled_delays == [15.0]
+    mock_auth_failed.assert_not_called()
+
+    # Attempt 2: broker rejection -> delay is 25.0s
+    client._refreshing_token = False
+    with (
+        patch.object(client, "check_and_refresh_token", return_value=False),
+        patch.object(client, "_schedule_rejected_retry", side_effect=fake_schedule),
+    ):
+        client._refresh_token_and_update_creds()
+    assert client._broker_rejection_failures == 2
+    assert scheduled_delays == [15.0, 25.0]
+    mock_auth_failed.assert_not_called()
+
+    # Attempt 3: broker rejection -> triggers auth_failed immediately without scheduling further retry
+    client._refreshing_token = False
+    with (
+        patch.object(client, "check_and_refresh_token", return_value=False),
+        patch.object(client, "_schedule_rejected_retry", side_effect=fake_schedule),
+    ):
+        client._refresh_token_and_update_creds()
+    assert client._broker_rejection_failures == 3
+    assert scheduled_delays == [15.0, 25.0]  # No third schedule
+    mock_auth_failed.assert_called_once()
+
+
+def test_generic_failure_uses_exponential_backoff():
+    """Non-broker connection failures (e.g. timeout rc: 0) use exponential backoff."""
+    now = int(time.time())
+    client = VidaaClient(
+        ip="192.168.1.100",
+        refresh_token="valid_refresh",
+        refresh_token_time=now - 3600,
+        refresh_token_duration=30,
+    )
+    client._last_refresh_connect_rc = 0
+    scheduled_delays: list[float] = []
+
+    def fake_schedule(delay: float) -> None:
+        scheduled_delays.append(delay)
+
+    client._refreshing_token = False
+    with (
+        patch.object(client, "check_and_refresh_token", return_value=False),
+        patch.object(client, "_schedule_rejected_retry", side_effect=fake_schedule),
+    ):
+        client._refresh_token_and_update_creds()
+    assert client._broker_rejection_failures == 0
+    assert client._rejected_refresh_failures == 1
+    assert scheduled_delays == [120.0]
+
+
 def test_broker_rejection_threshold_not_reached_suppresses_auth_failed():
     """Transient rejections below the threshold do not fire auth_failed."""
     now = int(time.time())

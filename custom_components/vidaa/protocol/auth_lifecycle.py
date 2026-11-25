@@ -22,6 +22,7 @@ class TokenLifecycleManager:
     TOKEN_WATCH_INTERVAL = 300
     PROACTIVE_REFRESH_SETTLE_SECONDS = 3.0
     MAX_BROKER_REJECTION_ATTEMPTS = 3
+    BROKER_REJECTION_DELAYS: tuple[float, ...] = (15.0, 25.0)
 
     def __init__(self, client: VidaaClient) -> None:
         self.client = client
@@ -216,7 +217,11 @@ class TokenLifecycleManager:
             clock_offset=client.clock_offset,
         ):
             current_time = time.time()
-            retry_after = min(60 * (2**self.rejected_refresh_failures), 1800)
+            if self.broker_rejection_failures > 0:
+                delay_idx = min(self.broker_rejection_failures - 1, len(self.BROKER_REJECTION_DELAYS) - 1)
+                retry_after = self.BROKER_REJECTION_DELAYS[delay_idx]
+            else:
+                retry_after = float(min(60 * (2**self.rejected_refresh_failures), 1800))
             should_refresh = False
             async with self.refresh_lock:
                 should_refresh = not self.refreshing_token and (current_time - self.last_refresh_attempt > retry_after)
@@ -316,12 +321,6 @@ class TokenLifecycleManager:
                 else:
                     self.broker_rejection_failures = 0
 
-                _LOGGER.warning(
-                    "[%s] Token refresh after rejected connection failed (attempt %d); next retry in %d min",
-                    client.ip,
-                    self.rejected_refresh_failures,
-                    min(60 * (2**self.rejected_refresh_failures), 1800) // 60,
-                )
                 if self.broker_rejection_failures >= self.MAX_BROKER_REJECTION_ATTEMPTS:
                     _LOGGER.warning(
                         "[%s] Refresh token actively rejected by broker %d times (rc: %s). "
@@ -344,7 +343,23 @@ class TokenLifecycleManager:
                     client._dispatch_auth_failed()
                     return
 
-                backoff = float(min(60 * (2**self.rejected_refresh_failures), 1800))
+                if self.broker_rejection_failures > 0:
+                    delay_idx = min(self.broker_rejection_failures - 1, len(self.BROKER_REJECTION_DELAYS) - 1)
+                    backoff = float(self.BROKER_REJECTION_DELAYS[delay_idx])
+                    delay_str = f"{int(backoff)}s"
+                    attempt_str = f"{self.broker_rejection_failures}/{self.MAX_BROKER_REJECTION_ATTEMPTS}"
+                else:
+                    backoff = float(min(60 * (2**self.rejected_refresh_failures), 1800))
+                    delay_str = f"{int(backoff // 60)} min" if backoff >= 60 else f"{int(backoff)}s"
+                    attempt_str = str(self.rejected_refresh_failures)
+
+                _LOGGER.warning(
+                    "[%s] Token refresh after rejected connection failed (attempt %s); next retry in %s",
+                    client.ip,
+                    attempt_str,
+                    delay_str,
+                )
+
                 if hasattr(self.client, "_schedule_rejected_retry"):
                     self.client._schedule_rejected_retry(backoff)
                 else:

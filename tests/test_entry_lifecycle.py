@@ -298,13 +298,21 @@ async def test_entry_auth_failed_callback_creates_repair_issue_and_starts_reauth
     mock_client.connect_and_run = MagicMock()
 
     created_issues = {}
+    deleted_issues = []
 
     def mock_create_issue(hass_arg, domain, issue_id, **kwargs):
         created_issues[issue_id] = kwargs
 
+    def mock_delete_issue(hass_arg, domain, issue_id):
+        deleted_issues.append((domain, issue_id))
+
     monkeypatch.setattr(
         "custom_components.vidaa.ir.async_create_issue",
         mock_create_issue,
+    )
+    monkeypatch.setattr(
+        "custom_components.vidaa.ir.async_delete_issue",
+        mock_delete_issue,
     )
 
     hass.config_entries.async_forward_entry_setups = AsyncMock(return_value=True)
@@ -321,9 +329,9 @@ async def test_entry_auth_failed_callback_creates_repair_issue_and_starts_reauth
     auth_failed_cb(mock_client)
 
     issue_id = f"auth_token_invalidated_{mock_entry.entry_id}"
-    assert issue_id in created_issues
-    assert created_issues[issue_id]["translation_key"] == "auth_token_invalidated"
-    assert created_issues[issue_id]["translation_placeholders"] == {"ip_address": mock_client.ip}
+    # Core async_start_reauth handles repairs; custom duplicate issue is not created
+    assert issue_id not in created_issues
+    assert (DOMAIN, issue_id) in deleted_issues
     mock_entry.async_start_reauth.assert_called_once_with(hass)
 
 

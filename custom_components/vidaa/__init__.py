@@ -412,19 +412,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
     client.register_token_refreshed_callback(update_entry_tokens)
 
     def _handle_auth_failed(failed_client: VidaaClient) -> None:
-        """Raise a persistent Repairs issue and start the reauth flow."""
-        ir.async_create_issue(
-            hass,
-            DOMAIN,
-            f"auth_token_invalidated_{entry.entry_id}",
-            is_fixable=True,
-            is_persistent=True,
-            severity=ir.IssueSeverity.ERROR,
-            translation_key="auth_token_invalidated",
-            translation_placeholders={"ip_address": failed_client.ip},
-            # [F5-leg2/F6-leg6]: gives the fix flow the entry it must re-pair.
-            data={"entry_id": entry.entry_id},
-        )
+        """Trigger reauthentication flow and notify the user."""
+        # entry.async_start_reauth(hass) automatically generates the official
+        # Home Assistant repair issue ("Authentication expired for <Device>")
+        # under the homeassistant core domain. Delete any legacy custom issue
+        # so the user never sees duplicate repair cards.
+        ir.async_delete_issue(hass, DOMAIN, f"auth_token_invalidated_{entry.entry_id}")
         entry.async_start_reauth(hass)
         device_name = getattr(failed_client, "name", None) or "VIDAA TV"
         persistent_notification.async_create(

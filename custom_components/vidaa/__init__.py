@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-import contextlib
 import logging
-import os
 from dataclasses import dataclass
-from datetime import timedelta
 from typing import Any
 
 try:
@@ -39,20 +36,14 @@ from .const import (
     CONF_ACCESS_TOKEN_TIME,
     CONF_AUTH_PROFILE,
     CONF_BRAND,
-    CONF_CERTFILE,
     CONF_CLIENT_ID,
     CONF_ENABLE_PICTURE_CONTROLS,
     CONF_IP_ADDRESS,
-    CONF_KEYFILE,
-    CONF_MAC_ADDRESS,
-    CONF_MANUFACTURER,
-    CONF_MODEL,
     CONF_PASSWORD,
     CONF_REFRESH_TOKEN,
     CONF_REFRESH_TOKEN_DURATION,
     CONF_REFRESH_TOKEN_TIME,
     CONF_SECONDARY_MAC_ADDRESS,
-    CONF_SW_VERSION,
     CONF_USE_SSL,
     CONF_USERNAME,
     DEFAULT_BRAND,
@@ -61,6 +52,20 @@ from .const import (
     DEFAULT_USE_SSL,
     DOMAIN,
     LEGACY_DOMAIN,
+)
+from .lifecycle import (
+    DEFAULT_CLOCK_SYNC_INTERVAL,
+    async_ensure_entry_mac,
+    async_resolve_entry_tls,
+    async_sync_certificate_repair_issue,
+    prune_retired_entities,
+    register_clock_sync_hooks,
+    register_device_info_enrichment,
+)
+from .migration import (
+    _async_check_and_manage_legacy_repair,
+    _check_and_manage_legacy_repair,
+    async_migrate_entry,
 )
 from .protocol import resolve_ca_certificate, resolve_certificates
 from .services import async_setup_services, async_unload_services
@@ -79,7 +84,30 @@ PLATFORMS: list[str] = [
 ]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN) if _HAS_HA else None
-DEFAULT_CLOCK_SYNC_INTERVAL = timedelta(hours=2)
+
+__all__ = [
+    "CONFIG_SCHEMA",
+    "DEFAULT_CLOCK_SYNC_INTERVAL",
+    "DOMAIN",
+    "PLATFORMS",
+    "HisenseVidaaConfigEntry",
+    "HisenseVidaaData",
+    "VidaaConfigEntry",
+    "VidaaData",
+    "_async_check_and_manage_legacy_repair",
+    "_check_and_manage_legacy_repair",
+    "async_migrate_entry",
+    "async_remove_config_entry_device",
+    "async_remove_entry",
+    "async_setup",
+    "async_setup_entry",
+    "async_track_time_interval",
+    "async_unload_entry",
+    "dr",
+    "er",
+    "ir",
+    "update_listener",
+]
 
 
 @dataclass
@@ -92,162 +120,17 @@ class VidaaData:
     turn_on: PluggableAction | None = None
 
 
-# Backwards-compatible alias during migration
 HisenseVidaaData = VidaaData
 
 type VidaaConfigEntry = ConfigEntry[VidaaData]
 type HisenseVidaaConfigEntry = VidaaConfigEntry
 
 
-async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Migrate old entry to new configuration version."""
-    _LOGGER.debug(
-        "Migrating config entry '%s' from version %s.%s",
-        entry.title,
-        entry.version,
-        entry.minor_version,
-    )
-
-    if entry.version == 1:
-        # Migrate entity registry if needed
-        try:
-            ent_reg = er.async_get(hass)
-            entities: list[Any] = []
-            if hasattr(er, "async_entries_for_config_entry"):
-                entities = er.async_entries_for_config_entry(ent_reg, entry.entry_id)
-            elif hasattr(ent_reg, "entities"):
-                if hasattr(ent_reg.entities, "get_entries_for_config_entry_id"):
-                    entities = list(ent_reg.entities.get_entries_for_config_entry_id(entry.entry_id))
-                elif isinstance(ent_reg.entities, dict):
-                    entities = [
-                        e for e in ent_reg.entities.values() if getattr(e, "config_entry_id", None) == entry.entry_id
-                    ]
-            for reg_entry in entities:
-                if getattr(reg_entry, "platform", None) == LEGACY_DOMAIN:
-                    if hasattr(ent_reg, "async_update_entity_platform"):
-                        try:
-                            ent_reg.async_update_entity_platform(
-                                reg_entry.entity_id,
-                                new_platform=DOMAIN,
-                                new_config_entry_id=entry.entry_id,
-                            )
-                        except Exception:
-                            object.__setattr__(reg_entry, "platform", DOMAIN)
-                    else:
-                        object.__setattr__(reg_entry, "platform", DOMAIN)
-        except Exception as err:
-            _LOGGER.debug("Non-fatal error migrating entity registry entries: %s", err)
-
-        # Migrate device registry identifiers
-        try:
-            dev_reg = dr.async_get(hass)
-            device = dev_reg.async_get_device(identifiers={(LEGACY_DOMAIN, entry.entry_id)})
-            if device:
-                dev_reg.async_update_device(
-                    device.id,
-                    merge_identifiers={(DOMAIN, entry.entry_id), (LEGACY_DOMAIN, entry.entry_id)},
-                )
-        except Exception as err:
-            _LOGGER.debug("Non-fatal error updating device registry: %s", err)
-
-        # Migrate domain attribute if still legacy
-        if getattr(entry, "domain", None) == LEGACY_DOMAIN:
-            object.__setattr__(entry, "domain", DOMAIN)
-
-        new_data = dict(entry.data)
-        if new_data.get(CONF_AUTH_PROFILE) in ("legacy", "static") and new_data.get(CONF_USE_SSL) is False:
-            new_data[CONF_USE_SSL] = True
-
-        hass.config_entries.async_update_entry(
-            entry,
-            data=new_data,
-            version=2,
-            minor_version=3,
-        )
-        _LOGGER.info(
-            "Successfully migrated config entry '%s' to version 2.3",
-            entry.title,
-        )
-
-    if entry.version == 2 and getattr(entry, "minor_version", 1) < 3:
-        new_data = dict(entry.data)
-        if new_data.get(CONF_AUTH_PROFILE) in ("legacy", "static") and new_data.get(CONF_USE_SSL) is False:
-            new_data[CONF_USE_SSL] = True
-            _LOGGER.info(
-                "Migrated legacy static config entry '%s' to TLS (use_ssl=True) without client certificates",
-                entry.title,
-            )
-        hass.config_entries.async_update_entry(
-            entry,
-            data=new_data,
-            minor_version=3,
-        )
-        _LOGGER.info(
-            "Successfully migrated config entry '%s' to version 2.3",
-            entry.title,
-        )
-
-    return True
-
-
-async def _async_check_and_manage_legacy_repair(hass: HomeAssistant) -> None:
-    """Check for leftover legacy custom_components/hisense_vidaa directory off the event loop."""
-    try:
-        if hasattr(hass, "config") and hasattr(hass.config, "path"):
-            import inspect
-
-            legacy_dir = hass.config.path("custom_components", LEGACY_DOMAIN)
-            if hasattr(hass, "async_add_executor_job") and callable(hass.async_add_executor_job):
-                res = hass.async_add_executor_job(os.path.isdir, legacy_dir)
-                is_dir = await res if inspect.isawaitable(res) else res
-            else:
-                is_dir = os.path.isdir(legacy_dir)
-            if is_dir:
-                _LOGGER.warning(
-                    "Legacy integration directory '%s' detected alongside '%s'. "
-                    "Please remove 'custom_components/%s' and restart Home Assistant to avoid conflicts.",
-                    legacy_dir,
-                    DOMAIN,
-                    LEGACY_DOMAIN,
-                )
-                ir.async_create_issue(
-                    hass,
-                    DOMAIN,
-                    "legacy_folder_detected",
-                    is_fixable=False,
-                    is_persistent=True,
-                    severity=ir.IssueSeverity.WARNING,
-                    translation_key="legacy_folder_detected",
-                    translation_placeholders={
-                        "legacy_domain": LEGACY_DOMAIN,
-                        "new_domain": DOMAIN,
-                    },
-                )
-            else:
-                ir.async_delete_issue(hass, DOMAIN, "legacy_folder_detected")
-    except Exception as err:
-        _LOGGER.debug("Could not inspect custom_components directory: %s", err)
-
-
-def _check_and_manage_legacy_repair(hass: HomeAssistant) -> None:
-    """Synchronous compatibility wrapper for tests."""
-    with contextlib.suppress(Exception):
-        loop = hass.loop if hasattr(hass, "loop") else None
-        if loop and loop.is_running():
-            hass.async_create_background_task(
-                _async_check_and_manage_legacy_repair(hass),
-                "vidaa_check_legacy_repair",
-            )
-
-
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     """Set up the VIDAA Smart TV integration services."""
     await async_setup_services(hass)
-
-    # Check for leftover legacy custom_components/hisense_vidaa directory off event loop
     await _async_check_and_manage_legacy_repair(hass)
 
-    # Automatically check for and migrate any remaining legacy entries
     if hasattr(hass, "config_entries") and hasattr(hass.config_entries, "async_entries"):
         for legacy_entry in hass.config_entries.async_entries(LEGACY_DOMAIN):
             _LOGGER.info(
@@ -267,60 +150,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
     if isinstance(version, int) and (version < 2 or (version == 2 and minor_version < 3)):
         await async_migrate_entry(hass, entry)
 
-    # [F2-leg2/F2-leg4/F2-leg6]: services are registered by async_setup, but
-    # async_unload_entry removes them once the last entry goes away and
-    # async_setup is never called again (e.g. after an options reload).  Keep
-    # the registration idempotent and re-assert it on every setup.
+    # Services are removed when the last entry unloads; re-assert idempotently on every setup.
     await async_setup_services(hass)
 
     data = entry.data
-    mac = data.get(CONF_MAC_ADDRESS)
-    if not mac:
-        with contextlib.suppress(Exception):
-            from homeassistant.helpers.device_registry import format_mac
-
-            from .tv.fingerprint import get_arp_mac
-
-            raw_mac = await hass.async_add_executor_job(get_arp_mac, data[CONF_IP_ADDRESS])
-            if raw_mac:
-                mac = format_mac(raw_mac)
-                hass.config_entries.async_update_entry(
-                    entry,
-                    data={**entry.data, CONF_MAC_ADDRESS: mac},
-                    unique_id=entry.unique_id or mac,
-                )
-
+    mac = await async_ensure_entry_mac(hass, entry)
     sec_mac = entry.options.get(CONF_SECONDARY_MAC_ADDRESS) or data.get(CONF_SECONDARY_MAC_ADDRESS)
-
-    use_ssl = entry.options.get(CONF_USE_SSL, data.get(CONF_USE_SSL, DEFAULT_USE_SSL))
-    certfile = entry.options.get(CONF_CERTFILE, data.get(CONF_CERTFILE))
-    keyfile = entry.options.get(CONF_KEYFILE, data.get(CONF_KEYFILE))
     auth_profile = entry.options.get(CONF_AUTH_PROFILE, data.get(CONF_AUTH_PROFILE, "auto"))
-    if auth_profile in ("legacy", "static") and not use_ssl:
-        use_ssl = True
-
-    ca_cert = None
-    if use_ssl and auth_profile not in ("legacy", "static"):
-        raw_config_dir = getattr(getattr(hass, "config", None), "config_dir", None)
-        config_dir = os.fspath(raw_config_dir) if isinstance(raw_config_dir, (str, os.PathLike)) else None
-        certfile, keyfile = await hass.async_add_executor_job(
-            resolve_certificates, auth_profile, certfile, keyfile, None, config_dir
-        )
-        ca_cert = await hass.async_add_executor_job(resolve_ca_certificate, None, None, config_dir)
-    elif auth_profile in ("legacy", "static"):
-
-        def _check_legacy_files(c: str | None, k: str | None) -> tuple[str | None, str | None]:
-            valid_c = c if (c and os.path.isfile(c)) else None
-            valid_k = k if (k and os.path.isfile(k)) else None
-            return valid_c, valid_k
-
-        certfile, keyfile = await hass.async_add_executor_job(_check_legacy_files, certfile, keyfile)
+    use_ssl = entry.options.get(CONF_USE_SSL, data.get(CONF_USE_SSL, DEFAULT_USE_SSL))
+    use_ssl, certfile, keyfile, ca_cert = await async_resolve_entry_tls(
+        hass,
+        entry,
+        auth_profile,
+        use_ssl,
+        resolve_certificates_fn=resolve_certificates,
+        resolve_ca_certificate_fn=resolve_ca_certificate,
+    )
 
     brand_pref = entry.options.get(CONF_BRAND, data.get(CONF_BRAND, DEFAULT_BRAND_OPTION))
-    if brand_pref == "auto":
-        client_brand = data.get("resolved_brand") or data.get("detected_brand") or DEFAULT_BRAND
-    else:
-        client_brand = brand_pref
+    client_brand = (
+        (data.get("resolved_brand") or data.get("detected_brand") or DEFAULT_BRAND)
+        if brand_pref == "auto"
+        else brand_pref
+    )
 
     client = VidaaClient(
         ip=data[CONF_IP_ADDRESS],
@@ -356,46 +208,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
             CONF_PASSWORD: client.password,
             CONF_ACCESS_TOKEN: client.access_token,
             CONF_REFRESH_TOKEN: client.refresh_token,
+            "resolved_brand": client.brand,
         }
-        if brand_pref == "auto":
-            new_data["resolved_brand"] = client.brand
-        else:
+        if brand_pref != "auto":
             new_data[CONF_BRAND] = client.brand
-            new_data["resolved_brand"] = client.brand
         hass.config_entries.async_update_entry(entry, data=new_data)
         data = new_data
 
-    # Check for missing certificates off the event loop and manage Repairs issue
-    # Legacy and static authentication profiles use TLS without client certificates
-    is_legacy_static = auth_profile in ("legacy", "static")
-    certs_valid = (
-        await hass.async_add_executor_job(
-            lambda: bool(
-                client.certfile
-                and client.keyfile
-                and os.path.isfile(client.certfile)
-                and os.path.isfile(client.keyfile)
-            )
-        )
-        if (use_ssl and not is_legacy_static)
-        else True
-    )
+    await async_sync_certificate_repair_issue(hass, entry, client, use_ssl=use_ssl, auth_profile=auth_profile)
 
-    if use_ssl and not is_legacy_static and not certs_valid:
-        ir.async_create_issue(
-            hass,
-            DOMAIN,
-            f"certificate_missing_{entry.entry_id}",
-            is_fixable=True,
-            is_persistent=True,
-            severity=ir.IssueSeverity.ERROR,
-            translation_key="certificate_missing",
-            data={"entry_id": entry.entry_id},
-        )
-    else:
-        ir.async_delete_issue(hass, DOMAIN, f"certificate_missing_{entry.entry_id}")
-
-    # Callback to persist token updates in Home Assistant config entry
     def update_entry_tokens(refreshed_client: VidaaClient) -> None:
         hass.config_entries.async_update_entry(
             entry,
@@ -414,68 +235,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
 
     def _handle_auth_failed(failed_client: VidaaClient) -> None:
         """Trigger native Home Assistant Core reauthentication flow."""
-        # entry.async_start_reauth(hass) automatically generates the official
-        # Home Assistant repair issue ("Authentication expired for <Device>")
-        # under the homeassistant core domain. Delete any legacy custom issue
-        # so the user never sees duplicate repair cards or notifications.
+        # Delete any legacy custom repair card so only Core's native reauth card is shown.
         ir.async_delete_issue(hass, DOMAIN, f"auth_token_invalidated_{entry.entry_id}")
         entry.async_start_reauth(hass)
 
     client.register_auth_failed_callback(_handle_auth_failed)
 
     if not client.access_token or not client.client_id or not client.username:
-        _LOGGER.warning(
-            "[%s] Missing credentials or authentication tokens; starting reauthentication",
-            client.ip,
-        )
+        _LOGGER.warning("[%s] Missing credentials or authentication tokens; starting reauthentication", client.ip)
         client.auth_failed = True
         _handle_auth_failed(client)
-    else:
-        # Check and refresh tokens
-        updated = await client.async_check_and_refresh_token()
-        if updated:
-            update_entry_tokens(client)
+    elif await client.async_check_and_refresh_token():
+        update_entry_tokens(client)
 
-    # Start running background task for MQTT client
-    platforms_to_setup = [
-        "media_player",
-        "remote",
-        "sensor",
-        "binary_sensor",
-        "button",
-        "switch",
-        "select",
-    ]
-    entity_reg = er.async_get(hass)
-
-    # Prune retired diagnostic sensors (Brand Profile and Auth Profile are consolidated into media_player attributes)
-    for suffix in ("brand_profile", "auth_profile"):
-        unique_id = f"{entry.entry_id}_{suffix}"
-        for domain in (DOMAIN, LEGACY_DOMAIN):
-            if entity_id := entity_reg.async_get_entity_id("sensor", domain, unique_id):
-                entity_reg.async_remove(entity_id)
-    if entry.options.get(CONF_ENABLE_PICTURE_CONTROLS, DEFAULT_ENABLE_PICTURE_CONTROLS):
+    platforms_to_setup = [p for p in PLATFORMS if p != "number"]
+    enable_picture = entry.options.get(CONF_ENABLE_PICTURE_CONTROLS, DEFAULT_ENABLE_PICTURE_CONTROLS)
+    prune_retired_entities(hass, entry, enable_picture_controls=enable_picture)
+    if enable_picture:
         platforms_to_setup.append("number")
-    else:
-        for suffix in ("backlight", "brightness", "contrast"):
-            unique_id = f"{entry.entry_id}_{suffix}"
-            for domain in (DOMAIN, LEGACY_DOMAIN):
-                if entity_id := entity_reg.async_get_entity_id("number", domain, unique_id):
-                    entity_reg.async_remove(entity_id)
 
-    # Prune retired notify entity if present in entity registry
-    unique_id = f"{entry.entry_id}_notify"
-    for domain in (DOMAIN, LEGACY_DOMAIN):
-        if entity_id := entity_reg.async_get_entity_id("notify", domain, unique_id):
-            entity_reg.async_remove(entity_id)
-
-    # Prune retired audio output select entity if present in entity registry
-    unique_id = f"{entry.entry_id}_audio_output_select"
-    for domain in (DOMAIN, LEGACY_DOMAIN):
-        if entity_id := entity_reg.async_get_entity_id("select", domain, unique_id):
-            entity_reg.async_remove(entity_id)
-
-    # Connect to MQTT broker
     try:
         await client.async_connect_and_run()
     except Exception as err:
@@ -491,116 +269,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
     await hass.config_entries.async_forward_entry_setups(entry, platforms_to_setup)
     entry.async_on_unload(entry.add_update_listener(update_listener))
 
-    # Periodic background TV clock synchronization
-    async def _async_sync_tv_clock(_now: Any = None) -> None:
-        """Periodically syncs the TV UPnP hardware clock."""
-        if not client.connected or not client.is_on:
-            return
-        try:
-            await client.async_sync_clock(2.0)
-        except Exception as err:
-            _LOGGER.debug("[%s] Periodic clock sync failed: %s", client.ip, err)
-
-    entry.async_on_unload(async_track_time_interval(hass, _async_sync_tv_clock, DEFAULT_CLOCK_SYNC_INTERVAL))
-
-    # Wake transition clock synchronization
-    last_power_state = [client.is_on]
-
-    def _on_state_change(_state: dict[str, Any]) -> None:
-        was_on = last_power_state[0]
-        now_on = client.is_on
-        last_power_state[0] = now_on
-        if not was_on and now_on:
-            hass.async_create_background_task(
-                _async_sync_tv_clock(),
-                f"vidaa_wake_clock_sync_{entry.entry_id}",
-            )
-
-    client.register_state_callback(_on_state_change)
-    entry.async_on_unload(lambda: client.unregister_state_callback(_on_state_change))
-
-    # Live MQTT device registry enrichment callback
-    def _on_device_info_update(_data: dict[str, Any]) -> None:
-        try:
-            from homeassistant.helpers import device_registry as dr
-
-            dev_reg = dr.async_get(hass)
-            device = None
-            if hasattr(dev_reg, "async_get_device_by_identifier"):
-                device = dev_reg.async_get_device_by_identifier((DOMAIN, entry.entry_id), entry.entry_id)
-            if not device and hasattr(dev_reg, "async_get_device"):
-                device = dev_reg.async_get_device(identifiers={(DOMAIN, entry.entry_id)})
-            if device:
-                updates: dict[str, Any] = {}
-                if client.model_name and client.model_name != device.model:
-                    updates["model"] = client.model_name
-                if client.manufacturer and client.manufacturer != device.manufacturer:
-                    updates["manufacturer"] = client.manufacturer
-                if client.firmware_version and client.firmware_version != device.sw_version:
-                    updates["sw_version"] = client.firmware_version
-                # Merge discovered MAC connections into device registry if live client reported them
-                if client.mac_wifi or client.mac_ethernet:
-                    new_connections = (
-                        set(device.connections)
-                        if isinstance(getattr(device, "connections", None), (set, list, tuple))
-                        else set()
-                    )
-                    for mac_candidate in (client.mac_wifi, client.mac_ethernet):
-                        if mac_candidate:
-                            new_connections.add((dr.CONNECTION_NETWORK_MAC, dr.format_mac(mac_candidate)))
-                    if isinstance(getattr(device, "connections", None), set) and new_connections != device.connections:
-                        updates["merge_connections"] = new_connections
-
-                if updates:
-                    dev_reg.async_update_device(device.id, **updates)
-
-                new_data = dict(entry.data)
-                data_changed = False
-
-                # Auto-enrich primary MAC if missing
-                if not new_data.get(CONF_MAC_ADDRESS) and (client.mac_wifi or client.mac_ethernet):
-                    new_data[CONF_MAC_ADDRESS] = dr.format_mac(client.mac_wifi or client.mac_ethernet)
-                    data_changed = True
-
-                # Auto-enrich secondary MAC if missing
-                primary_mac = new_data.get(CONF_MAC_ADDRESS)
-                detected_sec = None
-                if client.mac_wifi and client.mac_ethernet and client.mac_wifi != client.mac_ethernet:
-                    if primary_mac == client.mac_wifi:
-                        detected_sec = client.mac_ethernet
-                    elif primary_mac == client.mac_ethernet:
-                        detected_sec = client.mac_wifi
-                    else:
-                        detected_sec = client.mac_ethernet
-                elif client.mac_ethernet and primary_mac != client.mac_ethernet:
-                    detected_sec = client.mac_ethernet
-                elif client.mac_wifi and primary_mac != client.mac_wifi:
-                    detected_sec = client.mac_wifi
-
-                if (
-                    detected_sec
-                    and not entry.options.get(CONF_SECONDARY_MAC_ADDRESS)
-                    and new_data.get(CONF_SECONDARY_MAC_ADDRESS) != detected_sec
-                ):
-                    new_data[CONF_SECONDARY_MAC_ADDRESS] = detected_sec
-                    data_changed = True
-
-                if "model" in updates and updates["model"] != new_data.get(CONF_MODEL):
-                    new_data[CONF_MODEL] = updates["model"]
-                    data_changed = True
-                if "manufacturer" in updates and updates["manufacturer"] != new_data.get(CONF_MANUFACTURER):
-                    new_data[CONF_MANUFACTURER] = updates["manufacturer"]
-                    data_changed = True
-                if "sw_version" in updates and updates["sw_version"] != new_data.get(CONF_SW_VERSION):
-                    new_data[CONF_SW_VERSION] = updates["sw_version"]
-                    data_changed = True
-                if data_changed:
-                    hass.config_entries.async_update_entry(entry, data=new_data)
-        except Exception as err:
-            _LOGGER.debug("[%s] Dynamic device registry enrichment failed: %s", client.ip, err)
-
-    client.register_device_info_callback(_on_device_info_update)
-    entry.async_on_unload(lambda: client.unregister_device_info_callback(_on_device_info_update))
+    register_clock_sync_hooks(hass, entry, client, track_time_interval=async_track_time_interval)
+    register_device_info_enrichment(hass, entry, client)
 
     return True
 
@@ -613,9 +283,7 @@ async def async_remove_config_entry_device(
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> None:
-    """Clean up the persistent Repairs issues belonging to a removed entry."""
-    # [F4-leg2/F5-leg6]: is_persistent issues survive entry removal and would
-    # keep showing an unfixable card for a TV that is no longer configured.
+    """Clean up persistent Repairs issues belonging to a removed entry."""
     ir.async_delete_issue(hass, DOMAIN, f"certificate_missing_{entry.entry_id}")
     ir.async_delete_issue(hass, DOMAIN, f"auth_token_invalidated_{entry.entry_id}")
     persistent_notification.async_dismiss(hass, f"vidaa_reauth_{entry.entry_id}")

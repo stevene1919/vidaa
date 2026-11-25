@@ -383,7 +383,7 @@ action:
 ```
 
 ### Recipe 4: Custom Turn-On Trigger via `vidaa.turn_on` (IR Blaster / Smart Plug)
-Home Assistant's native `PluggableAction` system allows intercepting the standard `media_player.turn_on` command. Whenever you click "Turn On" on a dashboard card, or voice assistants (Google Assistant, Apple HomeKit, Alexa) request power on, Home Assistant routes the command directly to this automation:
+Home Assistant's native `PluggableAction` system allows intercepting power-on requests across `media_player.turn_on`, `remote.turn_on`, and `vidaa.launch_app` (when the TV is off). Whenever you click "Turn On" on a dashboard card, launch an app from standby, or voice assistants (Google Assistant, Apple HomeKit, Alexa) request power on, Home Assistant routes the command directly to this automation:
 
 ```yaml
 alias: "Power: Turn On TV via IR Blaster"

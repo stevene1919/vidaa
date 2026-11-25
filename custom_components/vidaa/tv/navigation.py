@@ -6,6 +6,7 @@ import logging
 import re
 from typing import TYPE_CHECKING, Any
 
+from ..artwork import get_app_icon, get_source_icon
 from .aliases import KEY_ALIASES
 
 if TYPE_CHECKING:
@@ -79,56 +80,6 @@ def resolve_canonical_app(
                 return (cand_name or clean_name), cand_id
 
     return clean_name, clean_id
-
-
-def get_app_icon(app_name: str | None) -> str:
-    """Returns dynamic MDI icon based on active application name."""
-    val = (app_name or "").lower()
-    if "netflix" in val:
-        return "mdi:netflix"
-    if "youtube" in val:
-        return "mdi:youtube"
-    if "spotify" in val:
-        return "mdi:spotify"
-    if "plex" in val:
-        return "mdi:plex"
-    if "disney" in val:
-        return "mdi:movie-open"
-    if "prime" in val or "amazon" in val:
-        return "mdi:video"
-    if "live tv" in val or val == "tv":
-        return "mdi:television-box"
-    if "home launcher" in val or "launcher" in val:
-        return "mdi:view-dashboard"
-    if "hdmi input" in val or "tv input" in val or "none" in val:
-        return "mdi:video-input-hdmi"
-    if "av input" in val:
-        return "mdi:video-input-component"
-    if "standby" in val:
-        return "mdi:television-ambient-light"
-    if "off" in val:
-        return "mdi:television-off"
-    return "mdi:application"
-
-
-def get_source_icon(source_name: str | None) -> str:
-    """Returns dynamic MDI icon based on active input source name."""
-    val = (source_name or "").lower()
-    if "standby" in val:
-        return "mdi:power-sleep"
-    if "off" in val:
-        return "mdi:television-off"
-    if "home" in val or "launcher" in val:
-        return "mdi:view-dashboard"
-    if val == "app":
-        return "mdi:application"
-    if "hdmi" in val:
-        return "mdi:video-input-hdmi"
-    if "tv" in val:
-        return "mdi:television-classic"
-    if "av" in val or "component" in val:
-        return "mdi:video-input-component"
-    return "mdi:video-input-hdmi"
 
 
 def match_app(

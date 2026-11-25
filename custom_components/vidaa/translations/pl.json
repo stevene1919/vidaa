@@ -122,6 +122,7 @@
           "sources": "Włączone źródła i aplikacje",
           "enable_media_controls": "Włącz sterowanie odtwarzaniem multimediów",
           "enable_cec_names": "Pokazuj nazwy podłączonych urządzeń HDMI-CEC",
+          "enable_app_icons": "Pokazuj grafiki aplikacji online (img.vidaahub.com)",
           "playback_debounce": "Czas stabilizacji stanu odtwarzania / filtr drgań (sekundy)"
         },
         "data_description": {
@@ -129,6 +130,7 @@
           "sources": "Wybierz wejścia i aplikacje wyświetlane na liście wyboru źródeł. Pozostaw puste lub wybierz wszystkie, aby wyświetlić każde wykryte źródło.",
           "enable_media_controls": "Udostępnia przyciski sterowania multimediami (Odtwarzaj, Wstrzymaj, Zatrzymaj, Poprzedni, Następny) na karcie odtwarzacza multimedialnego.",
           "enable_cec_names": "Zastępuje ogólne etykiety wejść, takie jak „HDMI 2”, nazwami aktywnych urządzeń zgłaszanymi przez HDMI-CEC (np. „PlayStation 5”, „Apple TV”).",
+          "enable_app_icons": "Wyświetla zdalne logo aplikacji z CDN VIDAA w odtwarzaczu multimedialnym, sensorze aktywnej aplikacji i przeglądarce mediów. Automatycznie przełącza się na ikony Material Design Icons w razie niedostępności; wyłącz, aby działać w 100% lokalnie.",
           "playback_debounce": "Czas w sekundach na odfiltrowanie krótkotrwałych zmian stanu podczas uruchamiania lub buforowania aplikacji strumieniowych."
         }
       },

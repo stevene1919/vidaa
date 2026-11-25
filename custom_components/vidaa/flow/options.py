@@ -12,6 +12,7 @@ from homeassistant.helpers import selector
 from homeassistant.helpers.device_registry import format_mac
 
 from ..const import (
+    CONF_ENABLE_APP_ICONS,
     CONF_ENABLE_AUDIO_ONLY,
     CONF_ENABLE_CEC_NAMES,
     CONF_ENABLE_MEDIA_CONTROLS,
@@ -25,6 +26,7 @@ from ..const import (
     CONF_PLAYBACK_DEBOUNCE,
     CONF_SECONDARY_MAC_ADDRESS,
     CONF_SOURCES,
+    DEFAULT_ENABLE_APP_ICONS,
     DEFAULT_ENABLE_AUDIO_ONLY,
     DEFAULT_ENABLE_CEC_NAMES,
     DEFAULT_ENABLE_MEDIA_CONTROLS,
@@ -200,6 +202,10 @@ class VidaaOptionsFlowHandler(OptionsSecurityMixin, config_entries.OptionsFlow):
                 vol.Optional(
                     CONF_ENABLE_CEC_NAMES,
                     default=options.get(CONF_ENABLE_CEC_NAMES, DEFAULT_ENABLE_CEC_NAMES),
+                ): bool,
+                vol.Optional(
+                    CONF_ENABLE_APP_ICONS,
+                    default=options.get(CONF_ENABLE_APP_ICONS, DEFAULT_ENABLE_APP_ICONS),
                 ): bool,
                 vol.Optional(
                     CONF_PLAYBACK_DEBOUNCE,

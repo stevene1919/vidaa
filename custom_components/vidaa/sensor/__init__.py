@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from ..artwork import ArtworkReachabilityTracker, should_use_app_artwork
 from ..client import VidaaClient
 from ..const import DOMAIN, LEGACY_DOMAIN
 from ..tv.media import parse_applist_payload, parse_sourcelist_payload
@@ -191,10 +192,16 @@ class VidaaActiveAppSensor(VidaaMqttTrackingSensor):
     def _register_custom_callbacks(self) -> None:
         self._client.register_applist_callback(self._handle_applist_update)
         self._client.register_sourcelist_callback(self._handle_sourcelist_update)
+        tracker = getattr(getattr(self._entry, "runtime_data", None), "artwork_tracker", None)
+        if isinstance(tracker, ArtworkReachabilityTracker):
+            tracker.register_listener(self._schedule_state_update)
 
     def _unregister_custom_callbacks(self) -> None:
         self._client.unregister_applist_callback(self._handle_applist_update)
         self._client.unregister_sourcelist_callback(self._handle_sourcelist_update)
+        tracker = getattr(getattr(self._entry, "runtime_data", None), "artwork_tracker", None)
+        if isinstance(tracker, ArtworkReachabilityTracker):
+            tracker.unregister_listener(self._schedule_state_update)
 
     def _handle_applist_update(self, apps: list[dict[str, Any]]) -> None:
         if apps:
@@ -267,6 +274,8 @@ class VidaaActiveAppSensor(VidaaMqttTrackingSensor):
     @property
     def entity_picture(self) -> str | None:
         """Return dynamic app icon artwork."""
+        if not should_use_app_artwork(self._entry):
+            return None
         return self._app_icons.get(self._attr_native_value) if self._attr_native_value else None
 
     @property

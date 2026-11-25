@@ -121,6 +121,7 @@
           "include_apps_in_sources": "Uključi Smart TV aplikacije u listu izvora medijskog plejera",
           "enable_media_controls": "Omogući kontrole za upravljanje medijima (pusti/pauziraj, zaustavi, preskoči)",
           "enable_cec_names": "Prikaži nazive povezanih HDMI-CEC uređaja u izvorima (npr. 'HDMI 2 (PlayStation 5)')",
+          "enable_app_icons": "Prikaži slike aplikacija na mreži (img.vidaahub.com)",
           "playback_debounce": "Prozor za stabilizaciju stanja reprodukcije / debounce (sekunde)",
           "sources": "Enabled Sources & Applications"
         },
@@ -129,7 +130,8 @@
           "include_apps_in_sources": "Displays installed streaming apps (Netflix, YouTube, Prime Video, etc.) alongside physical HDMI inputs in the Media Player source dropdown.",
           "sources": "Select which inputs and apps appear in the source selector. Leave empty or select all to display every detected source.",
           "enable_media_controls": "Exposes media transport controls (Play, Pause, Stop, Previous, Next) on the Media Player card for supported apps and media playback.",
-          "enable_cec_names": "Replaces generic input labels like 'HDMI 2' with active device names reported over HDMI-CEC (e.g. 'PlayStation 5', 'Apple TV')."
+          "enable_cec_names": "Replaces generic input labels like 'HDMI 2' with active device names reported over HDMI-CEC (e.g. 'PlayStation 5', 'Apple TV').",
+          "enable_app_icons": "Prikazuje udaljene logotipe aplikacija sa VIDAA CDN-a na medija plejeru, senzoru aktivne aplikacije i pregledaču medija. Automatski prelazi na Material Design Icons ako nije dostupan; isključite za 100% lokalan rad."
         }
       },
       "features_remote": {

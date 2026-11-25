@@ -122,6 +122,7 @@
           "sources": "已启用的输入源和应用 (留空表示全部)",
           "enable_media_controls": "启用媒体播放控制 (播放/暂停、停止、跳过)",
           "enable_cec_names": "在输入源中显示已连接的 HDMI-CEC 设备名称 (例如 'HDMI 2 (PlayStation 5)')",
+          "enable_app_icons": "显示在线应用图标 (img.vidaahub.com)",
           "playback_debounce": "播放状态稳定防抖窗口时间 (秒)"
         },
         "data_description": {
@@ -129,7 +130,8 @@
           "include_apps_in_sources": "Displays installed streaming apps (Netflix, YouTube, Prime Video, etc.) alongside physical HDMI inputs in the Media Player source dropdown.",
           "sources": "Select which inputs and apps appear in the source selector. Leave empty or select all to display every detected source.",
           "enable_media_controls": "Exposes media transport controls (Play, Pause, Stop, Previous, Next) on the Media Player card for supported apps and media playback.",
-          "enable_cec_names": "Replaces generic input labels like 'HDMI 2' with active device names reported over HDMI-CEC (e.g. 'PlayStation 5', 'Apple TV')."
+          "enable_cec_names": "Replaces generic input labels like 'HDMI 2' with active device names reported over HDMI-CEC (e.g. 'PlayStation 5', 'Apple TV').",
+          "enable_app_icons": "在媒体播放器、当前应用传感器和媒体浏览器中显示来自 VIDAA CDN 的远程应用图标。无法访问时自动回退至 Material Design Icons；关闭后可保持 100% 本地运行。"
         }
       },
       "features_remote": {

@@ -17,6 +17,12 @@ from homeassistant.const import STATE_OFF, STATE_ON, STATE_PAUSED, STATE_PLAYING
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from ..artwork import (
+    ArtworkReachabilityTracker,
+    extract_http_icon_url,
+    get_media_player_icon,
+    should_use_app_artwork,
+)
 from ..client import VidaaClient
 from ..const import (
     CONF_ENABLE_CEC_NAMES,
@@ -116,6 +122,9 @@ class VidaaMediaPlayer(
         self._client.register_auth_failed_callback(self._handle_auth_failed)
         if hasattr(self._client, "register_hotel_mode_callback"):
             self._client.register_hotel_mode_callback(self._handle_state_update)
+        tracker = getattr(getattr(self._entry, "runtime_data", None), "artwork_tracker", None)
+        if isinstance(tracker, ArtworkReachabilityTracker):
+            tracker.register_listener(self._schedule_ha_update)
 
         # Sync state now that callbacks are registered and active.
         # Do not assume "on": the broker is also reachable in standby (fake_sleep).
@@ -162,6 +171,9 @@ class VidaaMediaPlayer(
         self._client.unregister_auth_failed_callback(self._handle_auth_failed)
         if hasattr(self._client, "unregister_hotel_mode_callback"):
             self._client.unregister_hotel_mode_callback(self._handle_state_update)
+        tracker = getattr(getattr(self._entry, "runtime_data", None), "artwork_tracker", None)
+        if isinstance(tracker, ArtworkReachabilityTracker):
+            tracker.unregister_listener(self._schedule_ha_update)
 
     @property
     def unique_id(self) -> str:
@@ -273,32 +285,7 @@ class VidaaMediaPlayer(
     @property
     def icon(self) -> str | None:
         """Return dynamic MDI icon based on active source or application."""
-        if self._state == STATE_OFF or not self.is_on:
-            return "mdi:television-off"
-        src = (self.source or self._source or "").lower()
-        if "netflix" in src:
-            return "mdi:netflix"
-        if "youtube" in src or "yt" in src:
-            return "mdi:youtube"
-        if "prime" in src or "amazon" in src:
-            return "mdi:amazon"
-        if "disney" in src:
-            return "mdi:television-classic"
-        if "plex" in src:
-            return "mdi:plex"
-        if "spotify" in src:
-            return "mdi:spotify"
-        if "apple" in src:
-            return "mdi:apple"
-        if "browser" in src or "web" in src:
-            return "mdi:web"
-        if "hdmi" in src:
-            return "mdi:hdmi-port"
-        if "tv" in src or "tuner" in src or "live" in src:
-            return "mdi:television-guide"
-        if "av" in src or "component" in src:
-            return "mdi:video-input-component"
-        return "mdi:television"
+        return get_media_player_icon(self._state != STATE_OFF and self.is_on, self.source or self._source)
 
     @property
     def media_channel(self) -> str | None:
@@ -328,11 +315,11 @@ class VidaaMediaPlayer(
     @property
     def media_image_url(self) -> str | None:
         """Return dynamic artwork URL for currently playing app."""
+        if not self.is_on or not should_use_app_artwork(self._entry):
+            return None
         if self._source and self._source in self._app_dict:
             app_info = self._app_dict[self._source]
-            icon = app_info.get("httpIcon")
-            if icon and "http" in icon:
-                return "http" + icon.split("http", 1)[1]
+            return extract_http_icon_url(app_info.get("httpIcon"))
         return None
 
     def is_live_tv(self) -> bool:

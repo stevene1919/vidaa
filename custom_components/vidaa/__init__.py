@@ -29,6 +29,7 @@ except ImportError:
     ConfigEntryNotReady = Exception  # type: ignore[misc,assignment]
     PluggableAction = Any  # type: ignore[misc,assignment]
 
+from .artwork import ArtworkReachabilityTracker, register_artwork_reachability_probe
 from .client import VidaaClient
 from .const import (
     CONF_ACCESS_TOKEN,
@@ -37,6 +38,7 @@ from .const import (
     CONF_AUTH_PROFILE,
     CONF_BRAND,
     CONF_CLIENT_ID,
+    CONF_ENABLE_APP_ICONS,
     CONF_ENABLE_PICTURE_CONTROLS,
     CONF_IP_ADDRESS,
     CONF_PASSWORD,
@@ -48,6 +50,7 @@ from .const import (
     CONF_USERNAME,
     DEFAULT_BRAND,
     DEFAULT_BRAND_OPTION,
+    DEFAULT_ENABLE_APP_ICONS,
     DEFAULT_ENABLE_PICTURE_CONTROLS,
     DEFAULT_USE_SSL,
     DOMAIN,
@@ -118,6 +121,7 @@ class VidaaData:
     platforms: list[str]
     options: dict[str, Any]
     turn_on: PluggableAction | None = None
+    artwork_tracker: ArtworkReachabilityTracker | None = None
 
 
 HisenseVidaaData = VidaaData
@@ -259,11 +263,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
     except Exception as err:
         raise ConfigEntryNotReady(f"Cannot connect to Hisense TV at {client.ip}: {err}") from err
 
+    artwork_tracker = ArtworkReachabilityTracker(
+        enabled=entry.options.get(CONF_ENABLE_APP_ICONS, DEFAULT_ENABLE_APP_ICONS)
+    )
+
     entry.runtime_data = VidaaData(
         client=client,
         platforms=platforms_to_setup,
         options=dict(entry.options),
         turn_on=PluggableAction(),
+        artwork_tracker=artwork_tracker,
     )
 
     await hass.config_entries.async_forward_entry_setups(entry, platforms_to_setup)
@@ -271,6 +280,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
 
     register_clock_sync_hooks(hass, entry, client, track_time_interval=async_track_time_interval)
     register_device_info_enrichment(hass, entry, client)
+    register_artwork_reachability_probe(hass, entry, client, artwork_tracker)
 
     return True
 

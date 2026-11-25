@@ -11,6 +11,7 @@ from homeassistant.components.media_player import (
     MediaType,
 )
 
+from ..artwork import extract_http_icon_url, should_use_app_artwork
 from ..const import CONF_ENABLE_CEC_NAMES, DEFAULT_ENABLE_CEC_NAMES
 from ..tv.media import build_media_player_source_list
 
@@ -99,12 +100,11 @@ class MediaPlayerBrowseMixin:
     def _build_apps_browser(self: VidaaMediaPlayer) -> BrowseMedia:
         """Build items list of installed applications."""
         items: list[BrowseMedia] = []
+        use_artwork = should_use_app_artwork(self._entry)
         for app_name, app_info in self._app_dict.items():
             thumb = None
-            if isinstance(app_info, dict):
-                icon = app_info.get("httpIcon")
-                if icon and "http" in icon:
-                    thumb = "http" + icon.split("http", 1)[1]
+            if use_artwork and isinstance(app_info, dict):
+                thumb = extract_http_icon_url(app_info.get("httpIcon"))
 
             items.append(
                 BrowseMedia(

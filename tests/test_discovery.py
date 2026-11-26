@@ -110,11 +110,11 @@ def test_parse_ssdp_discovery_generic_manufacturer():
         "manufacturer": "SmartTV",
         "modelDescription": "transport_protocol=3290\nbrand=tos\nmacWifi=e85177aabbcc",
     }
-    discovery_info.ssdp_headers = {"_host": "192.168.50.20"}
+    discovery_info.ssdp_headers = {"_host": "192.168.1.120"}
 
     info = parse_ssdp_discovery(discovery_info)
     assert info is not None
-    assert info.host == "192.168.50.20"
+    assert info.host == "192.168.1.120"
     assert info.manufacturer == "Toshiba"
     assert info.brand == "tos"
     assert info.model == "58A53FXVT"
@@ -165,7 +165,7 @@ def test_parse_ssdp_discovery_oem_brands():
         "manufacturer": "Loewe",
         "modelDescription": "vidaa_support=1\nbrand=loe\nmacWifi=001122334455",
     }
-    loewe_discovery.ssdp_headers = {"_host": "192.168.50.30"}
+    loewe_discovery.ssdp_headers = {"_host": "192.168.1.130"}
 
     info_loewe = parse_ssdp_discovery(loewe_discovery)
     assert info_loewe is not None
@@ -181,13 +181,13 @@ def test_parse_ssdp_discovery_oem_brands():
         "manufacturer": "Beko",
         "modelDescription": "transport_protocol=3290\nmacEthernet=aabbccddeeff",
     }
-    beko_discovery.ssdp_headers = {"_host": "192.168.50.40"}
+    beko_discovery.ssdp_headers = {"_host": "192.168.1.140"}
 
     info_beko = parse_ssdp_discovery(beko_discovery)
     assert info_beko is not None
     assert info_beko.brand == "bek"
     assert info_beko.manufacturer == "Beko"
-    assert info_beko.title == "Beko TV (192.168.50.40)"
+    assert info_beko.title == "Beko TV (192.168.1.140)"
 
 
 def test_parse_zeroconf_discovery_with_homekit_properties():
@@ -195,7 +195,7 @@ def test_parse_zeroconf_discovery_with_homekit_properties():
     from custom_components.vidaa.protocol.discovery import parse_zeroconf_discovery
 
     zc_info = MagicMock()
-    zc_info.host = "192.168.50.55"
+    zc_info.host = "192.168.1.155"
     zc_info.name = "Bedroom Toshiba TV._hap._tcp.local."
     zc_info.properties = {
         b"md": b"55C350",
@@ -206,7 +206,7 @@ def test_parse_zeroconf_discovery_with_homekit_properties():
         info = parse_zeroconf_discovery(zc_info)
 
     assert info is not None
-    assert info.host == "192.168.50.55"
+    assert info.host == "192.168.1.155"
     assert info.title == "Bedroom Toshiba TV"
     assert info.model == "55C350"
     assert info.manufacturer == "Toshiba"
@@ -219,7 +219,7 @@ def test_parse_zeroconf_discovery_fallback_when_properties_absent():
     from custom_components.vidaa.protocol.discovery import parse_zeroconf_discovery
 
     zc_info = MagicMock()
-    zc_info.host = "192.168.50.60"
+    zc_info.host = "192.168.1.160"
     zc_info.name = "Smart TV._airplay._tcp.local."
     zc_info.properties = {}
 
@@ -227,8 +227,8 @@ def test_parse_zeroconf_discovery_fallback_when_properties_absent():
         info = parse_zeroconf_discovery(zc_info)
 
     assert info is not None
-    assert info.host == "192.168.50.60"
-    assert info.title == "Hisense TV (192.168.50.60)"
+    assert info.host == "192.168.1.160"
+    assert info.title == "Hisense TV (192.168.1.160)"
     assert info.model == "VIDAA TV"
     assert info.manufacturer == "Hisense"
     assert info.brand == "his"
@@ -246,7 +246,7 @@ def test_parse_ssdp_discovery_toptro_projector():
     assert BRAND_CODE_MAP["tpo"] == "tpo"
 
     ssdp_info = MagicMock()
-    ssdp_info.ssdp_headers = {"_host": "192.168.50.88"}
+    ssdp_info.ssdp_headers = {"_host": "192.168.1.188"}
     ssdp_info.ssdp_udn = "uuid:toptro-projector-12345"
     ssdp_info.upnp = {
         "friendlyName": "TOPTRO Smart Projector",
@@ -259,7 +259,7 @@ def test_parse_ssdp_discovery_toptro_projector():
 
     info = parse_ssdp_discovery(ssdp_info)
     assert info is not None
-    assert info.host == "192.168.50.88"
+    assert info.host == "192.168.1.188"
     assert info.title == "TOPTRO Smart Projector"
     assert info.model == "X7"
     assert info.manufacturer == "TOPTRO"

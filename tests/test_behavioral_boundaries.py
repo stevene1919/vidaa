@@ -35,7 +35,7 @@ from custom_components.vidaa.remote import VidaaRemote
 class RealStateVidaaClient(VidaaClient):
     """Subclass of VidaaClient providing mock networking while retaining real state and callback processing."""
 
-    def __init__(self, host: str = "192.168.50.12", mac: str = "e8:51:77:ec:98:1c"):
+    def __init__(self, host: str = "192.168.1.100", mac: str = "e8:51:77:aa:bb:cc"):
         # Initialize without starting real network threads
         self.host = host
         self.mac = mac
@@ -68,8 +68,8 @@ def behavioral_entry():
     entry = MagicMock()
     entry.entry_id = "vidaa_behavioral_entry_123"
     entry.data = {
-        "host": "192.168.50.12",
-        "mac": "e8:51:77:ec:98:1c",
+        "host": "192.168.1.100",
+        "mac": "e8:51:77:aa:bb:cc",
         "name": "Living Room TV",
     }
     entry.options = {
@@ -290,7 +290,7 @@ async def test_migration_and_repair_suppression_for_legacy_auth():
         entry.domain = DOMAIN
         entry.title = "Hisense TV"
         entry.data = {
-            "host": "192.168.50.12",
+            "host": "192.168.1.100",
             "auth_profile": "legacy",
             "use_ssl": False,
             "name": "Hisense TV",
@@ -320,7 +320,7 @@ async def test_token_lifecycle_manager_teardown_cancels_all_tracked_tasks():
     from custom_components.vidaa.client import VidaaClient
     from custom_components.vidaa.protocol.auth_lifecycle import TokenLifecycleManager
 
-    client = VidaaClient("192.168.50.12", "e8:51:77:ec:98:1c")
+    client = VidaaClient("192.168.1.100", "e8:51:77:aa:bb:cc")
     mgr = TokenLifecycleManager(client)
 
     async def long_sleeping_coro():
@@ -376,8 +376,8 @@ async def test_discovery_flow_auto_resolves_legacy_without_upload():
 
     flow = VidaaConfigFlow()
     flow.hass = MagicMock(spec=HomeAssistant)
-    flow.ip_address = "192.168.50.12"
-    flow.mac_address = "e8:51:77:ec:98:1c"
+    flow.ip_address = "192.168.1.100"
+    flow.mac_address = "e8:51:77:aa:bb:cc"
     flow.auth_profile = "auto"
     flow.discovered_title = "Hisense H43B7100"
 
@@ -487,8 +487,8 @@ async def test_step_certs_corrupt_p12_reports_invalid_ssl_cert(tmp_path):
     flow = VidaaConfigFlow()
     flow.hass = MagicMock(spec=HomeAssistant)
     flow.auth_profile = "modern"
-    flow.ip_address = "192.168.50.12"
-    flow.mac_address = "e8:51:77:ec:98:1c"
+    flow.ip_address = "192.168.1.100"
+    flow.mac_address = "e8:51:77:aa:bb:cc"
 
     bad_p12 = tmp_path / "broken.p12"
     bad_p12.write_bytes(b"garbage not pkcs12")
@@ -508,8 +508,8 @@ async def test_step_upload_cleans_up_storage_on_ssl_error(tmp_path):
 
     flow = VidaaConfigFlow()
     flow.hass = MagicMock(spec=HomeAssistant)
-    flow.ip_address = "192.168.50.12"
-    flow.mac_address = "e8:51:77:ec:98:1c"
+    flow.ip_address = "192.168.1.100"
+    flow.mac_address = "e8:51:77:aa:bb:cc"
 
     storage_cert = tmp_path / ".storage" / "vidaa" / "certs" / "hisense.crt"
     storage_key = tmp_path / ".storage" / "vidaa" / "certs" / "hisense.key"

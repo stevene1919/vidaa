@@ -29,7 +29,7 @@ async def test_state_and_device_info_updates_drive_wake_event(mock_client) -> No
     """apply_state_update and apply_device_info_update update _wake_event without entity listeners."""
     from custom_components.vidaa.client import VidaaClient
 
-    client = VidaaClient(ip="192.168.50.12", mac="aa:bb:cc:11:22:33", auth_profile="legacy")
+    client = VidaaClient(ip="192.168.1.100", mac="aa:bb:cc:11:22:33", auth_profile="legacy")
     client.connected = True
     assert client._wake_event.is_set() is False
 
@@ -84,7 +84,7 @@ async def test_modern_pin_reconfigure_returns_reconfigure_successful(monkeypatch
         entry_id="reconf_modern",
         title="Living Room TV",
         unique_id="e8:51:77:aa:bb:cc",
-        data={CONF_IP_ADDRESS: "192.168.50.11", CONF_MAC_ADDRESS: "e8:51:77:aa:bb:cc", "auth_profile": "modern"},
+        data={CONF_IP_ADDRESS: "192.168.1.101", CONF_MAC_ADDRESS: "e8:51:77:aa:bb:cc", "auth_profile": "modern"},
         options={},
     )
     hass.config_entries = MagicMock()
@@ -98,7 +98,7 @@ async def test_modern_pin_reconfigure_returns_reconfigure_successful(monkeypatch
     flow.context = {"entry_id": "reconf_modern"}
     flow._reauth_entry = entry
     flow._reauth_reason = "reconfigure_successful"
-    flow.ip_address = "192.168.50.11"
+    flow.ip_address = "192.168.1.101"
     flow.mac_address = "e8:51:77:aa:bb:cc"
     flow.client = MagicMock()
     flow.client.brand = "his"
@@ -124,7 +124,7 @@ async def test_submit_pin_cleans_futures_rejects_bad_input_and_uses_clock_offset
     """async_submit_pin_code validates PIN/token cleanly, cleans futures on error, and applies clock_offset."""
     from custom_components.vidaa.client import VidaaClient
 
-    client = VidaaClient(ip="192.168.50.12", mac="aa:bb:cc:11:22:33", auth_profile="modern")
+    client = VidaaClient(ip="192.168.1.100", mac="aa:bb:cc:11:22:33", auth_profile="modern")
     client.clock_offset = 3600
     mqtt = MagicMock()
     mqtt.async_publish = AsyncMock(return_value=False)
@@ -195,7 +195,7 @@ def test_connection_logs_unavailable_once_and_reconnected_once(caplog: pytest.Lo
     """Disconnect logs INFO once during extended outage, then INFO once on reconnect (Silver log-when-unavailable)."""
     from custom_components.vidaa.client import VidaaClient
 
-    client = VidaaClient(ip="192.168.50.12", mac="aa:bb:cc:11:22:33", auth_profile="legacy")
+    client = VidaaClient(ip="192.168.1.100", mac="aa:bb:cc:11:22:33", auth_profile="legacy")
     with caplog.at_level(logging.INFO):
         client._handle_connected(standard=False)
         client._handle_disconnected(debounce=False)

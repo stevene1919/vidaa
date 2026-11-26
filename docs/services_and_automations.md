@@ -383,22 +383,36 @@ action:
 ```
 
 ### Recipe 4: Custom Turn-On Trigger via `vidaa.turn_on` (IR Blaster / Smart Plug)
-Home Assistant's native `PluggableAction` system allows intercepting power-on requests across `media_player.turn_on`, `remote.turn_on`, and `vidaa.launch_app` (when the TV is off). Whenever you click "Turn On" on a dashboard card, launch an app from standby, or voice assistants (Google Assistant, Apple HomeKit, Alexa) request power on, Home Assistant routes the command directly to this automation:
+Home Assistant's native `PluggableAction` system allows intercepting power-on requests across `media_player.turn_on`, `remote.turn_on`, and `vidaa.launch_app` (when the TV is off). Whenever you click "Turn On" on a dashboard card, launch an app from standby, or voice assistants (Google Assistant, Apple HomeKit, Alexa) request power on, Home Assistant routes the command directly to this automation.
 
+**Trigger Fields (`vidaa.turn_on`)**:
+* **`entity_id`** *(optional)*: One or more VIDAA `media_player` entities to listen to.
+* **`device_id`** *(optional)*: One or more VIDAA devices to listen to. *(At least one of `entity_id` or `device_id` is required.)*
+
+**Modern Automation Trigger Syntax (recommended):**
 ```yaml
 alias: "Power: Turn On TV via IR Blaster"
 description: "Intercepts media_player.turn_on to blast an IR power code via Broadlink, ESPHome, or SmartIR."
 trigger:
-  - platform: device
-    domain: vidaa
-    device_id: <YOUR_VIDAA_DEVICE_ID>
-    type: vidaa.turn_on
+  - trigger: vidaa.turn_on
+    options:
+      entity_id:
+        - media_player.living_room_tv
 action:
   - action: remote.send_command
     target:
       entity_id: remote.bedroom_ir_blaster  # Or remote.broadlink_rm4_pro
     data:
       command: "KEY_POWER"  # Or base64 PRONTO code (e.g. b64:JgBGAJSUEzcTNxM3...)
+```
+
+**Classic Device Trigger Syntax (also supported via UI Device Automations):**
+```yaml
+trigger:
+  - platform: device
+    domain: vidaa
+    device_id: <YOUR_VIDAA_DEVICE_ID>
+    type: vidaa.turn_on
 ```
 
 ### Recipe 5: Smart Wake with Automatic IR Blaster Fallback

@@ -87,14 +87,14 @@ async def test_multi_tv_scoped_cert_uploads_do_not_overwrite(tmp_path: Path, mon
     flow1 = VidaaConfigFlow()
     flow1.hass = hass
     flow1.context = {}
-    flow1.ip_address = "192.168.50.11"
+    flow1.ip_address = "192.168.1.101"
     flow1.mac_address = "aa:bb:cc:11:22:33"
     await flow1.async_step_upload(user_input={"cert_file": str(apk1)})
 
     flow2 = VidaaConfigFlow()
     flow2.hass = hass
     flow2.context = {}
-    flow2.ip_address = "192.168.50.12"
+    flow2.ip_address = "192.168.1.100"
     flow2.mac_address = "dd:ee:ff:44:55:66"
     await flow2.async_step_upload(user_input={"cert_file": str(apk2)})
 
@@ -125,7 +125,7 @@ async def test_cleanup_installed_certs_preserves_other_tv_cert(tmp_path: Path) -
 
     flow = VidaaConfigFlow()
     flow.hass = hass
-    flow.ip_address = "192.168.50.12"
+    flow.ip_address = "192.168.1.100"
     flow.certfile = str(shared_cert)
     flow.keyfile = str(shared_key)
     flow._cleanup_installed_certs()
@@ -149,7 +149,7 @@ async def test_second_tv_ssl_error_routes_to_upload_instead_of_cannot_connect() 
         patch.object(flow, "_async_init_client_and_auth", AsyncMock(side_effect=ssl.SSLError("bad cert"))),
         patch("custom_components.vidaa.flow.user.async_resolve_mac", AsyncMock(return_value="dd:ee:ff:44:55:66")),
     ):
-        res = await flow.async_step_user(user_input={CONF_IP_ADDRESS: "192.168.50.12"})
+        res = await flow.async_step_user(user_input={CONF_IP_ADDRESS: "192.168.1.100"})
 
     assert res["type"] == "form"
     assert res["step_id"] == "upload"
@@ -181,7 +181,7 @@ async def test_multi_tv_service_dispatch_continues_when_one_tv_off_and_runs_conc
         return True
 
     client_off = MagicMock()
-    client_off.ip = "192.168.50.11"
+    client_off.ip = "192.168.1.101"
     client_off.mac = "aa:bb:cc:11:22:33"
     client_off.connected = True
     client_off.is_on = False
@@ -189,7 +189,7 @@ async def test_multi_tv_service_dispatch_continues_when_one_tv_off_and_runs_conc
     client_off.async_send_command = AsyncMock(return_value=True)
 
     client_on = MagicMock()
-    client_on.ip = "192.168.50.12"
+    client_on.ip = "192.168.1.100"
     client_on.mac = "dd:ee:ff:44:55:66"
     client_on.connected = True
     client_on.is_on = True
@@ -207,10 +207,10 @@ async def test_multi_tv_service_dispatch_continues_when_one_tv_off_and_runs_conc
     res = await handlers[SERVICE_SEND_KEY](
         ServiceCall(domain=DOMAIN, service=SERVICE_SEND_KEY, data={"entity_id": "all", ATTR_KEY: "KEY_HOME"})
     )
-    assert res["targets"] == ["192.168.50.12"]
+    assert res["targets"] == ["192.168.1.100"]
     assert res["count"] == 1
     assert len(res["failed"]) == 1
-    assert res["failed"][0]["ip"] == "192.168.50.11"
+    assert res["failed"][0]["ip"] == "192.168.1.101"
     client_on.async_send_command.assert_awaited_once_with("KEY_HOME")
 
     # 2. All targets fail -> raises HomeAssistantError
@@ -243,15 +243,15 @@ async def test_multi_tv_service_dispatch_continues_when_one_tv_off_and_runs_conc
         ServiceCall(domain=DOMAIN, service=SERVICE_LAUNCH_APP, data={"entity_id": "all", ATTR_APP: "Netflix"})
     )
     assert res_launch["count"] == 1
-    assert res_launch["targets"][0]["ip"] == "192.168.50.12"
+    assert res_launch["targets"][0]["ip"] == "192.168.1.100"
     assert len(res_launch["failed"]) == 1
 
 
 def test_service_targeting_normalizes_mac_and_matches_secondary_mac() -> None:
     """Service MAC targeting matches uppercase/hyphenated formats and secondary MACs."""
     hass = MagicMock(spec=HomeAssistant)
-    client1 = MagicMock(ip="192.168.50.11", mac="aa:bb:cc:11:22:33", secondary_mac="aa:bb:cc:11:22:34")
-    client2 = MagicMock(ip="192.168.50.12", mac="dd:ee:ff:44:55:66", secondary_mac=None)
+    client1 = MagicMock(ip="192.168.1.101", mac="aa:bb:cc:11:22:33", secondary_mac="aa:bb:cc:11:22:34")
+    client2 = MagicMock(ip="192.168.1.100", mac="dd:ee:ff:44:55:66", secondary_mac=None)
     entry1 = SimpleNamespace(
         entry_id="e1",
         unique_id="aa:bb:cc:11:22:33",
@@ -284,7 +284,7 @@ async def test_duplicate_tv_guards_for_secondary_mac_no_arp_ip_and_reconfigure()
         title="Living Room TV",
         unique_id="aa:bb:cc:11:22:33",
         data={
-            CONF_IP_ADDRESS: "192.168.50.11",
+            CONF_IP_ADDRESS: "192.168.1.101",
             CONF_MAC_ADDRESS: "aa:bb:cc:11:22:33",
             CONF_SECONDARY_MAC_ADDRESS: "aa:bb:cc:11:22:34",
         },
@@ -294,7 +294,7 @@ async def test_duplicate_tv_guards_for_secondary_mac_no_arp_ip_and_reconfigure()
         entry_id="e2",
         title="Bedroom TV",
         unique_id="dd:ee:ff:44:55:66",
-        data={CONF_IP_ADDRESS: "192.168.50.12", CONF_MAC_ADDRESS: "dd:ee:ff:44:55:66"},
+        data={CONF_IP_ADDRESS: "192.168.1.100", CONF_MAC_ADDRESS: "dd:ee:ff:44:55:66"},
         options={},
     )
     hass = MagicMock(spec=HomeAssistant)
@@ -311,7 +311,7 @@ async def test_duplicate_tv_guards_for_secondary_mac_no_arp_ip_and_reconfigure()
     disc_flow._abort_if_unique_id_configured = MagicMock()
 
     parsed = SimpleNamespace(
-        host="192.168.50.99",
+        host="192.168.1.199",
         title="Living Room TV",
         manufacturer="Hisense",
         model="65U7",
@@ -329,7 +329,7 @@ async def test_duplicate_tv_guards_for_secondary_mac_no_arp_ip_and_reconfigure()
     user_flow = VidaaConfigFlow()
     user_flow.hass = hass
     user_flow.context = {}
-    user_flow.ip_address = "192.168.50.11"
+    user_flow.ip_address = "192.168.1.101"
     user_flow.mac_address = None
     user_flow._async_current_entries = MagicMock(return_value=[entry1, entry2])
     with patch("custom_components.vidaa.flow.user.async_resolve_mac", AsyncMock(return_value=None)):
@@ -342,7 +342,7 @@ async def test_duplicate_tv_guards_for_secondary_mac_no_arp_ip_and_reconfigure()
     reconf_flow.hass = hass
     reconf_flow.context = {"entry_id": "e2"}
     with patch("custom_components.vidaa.flow.reauth.async_resolve_mac", AsyncMock(return_value=None)):
-        res_reconf = await reconf_flow.async_step_reconfigure(user_input={CONF_IP_ADDRESS: "192.168.50.11"})
+        res_reconf = await reconf_flow.async_step_reconfigure(user_input={CONF_IP_ADDRESS: "192.168.1.101"})
     assert res_reconf["type"] == "abort"
     assert res_reconf["reason"] == "already_configured"
 
@@ -353,7 +353,7 @@ async def test_duplicate_tv_guards_for_secondary_mac_no_arp_ip_and_reconfigure()
         entry_id="e3",
         title="Third TV",
         unique_id="third_uid",
-        data={CONF_IP_ADDRESS: "192.168.50.13"},
+        data={CONF_IP_ADDRESS: "192.168.1.102"},
         options={},
     )
     hass.config_entries.async_entries = MagicMock(return_value=[entry1, entry_no_mac])
@@ -367,7 +367,7 @@ async def test_repairs_and_pin_prompt_include_tv_placeholders_and_valid_translat
     entry = SimpleNamespace(
         entry_id="entry_bed",
         title="Bedroom TV",
-        data={CONF_IP_ADDRESS: "192.168.50.12"},
+        data={CONF_IP_ADDRESS: "192.168.1.100"},
         options={},
     )
     hass = MagicMock(spec=HomeAssistant)
@@ -381,26 +381,26 @@ async def test_repairs_and_pin_prompt_include_tv_placeholders_and_valid_translat
         mock_create_issue.assert_called_once()
         assert mock_create_issue.call_args.kwargs["translation_placeholders"] == {
             "name": "Bedroom TV",
-            "ip_address": "192.168.50.12",
+            "ip_address": "192.168.1.100",
         }
 
     cert_flow = CertificateMissingRepairFlow(entry_id="entry_bed")
     cert_flow.hass = hass
     cert_form = await cert_flow.async_step_confirm()
-    assert cert_form["description_placeholders"] == {"name": "Bedroom TV", "ip_address": "192.168.50.12"}
+    assert cert_form["description_placeholders"] == {"name": "Bedroom TV", "ip_address": "192.168.1.100"}
 
     auth_issue_flow = AuthTokenInvalidatedRepairFlow(entry_id="entry_bed")
     auth_issue_flow.hass = hass
     auth_issue_form = await auth_issue_flow.async_step_confirm()
-    assert auth_issue_form["description_placeholders"] == {"name": "Bedroom TV", "ip_address": "192.168.50.12"}
+    assert auth_issue_form["description_placeholders"] == {"name": "Bedroom TV", "ip_address": "192.168.1.100"}
 
     pin_flow = VidaaConfigFlow()
     pin_flow.hass = hass
-    pin_flow.ip_address = "192.168.50.12"
+    pin_flow.ip_address = "192.168.1.100"
     pin_flow.discovered_title = "Bedroom TV"
     pin_flow.client = MagicMock()
     pin_form = await pin_flow.async_step_auth()
-    assert pin_form["description_placeholders"] == {"name": "Bedroom TV", "ip_address": "192.168.50.12"}
+    assert pin_form["description_placeholders"] == {"name": "Bedroom TV", "ip_address": "192.168.1.100"}
 
     base = Path(__file__).resolve().parent.parent / "custom_components" / "vidaa"
     files = [str(base / "strings.json"), *sorted(glob.glob(str(base / "translations" / "*.json")))]
@@ -419,8 +419,8 @@ async def test_debug_logging_switch_syncs_across_multiple_tvs() -> None:
     """Toggling debug logging on one TV updates the switch state on every configured TV."""
     hass = MagicMock(spec=HomeAssistant)
     hass.data = {}
-    client1 = MagicMock(ip="192.168.50.11")
-    client2 = MagicMock(ip="192.168.50.12")
+    client1 = MagicMock(ip="192.168.1.101")
+    client2 = MagicMock(ip="192.168.1.100")
     entry1 = SimpleNamespace(entry_id="e1", title="TV 1", data={}, options={})
     entry2 = SimpleNamespace(entry_id="e2", title="TV 2", data={}, options={})
 
@@ -459,7 +459,7 @@ def test_query_mdns_fingerprint_ignores_other_smart_tvs() -> None:
     """mDNS fingerprinting only accepts records whose IP matches target_ip."""
     mock_zc = MagicMock()
     other_tv = MagicMock()
-    other_tv.addresses = [socket.inet_aton("192.168.50.99")]
+    other_tv.addresses = [socket.inet_aton("192.168.1.199")]
     other_tv.properties = {b"model": b"Wrong_TV", b"fv": b"V9.9", b"serialNumber": b"WRONG"}
     mock_zc.get_service_info.return_value = other_tv
 
@@ -475,7 +475,7 @@ def test_query_mdns_fingerprint_ignores_other_smart_tvs() -> None:
         patch("zeroconf.ServiceBrowser", MockBrowser),
         patch("time.sleep"),
     ):
-        info = query_mdns_fingerprint("192.168.50.12", zc=mock_zc)
+        info = query_mdns_fingerprint("192.168.1.100", zc=mock_zc)
 
     assert info["model_code"] is None
     assert info["firmware_version"] is None

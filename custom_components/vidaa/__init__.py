@@ -261,7 +261,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
     try:
         await client.async_connect_and_run()
     except Exception as err:
-        raise ConfigEntryNotReady(f"Cannot connect to Hisense TV at {client.ip}: {err}") from err
+        raise ConfigEntryNotReady(f"Cannot connect to VIDAA TV at {client.ip}: {err}") from err
 
     artwork_tracker = ArtworkReachabilityTracker(
         enabled=entry.options.get(CONF_ENABLE_APP_ICONS, DEFAULT_ENABLE_APP_ICONS)

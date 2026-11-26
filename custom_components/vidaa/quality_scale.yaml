@@ -20,9 +20,7 @@ rules:
   docs-high-level-description: done
   docs-installation-instructions: done
   docs-removal-instructions: done
-  docs-triggers:
-    status: exempt
-    comment: "The integration does not expose custom device triggers."
+  docs-triggers: done
   entity-event-setup: done
   entity-unique-id: done
   has-entity-name: done

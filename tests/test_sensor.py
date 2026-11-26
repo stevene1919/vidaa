@@ -333,7 +333,7 @@ async def test_sensors_hydrate_from_cached_client_state_on_startup(mock_entry):
     """Active App, Active Source, and Session Status hydrate from telemetry received before platform setup."""
     from custom_components.vidaa.client import VidaaClient
 
-    client = VidaaClient(ip="192.168.50.12", mac="e8:51:77:ec:98:1c", client_id="cid")
+    client = VidaaClient(ip="192.168.1.100", mac="e8:51:77:aa:bb:cc", client_id="cid")
     client.connected = True
     client.is_on = True
     client._dispatch_applist_update(

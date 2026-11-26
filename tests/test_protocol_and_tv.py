@@ -60,7 +60,7 @@ def test_wake_on_lan_utilities() -> None:
         assert mock_sock_instance.sendto.called
 
         # Multiple MACs
-        res_multi = send_wake_on_lan(["E8:51:77:AA:BB:CC", "E8:51:77:EC:98:1D"])
+        res_multi = send_wake_on_lan(["E8:51:77:AA:BB:CC", "E8:51:77:AA:BB:DD"])
         assert res_multi is True
 
 

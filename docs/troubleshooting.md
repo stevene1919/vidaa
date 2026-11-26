@@ -166,7 +166,7 @@ An MQTT return code of `rc: 5` (MQTT 3.1.1) or `rc: 135` (MQTT 5.0) indicates th
   * Enable and press the diagnostic button **Probe Capabilities** (`button.<tv_name>_probe_capabilities`).
   * Check the Home Assistant log for the capability report:
     ```text
-    [192.168.50.12] Capability probe complete: Picture Menu: Unsupported (0 items), Sound Menu: Unsupported (0 items)
+    [192.168.1.100] Capability probe complete: Picture Menu: Unsupported (0 items), Sound Menu: Unsupported (0 items)
     ```
   * If both menus report `Unsupported (0 items)`, your TV firmware does not implement MQTT picture/sound management. Disable **Enable Picture Mode & Calibration Controls** in `Configure → Entities & Remote Controls` to remove non-functional entities.
 * **Why Internal Phoenix APIs (`vowOS.tvinfo`) Cannot Be Used:**

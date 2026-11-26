@@ -168,7 +168,7 @@ def test_report_no_false_rejection_when_tv_unreachable() -> None:
     }
 
     report = generate_markdown_report(
-        ip="192.0.2.1",
+        ip="192.168.1.100",
         ping_result=ping_data,
         probe_result=None,
         mac="E8:51:77:AA:BB:CC",

@@ -261,7 +261,7 @@ class VidaaRemote(VidaaEntity, RemoteEntity):
 
     def _handle_update(self, *args: Any) -> None:
         """Handle state update from TV."""
-        self.schedule_update_ha_state()
+        self._schedule_ha_update()
 
     def _handle_connected(self, *args: Any) -> None:
         self._handle_update()

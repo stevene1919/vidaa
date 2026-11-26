@@ -73,7 +73,7 @@ class VidaaPictureModeSelect(VidaaEntity, SelectEntity):
         self._client.unregister_disconnected_callback(self._handle_connection_change)
 
     def _handle_connection_change(self, *args: Any) -> None:
-        self.schedule_update_ha_state()
+        self._schedule_ha_update()
 
     @property
     def options(self) -> list[str]:
@@ -91,7 +91,7 @@ class VidaaPictureModeSelect(VidaaEntity, SelectEntity):
     def _handle_picture_update(self, data: dict[str, Any]) -> None:
         if self._client.picture_mode:
             self._current_mode = self._client.picture_mode
-        self.schedule_update_ha_state()
+        self._schedule_ha_update()
 
     async def async_select_option(self, option: str) -> None:
         """Change picture mode option."""
@@ -142,7 +142,7 @@ class VidaaSoundModeSelect(VidaaEntity, SelectEntity):
         self._client.unregister_disconnected_callback(self._handle_connection_change)
 
     def _handle_connection_change(self, *args: Any) -> None:
-        self.schedule_update_ha_state()
+        self._schedule_ha_update()
 
     @property
     def options(self) -> list[str]:
@@ -160,7 +160,7 @@ class VidaaSoundModeSelect(VidaaEntity, SelectEntity):
     def _handle_sound_update(self, data: dict[str, Any]) -> None:
         if self._client.sound_mode:
             self._current_mode = self._client.sound_mode
-        self.schedule_update_ha_state()
+        self._schedule_ha_update()
 
     async def async_select_option(self, option: str) -> None:
         """Change sound mode option."""

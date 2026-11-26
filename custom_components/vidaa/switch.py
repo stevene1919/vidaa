@@ -77,19 +77,16 @@ class VidaaAudioOnlySwitch(VidaaEntity, SwitchEntity):
         self._client.unregister_state_callback(self._handle_state_update)
 
     def _handle_connected(self, *args: Any) -> None:
-        if getattr(self, "hass", None) is not None:
-            self.schedule_update_ha_state()
+        self._schedule_ha_update()
 
     def _handle_disconnected(self, *args: Any) -> None:
         self._is_on = False
-        if getattr(self, "hass", None) is not None:
-            self.schedule_update_ha_state()
+        self._schedule_ha_update()
 
     def _handle_state_update(self, data: dict[str, Any]) -> None:
         if isinstance(data, dict) and data.get("statetype") == "fake_sleep_0":
             self._is_on = False
-            if getattr(self, "hass", None) is not None:
-                self.schedule_update_ha_state()
+            self._schedule_ha_update()
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn off the screen while keeping audio active."""

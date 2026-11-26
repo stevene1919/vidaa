@@ -32,10 +32,10 @@ async def async_send_key(client: VidaaClient, key: str) -> bool:
     return False
 
 
-def send_command(client: VidaaClient, command: str) -> bool:
-    """Sends a key command to the TV, automatically resolving known key aliases."""
+def _parse_command_intent(command: str) -> tuple[str, Any]:
+    """Parse a high-level command string into a typed action tuple."""
     if not command:
-        return False
+        return ("noop", None)
     normalized_command = command.strip().lower()
     if normalized_command.startswith(("text:", "type:")):
         raw_val = command.split(":", 1)[1]
@@ -49,17 +49,13 @@ def send_command(client: VidaaClient, command: str) -> bool:
         elif raw_val.lower() == "clear":
             action = "clear"
             raw_val = ""
-        client.send_text_input(raw_val, action=action)
-        return True
+        return ("text", (raw_val, action))
     if normalized_command in ("clear_text", "text_clear"):
-        client.send_text_input("", action="clear")
-        return True
+        return ("text", ("", "clear"))
     if normalized_command.startswith("app:"):
-        app_target = command.split(":", 1)[1].strip()
-        return client._launch_app_by_name(app_target)
+        return ("app", command.split(":", 1)[1].strip())
     if normalized_command.startswith("source:"):
-        source_target = command.split(":", 1)[1].strip()
-        return client._change_source_by_name_or_id(source_target)
+        return ("source", command.split(":", 1)[1].strip())
     if normalized_command in (
         "input",
         "source",
@@ -69,57 +65,44 @@ def send_command(client: VidaaClient, command: str) -> bool:
         "key_input",
         "key_source",
     ):
-        return client.cycle_source()
+        return ("cycle_source", None)
     if normalized_command in ("input_menu", "source_menu", "key_input_menu", "key_source_menu"):
-        client.send_key("KEY_MENU")
-        return True
+        return ("key", "KEY_MENU")
+    return ("key", resolve_command_key(command))
 
-    key_to_send = resolve_command_key(command)
-    client.send_key(key_to_send)
+
+def send_command(client: VidaaClient, command: str) -> bool:
+    """Sends a key command to the TV, automatically resolving known key aliases."""
+    kind, arg = _parse_command_intent(command)
+    if kind == "noop":
+        return False
+    if kind == "text":
+        client.send_text_input(arg[0], action=arg[1])
+        return True
+    if kind == "app":
+        return client._launch_app_by_name(arg)
+    if kind == "source":
+        return client._change_source_by_name_or_id(arg)
+    if kind == "cycle_source":
+        return client.cycle_source()
+    client.send_key(arg)
     return True
 
 
 async def async_send_command(client: VidaaClient, command: str) -> bool:
     """Sends a key command to the TV asynchronously, resolving known key aliases."""
-    if not command:
+    kind, arg = _parse_command_intent(command)
+    if kind == "noop":
         return False
-    normalized_command = command.strip().lower()
-    if normalized_command.startswith(("text:", "type:")):
-        raw_val = command.split(":", 1)[1]
-        action = "insert"
-        if raw_val.lower().startswith("replace:"):
-            action = "replace"
-            raw_val = raw_val.split(":", 1)[1]
-        elif raw_val.lower().startswith("clear:"):
-            action = "clear"
-            raw_val = raw_val.split(":", 1)[1]
-        elif raw_val.lower() == "clear":
-            action = "clear"
-            raw_val = ""
-        return bool(await client.async_send_text_input(raw_val, action=action))
-    if normalized_command in ("clear_text", "text_clear"):
-        return bool(await client.async_send_text_input("", action="clear"))
-    if normalized_command.startswith("app:"):
-        app_target = command.split(":", 1)[1].strip()
-        return bool(await client.async_launch_app_by_name(app_target))
-    if normalized_command.startswith("source:"):
-        source_target = command.split(":", 1)[1].strip()
-        return bool(await client.async_change_source_by_name_or_id(source_target))
-    if normalized_command in (
-        "input",
-        "source",
-        "cycle_source",
-        "input_cycle",
-        "source_cycle",
-        "key_input",
-        "key_source",
-    ):
+    if kind == "text":
+        return bool(await client.async_send_text_input(arg[0], action=arg[1]))
+    if kind == "app":
+        return bool(await client.async_launch_app_by_name(arg))
+    if kind == "source":
+        return bool(await client.async_change_source_by_name_or_id(arg))
+    if kind == "cycle_source":
         return bool(await client.async_cycle_source())
-    if normalized_command in ("input_menu", "source_menu", "key_input_menu", "key_source_menu"):
-        return bool(await client.async_send_key("KEY_MENU"))
-
-    key_to_send = resolve_command_key(command)
-    return bool(await client.async_send_key(key_to_send))
+    return bool(await client.async_send_key(arg))
 
 
 def cycle_source(client: VidaaClient) -> bool:

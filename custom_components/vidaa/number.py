@@ -61,11 +61,11 @@ class VidaaBaseNumber(VidaaEntity, NumberEntity):
         self._client.unregister_disconnected_callback(self._handle_connection_change)
 
     def _handle_connection_change(self, *args: Any) -> None:
-        self.schedule_update_ha_state()
+        self._schedule_ha_update()
 
     def _handle_picture_update(self, data: dict[str, Any]) -> None:
         self._update_value_from_client()
-        self.schedule_update_ha_state()
+        self._schedule_ha_update()
 
     def _update_value_from_client(self) -> None:
         """Override in subclasses to read specific attribute."""

@@ -140,7 +140,7 @@ class AuthFlowMixin:
                 errors["base"] = "invalid_auth"
             else:
                 if self._reauth_entry:
-                    return await self._async_finish_reauth(reason="reauth_successful")
+                    return await self._async_finish_reauth(reason=getattr(self, "_reauth_reason", "reauth_successful"))
 
                 await self._async_discover_device_name()
                 await self._async_probe_device_capabilities()

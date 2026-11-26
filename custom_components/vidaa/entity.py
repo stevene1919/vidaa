@@ -97,6 +97,11 @@ class VidaaEntity(Entity):
         """Return True if the TV entity is available."""
         return bool(self._entry_id and self._client)
 
+    def _schedule_ha_update(self) -> None:
+        """Safely schedule a Home Assistant state update if entity is attached."""
+        if getattr(self, "hass", None) is not None:
+            self.schedule_update_ha_state()
+
 
 # Backwards-compatible alias during migration
 HisenseVidaaEntity = VidaaEntity

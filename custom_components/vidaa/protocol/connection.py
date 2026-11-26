@@ -115,7 +115,11 @@ class ConnectionManagerMixin:
         self.connected = True
         self._connected_time = time.time()
         self.auth_failed = False
-        _LOGGER.info("[%s] Connected to TV MQTT broker", self.ip)
+        if getattr(self, "_logged_unavailable", False):
+            self._logged_unavailable = False
+            _LOGGER.info("[%s] Reconnected to TV MQTT broker", self.ip)
+        else:
+            _LOGGER.info("[%s] Connected to TV MQTT broker", self.ip)
         if hasattr(self, "_update_wake_event"):
             self._update_wake_event()
         self._dispatch_connected()
@@ -178,9 +182,16 @@ class ConnectionManagerMixin:
         if not was_connected:
             return
 
+        def _log_disconnect(suffix: str = "") -> None:
+            if not getattr(self, "_logged_unavailable", False):
+                self._logged_unavailable = True
+                _LOGGER.info("[%s] Disconnected from TV MQTT broker%s", self.ip, suffix)
+            else:
+                _LOGGER.debug("[%s] Disconnected from TV MQTT broker%s", self.ip, suffix)
+
         def _fire_disconnect() -> None:
             self._disconnect_debounce_handle = None
-            _LOGGER.debug("[%s] Disconnected from TV MQTT broker (debounce elapsed)", self.ip)
+            _log_disconnect(" (debounce elapsed)")
             self._dispatch_disconnected()
 
         loop = getattr(self, "_loop", None)
@@ -191,7 +202,7 @@ class ConnectionManagerMixin:
         if debounce and loop and loop.is_running() and DISCONNECT_DEBOUNCE > 0:
             self._disconnect_debounce_handle = loop.call_later(DISCONNECT_DEBOUNCE, _fire_disconnect)
         else:
-            _LOGGER.debug("[%s] Disconnected from TV MQTT broker", self.ip)
+            _log_disconnect()
             self._dispatch_disconnected()
 
     def _handle_message(self: VidaaClient, topic: str, payload: str) -> None:

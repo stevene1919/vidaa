@@ -101,7 +101,7 @@ class MediaPlayerStateHandlerMixin:
         # Power off or waking from sleep transitions apply immediately
         debounce = float(self._options.get(CONF_PLAYBACK_DEBOUNCE, DEFAULT_PLAYBACK_DEBOUNCE))
         loop = getattr(self.hass, "loop", None)
-        if not parsed["is_on"] or debounce <= 0 or not self.hass or not loop:
+        if not parsed["is_on"] or self._state == STATE_OFF or debounce <= 0 or not self.hass or not loop:
             self._apply_state_payload(parsed)
             return
 

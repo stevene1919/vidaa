@@ -140,6 +140,8 @@ def apply_state_update(client: VidaaClient, data: Any) -> None:
     if "sleep_time" in data:
         with contextlib.suppress(ValueError, TypeError):
             client.sleep_timer = int(data["sleep_time"])
+    if hasattr(client, "_update_wake_event"):
+        client._update_wake_event()
 
 
 def apply_device_info_update(client: VidaaClient, data: Any) -> None:
@@ -214,6 +216,8 @@ def apply_device_info_update(client: VidaaClient, data: Any) -> None:
         elif sleep_state in (1, "1", True) and getattr(client, "state", "off") in ("off", ""):
             client.state = "on"
             client._last_wake_time = time.time()
+    if hasattr(client, "_update_wake_event"):
+        client._update_wake_event()
 
 
 def apply_volume_update(client: VidaaClient, data: Any) -> None:
@@ -245,41 +249,42 @@ def apply_volume_update(client: VidaaClient, data: Any) -> None:
         client.muted = bool(data["muted"])
 
 
+def _upsert_setting_item(settings_store: dict[int, Any] | list[Any], item: Any) -> Any:
+    """Insert or update a parsed picture/sound setting item in the client store."""
+    existing = None
+    if isinstance(settings_store, dict):
+        existing = settings_store.get(item.menu_id)
+    elif isinstance(settings_store, list):
+        for it in settings_store:
+            if getattr(it, "menu_id", None) == item.menu_id:
+                existing = it
+                break
+
+    if existing is not None:
+        existing.value = item.value
+        if item.options:
+            existing.options = item.options
+        if item.min_value is not None:
+            existing.min_value = item.min_value
+        if item.max_value is not None:
+            existing.max_value = item.max_value
+        if item.step is not None:
+            existing.step = item.step
+        if existing.name.startswith("Menu_") or not item.name.startswith("Menu_"):
+            existing.name = item.name
+        return existing
+
+    if isinstance(settings_store, dict):
+        settings_store[item.menu_id] = item
+    elif isinstance(settings_store, list):
+        settings_store.append(item)
+    return item
+
+
 def apply_picture_update(client: VidaaClient, data: Any) -> None:
     """Updates client picture settings from TV picture settings payload."""
-    parsed_items = parse_settings_payload(data)
-    for item in parsed_items:
-        existing = None
-        if isinstance(client.picture_settings, dict):
-            existing = client.picture_settings.get(item.menu_id)
-        elif isinstance(client.picture_settings, list):
-            for it in client.picture_settings:
-                if getattr(it, "menu_id", None) == item.menu_id:
-                    existing = it
-                    break
-
-        if existing is not None:
-            existing.value = item.value
-            if item.options:
-                existing.options = item.options
-            if item.min_value is not None:
-                existing.min_value = item.min_value
-            if item.max_value is not None:
-                existing.max_value = item.max_value
-            if item.step is not None:
-                existing.step = item.step
-            if not existing.name.startswith("Menu_") and item.name.startswith("Menu_"):
-                pass
-            else:
-                existing.name = item.name
-            target_item = existing
-        else:
-            if isinstance(client.picture_settings, dict):
-                client.picture_settings[item.menu_id] = item
-            elif isinstance(client.picture_settings, list):
-                client.picture_settings.append(item)
-            target_item = item
-
+    for item in parse_settings_payload(data):
+        target_item = _upsert_setting_item(client.picture_settings, item)
         name_clean = target_item.name.lower()
         menu_id = target_item.menu_id
         if "mode" in name_clean or menu_id == DEFAULT_MENU_ID_PICTURE_MODE:
@@ -297,39 +302,8 @@ def apply_picture_update(client: VidaaClient, data: Any) -> None:
 
 def apply_sound_update(client: VidaaClient, data: Any) -> None:
     """Updates client sound settings from TV sound settings payload."""
-    parsed_items = parse_settings_payload(data)
-    for item in parsed_items:
-        existing = None
-        if isinstance(client.sound_settings, dict):
-            existing = client.sound_settings.get(item.menu_id)
-        elif isinstance(client.sound_settings, list):
-            for it in client.sound_settings:
-                if getattr(it, "menu_id", None) == item.menu_id:
-                    existing = it
-                    break
-
-        if existing is not None:
-            existing.value = item.value
-            if item.options:
-                existing.options = item.options
-            if item.min_value is not None:
-                existing.min_value = item.min_value
-            if item.max_value is not None:
-                existing.max_value = item.max_value
-            if item.step is not None:
-                existing.step = item.step
-            if not existing.name.startswith("Menu_") and item.name.startswith("Menu_"):
-                pass
-            else:
-                existing.name = item.name
-            target_item = existing
-        else:
-            if isinstance(client.sound_settings, dict):
-                client.sound_settings[item.menu_id] = item
-            elif isinstance(client.sound_settings, list):
-                client.sound_settings.append(item)
-            target_item = item
-
+    for item in parse_settings_payload(data):
+        target_item = _upsert_setting_item(client.sound_settings, item)
         if "mode" in target_item.name.lower() or target_item.menu_id == DEFAULT_MENU_ID_SOUND_MODE:
             client.sound_mode = str(target_item.value)
 

@@ -284,6 +284,7 @@ def test_remote_current_activity_transitions(mock_client, mock_entry):
 async def test_remote_lifecycle_callbacks(mock_client, mock_entry):
     """Test remote entity registration and removal of client callbacks."""
     rem = VidaaRemote(client=mock_client, entry=mock_entry)
+    rem.hass = MagicMock()
     rem.schedule_update_ha_state = MagicMock()
 
     await rem.async_added_to_hass()

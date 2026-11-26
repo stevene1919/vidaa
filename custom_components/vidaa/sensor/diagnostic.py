@@ -34,8 +34,7 @@ class VidaaBaseSensor(VidaaEntity, SensorEntity):
 
     def _schedule_state_update(self) -> None:
         """Safely schedule state update if entity is added to hass."""
-        if getattr(self, "hass", None) is not None:
-            self.schedule_update_ha_state()
+        self._schedule_ha_update()
 
 
 class VidaaSessionStatusSensor(VidaaBaseSensor):

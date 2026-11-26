@@ -83,6 +83,27 @@ async def async_query_initial_state(client: VidaaClient, min_interval: float = 3
         await asyncio.sleep(0.05)
 
 
+def _resolve_mac_targets(client: VidaaClient, mac_targets: list[str] | None) -> list[str]:
+    """Return Wake-on-LAN MAC targets from explicit override or client defaults."""
+    if mac_targets is not None:
+        return [m for m in mac_targets if m]
+    targets: list[str] = []
+    if getattr(client, "mac", None):
+        targets.append(client.mac)
+    if getattr(client, "secondary_mac", None) and client.secondary_mac not in targets:
+        targets.append(client.secondary_mac)
+    return targets
+
+
+def _is_confirmed_standby(client: VidaaClient) -> bool:
+    """Return True if a standby telemetry packet arrived during the current MQTT session."""
+    conn_time = getattr(client, "_connected_time", 0.0)
+    last_standby = getattr(client, "_last_standby_time", 0.0)
+    return (
+        isinstance(last_standby, (int, float)) and isinstance(conn_time, (int, float)) and last_standby >= conn_time > 0
+    )
+
+
 def turn_on_tv(
     client: VidaaClient,
     mac_targets: list[str] | None = None,
@@ -97,14 +118,7 @@ def turn_on_tv(
         )
         return
 
-    if mac_targets is None:
-        targets: list[str] = []
-        if getattr(client, "mac", None):
-            targets.append(client.mac)
-        if getattr(client, "secondary_mac", None) and client.secondary_mac not in targets:
-            targets.append(client.secondary_mac)
-    else:
-        targets = [m for m in mac_targets if m]
+    targets = _resolve_mac_targets(client, mac_targets)
 
     if targets:
         client.send_wake_on_lan(targets, ip=getattr(client, "ip", None))
@@ -163,14 +177,7 @@ def turn_on_tv(
                         # Allow initial state broadcast (ui_service/state, gettvinfo) to arrive
                         # so we do not toggle off a TV that already woke via Wake-on-LAN.
                         time.sleep(1.0)
-                        conn_time = getattr(client, "_connected_time", 0.0)
-                        last_standby = getattr(client, "_last_standby_time", 0.0)
-                        is_confirmed_standby = (
-                            isinstance(last_standby, (int, float))
-                            and isinstance(conn_time, (int, float))
-                            and last_standby >= conn_time > 0
-                        )
-                        if is_confirmed_standby:
+                        if _is_confirmed_standby(client):
                             _LOGGER.debug(
                                 "[%s] TV reconnected in standby/fake_sleep. Sending KEY_POWER to wake screen",
                                 getattr(client, "ip", "unknown"),
@@ -210,14 +217,7 @@ async def async_turn_on_tv(
         )
         return True
 
-    if mac_targets is None:
-        targets: list[str] = []
-        if getattr(client, "mac", None):
-            targets.append(client.mac)
-        if getattr(client, "secondary_mac", None) and client.secondary_mac not in targets:
-            targets.append(client.secondary_mac)
-    else:
-        targets = [m for m in mac_targets if m]
+    targets = _resolve_mac_targets(client, mac_targets)
 
     if targets:
         loop = asyncio.get_running_loop()
@@ -312,15 +312,7 @@ async def async_turn_on_tv(
                 client.is_on = True
                 return True
 
-            conn_time = getattr(client, "_connected_time", 0.0)
-            last_standby = getattr(client, "_last_standby_time", 0.0)
-            is_confirmed_standby = (
-                isinstance(last_standby, (int, float))
-                and isinstance(conn_time, (int, float))
-                and last_standby >= conn_time > 0
-            )
-
-            if is_confirmed_standby:
+            if _is_confirmed_standby(client):
                 _LOGGER.debug(
                     "[%s] TV reconnected in standby/fake_sleep. Sending KEY_POWER to wake screen",
                     getattr(client, "ip", "unknown"),

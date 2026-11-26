@@ -81,8 +81,7 @@ class VidaaMqttConnectedBinarySensor(VidaaEntity, BinarySensorEntity):
         self._client.unregister_disconnected_callback(self._handle_update)
 
     def _handle_update(self, *args: Any) -> None:
-        if getattr(self, "hass", None) is not None:
-            self.schedule_update_ha_state()
+        self._schedule_ha_update()
 
 
 class VidaaInUseBinarySensor(VidaaEntity, BinarySensorEntity):
@@ -125,8 +124,7 @@ class VidaaInUseBinarySensor(VidaaEntity, BinarySensorEntity):
         self._client.unregister_disconnected_callback(self._handle_update)
 
     def _handle_update(self, *args: Any) -> None:
-        if getattr(self, "hass", None) is not None:
-            self.schedule_update_ha_state()
+        self._schedule_ha_update()
 
 
 class VidaaAuthProblemBinarySensor(VidaaEntity, BinarySensorEntity):
@@ -163,8 +161,7 @@ class VidaaAuthProblemBinarySensor(VidaaEntity, BinarySensorEntity):
         self._client.unregister_disconnected_callback(self._handle_update)
 
     def _handle_update(self, *args: Any) -> None:
-        if getattr(self, "hass", None) is not None:
-            self.schedule_update_ha_state()
+        self._schedule_ha_update()
 
 
 # Backwards-compatible aliases during migration

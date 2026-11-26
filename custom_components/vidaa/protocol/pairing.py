@@ -319,22 +319,27 @@ async def _async_execute_pairing_attempt(
 
 async def async_submit_pin_code(client: VidaaClient, pin_code: str) -> dict[str, Any]:
     """Submits the PIN code entered by the user and retrieves token pair from TV."""
+    if not client.mqtt_client:
+        raise Exception("MQTT client not initialized")
+
+    try:
+        auth_num = int(str(pin_code).strip())
+    except (ValueError, TypeError) as err:
+        raise ValueError("PIN code must be numeric") from err
+
     loop = asyncio.get_running_loop()
     client._loop = loop
     client._auth_code_future = loop.create_future()
     client._pairing_event_future = loop.create_future()
 
-    if not client.mqtt_client:
-        raise Exception("MQTT client not initialized")
-
-    published = await client.async_publish(
-        f"{client.topics.ui}actions/authenticationcode",
-        json.dumps({"authNum": int(pin_code)}),
-    )
-    if not published:
-        raise Exception("Failed to send PIN to TV (MQTT connection closed)")
-
     try:
+        published = await client.async_publish(
+            f"{client.topics.ui}actions/authenticationcode",
+            json.dumps({"authNum": auth_num}),
+        )
+        if not published:
+            raise Exception("Failed to send PIN to TV (MQTT connection closed)")
+
         # Wait for the PIN result, but unblock early if the TV closes the dialog
         # or reports the remote slot busy instead of answering.
         done, _pending = await asyncio.wait(
@@ -373,12 +378,16 @@ async def async_submit_pin_code(client: VidaaClient, pin_code: str) -> dict[str,
     try:
         token_payload_str = await asyncio.wait_for(client._token_future, timeout=15)
         token_data = json.loads(token_payload_str)
+        access_token = str(token_data.get("accesstoken") or "")
+        if not access_token:
+            raise Exception("TV returned empty access token")
 
-        client.access_token = str(token_data.get("accesstoken", ""))
-        client.access_token_time = int(token_data.get("accesstoken_time") or time.time())
+        now_tv = int(time.time()) + int(getattr(client, "clock_offset", 0) or 0)
+        client.access_token = access_token
+        client.access_token_time = int(token_data.get("accesstoken_time") or now_tv)
         client.access_token_duration = int(token_data.get("accesstoken_duration_day") or 30)
-        client.refresh_token = str(token_data.get("refreshtoken", ""))
-        client.refresh_token_time = int(token_data.get("refreshtoken_time") or time.time())
+        client.refresh_token = str(token_data.get("refreshtoken") or "")
+        client.refresh_token_time = int(token_data.get("refreshtoken_time") or now_tv)
         client.refresh_token_duration = int(token_data.get("refreshtoken_duration_day") or 30)
 
         _LOGGER.info(

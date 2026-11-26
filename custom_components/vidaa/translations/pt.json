@@ -22,7 +22,7 @@
       },
       "auth": {
         "title": "Introduzir código PIN da TV",
-        "description": "Um código PIN de 4 dígitos deve ser apresentado agora no ecrã da sua TV. Introduza-o abaixo.",
+        "description": "Um código PIN de 4 dígitos deve ser apresentado agora em {name} ({ip_address}). Introduza-o abaixo.",
         "data": {
           "pin_code": "Código PIN"
         }
@@ -477,12 +477,12 @@
   },
   "issues": {
     "certificate_missing": {
-      "title": "Certificados de cliente VIDAA em falta",
+      "title": "Certificados de cliente VIDAA em falta ({name})",
       "fix_flow": {
         "step": {
           "confirm": {
             "title": "Verificar certificados de cliente",
-            "description": "Após copiar hisense.crt e hisense.key para /config/ssl ou /ssl, envie este formulário para verificar.",
+            "description": "Carregue ou verifique os certificados de cliente para {name} ({ip_address}). Depois de instalados os certificados, envie este formulário para verificar.",
             "data": {
               "cert_file": "Pacote de aplicação ou ficheiro keystore (.apk / .p12 / .pem)"
             }

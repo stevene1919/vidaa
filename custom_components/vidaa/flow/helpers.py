@@ -68,6 +68,7 @@ from ..protocol import (
     resolve_certificates,
 )
 from ..tv.fingerprint import get_arp_mac
+from .isolation import sanitize_cert_scope
 
 if TYPE_CHECKING:
     from ..client import VidaaClient
@@ -83,7 +84,12 @@ class UploadedCertProcessingError(Exception):
         self.error_key = error_key
 
 
-async def async_process_uploaded_cert_file(hass: HomeAssistant, uploaded_file_id: str) -> tuple[str, str, str | None]:
+async def async_process_uploaded_cert_file(
+    hass: HomeAssistant,
+    uploaded_file_id: str,
+    *,
+    scope: str | None = None,
+) -> tuple[str, str, str | None]:
     """Process an uploaded certificate bundle/archive and extract client certificates.
 
     Returns:
@@ -92,11 +98,13 @@ async def async_process_uploaded_cert_file(hass: HomeAssistant, uploaded_file_id
     Raises:
         UploadedCertProcessingError: if file extraction or decryption fails.
     """
-    storage_dir = (
+    base_dir = (
         Path(hass.config.path(".storage", "vidaa", "certs"))
         if hasattr(hass, "config") and hasattr(hass.config, "path")
         else Path("/config/.storage/vidaa/certs")
     )
+    safe_scope = sanitize_cert_scope(scope)
+    storage_dir = base_dir / safe_scope if safe_scope else base_dir
 
     def _extract() -> tuple[str, str, str | None]:
         fn_process = getattr(

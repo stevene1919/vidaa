@@ -36,6 +36,7 @@ from ..const import (
 )
 from ..protocol import wol
 from .helpers import async_resolve_mac
+from .isolation import find_conflicting_entry
 
 if TYPE_CHECKING:
     from ..config_flow import VidaaConfigFlow
@@ -93,20 +94,21 @@ class ReauthFlowMixin:
     def _async_mac_is_configured_elsewhere(
         self: VidaaConfigFlow,
     ) -> bool:
-        """Check whether the resolved MAC already belongs to another entry.
+        """Check whether the resolved MAC or IP already belongs to another entry.
 
         [F7-leg6]: the duplicate/unique-id guard of `_async_init_client_and_auth`
         is skipped whenever `_reauth_entry` is set, which would silently repoint
         an entry at a different TV while keeping its old unique_id.
         """
-        if not self.mac_address or not self._reauth_entry:
+        if not self._reauth_entry:
             return False
-        for other in self.hass.config_entries.async_entries(DOMAIN):
-            if other.entry_id == self._reauth_entry.entry_id:
-                continue
-            if other.unique_id == self.mac_address:
-                return True
-        return False
+        existing, _ = find_conflicting_entry(
+            self.hass.config_entries.async_entries(DOMAIN),
+            ip_address=self.ip_address,
+            macs=(self.mac_address, getattr(self, "secondary_mac_address", None)),
+            exclude_entry_id=self._reauth_entry.entry_id,
+        )
+        return existing is not None
 
     async def async_step_reauth(self: VidaaConfigFlow, entry_data: dict[str, Any]) -> config_entries.ConfigFlowResult:
         """Handle reauthorization initiated by Home Assistant."""
@@ -259,12 +261,15 @@ class ReauthFlowMixin:
             # [F7-leg6]: the entry may be repointed at a different TV, so the MAC
             # must be resolved for the *new* IP before the target is re-paired.
             self.mac_address = await async_resolve_mac(self.hass, self.ip_address)
-            if not self.mac_address:
+            if not self.mac_address and self.ip_address == current_data.get(CONF_IP_ADDRESS):
                 self.mac_address = current_data.get(CONF_MAC_ADDRESS)
 
-            # [F7-leg6]: only the entry being reconfigured may keep this MAC.
+            # [F7-leg6]: only the entry being reconfigured may keep this MAC or IP.
             if self._async_mac_is_configured_elsewhere():
                 return self.async_abort(reason="already_configured")
+
+            if not self.mac_address:
+                self.mac_address = current_data.get(CONF_MAC_ADDRESS)
 
             if self.auth_profile in ("legacy", "static"):
                 has_certs = await self._async_resolve_ssl_certs()

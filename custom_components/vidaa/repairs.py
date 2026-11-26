@@ -23,7 +23,7 @@ except ImportError:
         yield Path(file_id)
 
 
-from .const import CONF_AUTH_PROFILE, CONF_CERT_FILE, CONF_CERTFILE, CONF_KEYFILE
+from .const import CONF_AUTH_PROFILE, CONF_CERT_FILE, CONF_CERTFILE, CONF_IP_ADDRESS, CONF_KEYFILE
 from .flow.helpers import (
     UploadedCertProcessingError,
     async_process_uploaded_cert_file,
@@ -58,7 +58,9 @@ class CertificateMissingRepairFlow(RepairsFlow):
             uploaded_file_id = user_input.get(CONF_CERT_FILE)
             if uploaded_file_id:
                 try:
-                    extracted = await async_process_uploaded_cert_file(self.hass, uploaded_file_id)
+                    extracted = await async_process_uploaded_cert_file(
+                        self.hass, uploaded_file_id, scope=self._entry_id
+                    )
                     if entry is not None:
                         new_opts = dict(entry.options)
                         new_opts[CONF_CERTFILE] = extracted[0]
@@ -116,6 +118,7 @@ class CertificateMissingRepairFlow(RepairsFlow):
                     ),
                 }
             ),
+            description_placeholders=_entry_placeholders(self.hass, self._entry_id),
             errors=errors,
         )
 
@@ -151,7 +154,21 @@ class AuthTokenInvalidatedRepairFlow(RepairsFlow):
         return self.async_show_form(
             step_id="confirm",
             data_schema=vol.Schema({}),
+            description_placeholders=_entry_placeholders(self.hass, self._entry_id),
         )
+
+
+def _entry_placeholders(hass: Any, entry_id: str | None) -> dict[str, str]:
+    """Return display placeholders identifying the config entry in repair dialogs."""
+    entry = None
+    config_entries = getattr(hass, "config_entries", None)
+    if entry_id and config_entries is not None and hasattr(config_entries, "async_get_entry"):
+        entry = config_entries.async_get_entry(entry_id)
+    data = getattr(entry, "data", None)
+    ip = str(data.get(CONF_IP_ADDRESS, "")) if isinstance(data, dict) else ""
+    title = getattr(entry, "title", None)
+    name = str(title) if isinstance(title, str) and title else (ip or "VIDAA TV")
+    return {"name": name, "ip_address": ip}
 
 
 def _entry_id_for_issue(issue_id: str, data: dict[str, Any] | None) -> str | None:

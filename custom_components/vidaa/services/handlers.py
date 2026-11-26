@@ -26,11 +26,26 @@ from ..const import (
     ATTR_URL,
     DOMAIN,
     POWER_KEYS,
+    SERVICE_CHANGE_CHANNEL,
+    SERVICE_LAUNCH_APP,
+    SERVICE_SEND_KEY,
+    SERVICE_SEND_KEY_SEQUENCE,
+    SERVICE_SEND_TEXT_INPUT,
+    SERVICE_SET_PICTURE_SETTING,
+    SERVICE_SET_SOUND_SETTING,
 )
 from ..helpers import async_ensure_tv_on, async_turn_on_entry, check_client_command_readiness
+from .dispatch import async_dispatch_to_clients
 from .target import _find_entry_for_client, _resolve_service_targets, parse_key_sequence
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _with_failures(payload: dict[str, Any], failures: list[dict[str, str]]) -> dict[str, Any]:
+    """Attach partial-failure details only when at least one multi-TV target failed."""
+    if failures:
+        payload["failed"] = failures
+    return payload
 
 
 async def handle_send_key(hass: HomeAssistant, call: ServiceCall) -> dict[str, Any]:
@@ -41,7 +56,7 @@ async def handle_send_key(hass: HomeAssistant, call: ServiceCall) -> dict[str, A
     target_clients = _resolve_service_targets(hass, call)
     is_power_key = str(key).strip().lower() in POWER_KEYS
 
-    for client in target_clients:
+    async def _run(client: Any) -> str:
         if getattr(client, "auth_failed", False) is True:
             raise HomeAssistantError(
                 "Authentication required: Re-pair TV in Settings > Integrations.",
@@ -75,13 +90,13 @@ async def handle_send_key(hass: HomeAssistant, call: ServiceCall) -> dict[str, A
                     translation_key="send_key_failed",
                     translation_placeholders={"key": str(key), "error": str(err)},
                 ) from err
+        return getattr(client, "ip", "unknown")
 
-    return {
-        "key": key,
-        "repeat": repeat,
-        "targets": [getattr(c, "ip", "unknown") for c in target_clients],
-        "count": len(target_clients),
-    }
+    succeeded, failures = await async_dispatch_to_clients(target_clients, _run, SERVICE_SEND_KEY)
+    return _with_failures(
+        {"key": key, "repeat": repeat, "targets": succeeded, "count": len(succeeded)},
+        failures,
+    )
 
 
 async def handle_send_key_sequence(hass: HomeAssistant, call: ServiceCall) -> dict[str, Any]:
@@ -98,7 +113,7 @@ async def handle_send_key_sequence(hass: HomeAssistant, call: ServiceCall) -> di
             translation_key="empty_key_sequence",
         )
 
-    for client in target_clients:
+    async def _run(client: Any) -> str:
         check_client_command_readiness(client, require_on=True)
         for i, key in enumerate(sequence):
             if i > 0 and delay > 0:
@@ -114,13 +129,13 @@ async def handle_send_key_sequence(hass: HomeAssistant, call: ServiceCall) -> di
                     translation_key="send_key_sequence_failed",
                     translation_placeholders={"key": str(key), "error": str(err)},
                 ) from err
+        return getattr(client, "ip", "unknown")
 
-    return {
-        "sequence": sequence,
-        "delay": delay,
-        "targets": [getattr(c, "ip", "unknown") for c in target_clients],
-        "count": len(target_clients),
-    }
+    succeeded, failures = await async_dispatch_to_clients(target_clients, _run, SERVICE_SEND_KEY_SEQUENCE)
+    return _with_failures(
+        {"sequence": sequence, "delay": delay, "targets": succeeded, "count": len(succeeded)},
+        failures,
+    )
 
 
 async def handle_change_channel(hass: HomeAssistant, call: ServiceCall) -> dict[str, Any]:
@@ -139,7 +154,7 @@ async def handle_change_channel(hass: HomeAssistant, call: ServiceCall) -> dict[
             translation_placeholders={"channel": raw_channel},
         )
 
-    for client in target_clients:
+    async def _run(client: Any) -> str:
         check_client_command_readiness(client, require_on=True)
         for i, digit in enumerate(digits):
             if i > 0 and delay > 0:
@@ -171,14 +186,13 @@ async def handle_change_channel(hass: HomeAssistant, call: ServiceCall) -> dict[
                     translation_key="change_channel_confirm_failed",
                     translation_placeholders={"error": str(err)},
                 ) from err
+        return getattr(client, "ip", "unknown")
 
-    return {
-        "channel": raw_channel,
-        "digits": digits,
-        "confirmed": confirm,
-        "targets": [getattr(c, "ip", "unknown") for c in target_clients],
-        "count": len(target_clients),
-    }
+    succeeded, failures = await async_dispatch_to_clients(target_clients, _run, SERVICE_CHANGE_CHANNEL)
+    return _with_failures(
+        {"channel": raw_channel, "digits": digits, "confirmed": confirm, "targets": succeeded, "count": len(succeeded)},
+        failures,
+    )
 
 
 async def handle_launch_app(hass: HomeAssistant, call: ServiceCall) -> dict[str, Any]:
@@ -186,10 +200,9 @@ async def handle_launch_app(hass: HomeAssistant, call: ServiceCall) -> dict[str,
     app = str(call.data.get(ATTR_APP) or "")
     requested_app_id = str(call.data.get(ATTR_APP_ID) or "")
     target_clients = _resolve_service_targets(hass, call)
-    launched: list[dict[str, Any]] = []
     lookup_ids = {value.lower() for value in (app, requested_app_id) if value}
 
-    for client in target_clients:
+    async def _run(client: Any) -> dict[str, Any]:
         matched_app = None
         for a in getattr(client, "apps", []):
             if isinstance(a, dict) and (
@@ -221,11 +234,7 @@ async def handle_launch_app(hass: HomeAssistant, call: ServiceCall) -> dict[str,
         await async_ensure_tv_on(client, turn_on_coro=turn_on_coro, action_description=f"launching app '{app_name}'")
 
         try:
-            res = await client.async_launch_app(
-                app_id,
-                app_name,
-                app_url,
-            )
+            res = await client.async_launch_app(app_id, app_name, app_url)
             if res is False:
                 raise ConnectionError(f"App launch command failed for {app_name}")
         except Exception as err:
@@ -236,20 +245,18 @@ async def handle_launch_app(hass: HomeAssistant, call: ServiceCall) -> dict[str,
                 translation_placeholders={"app_name": str(app_name), "error": str(err)},
             ) from err
 
-        launched.append(
-            {
-                "ip": getattr(client, "ip", "unknown"),
-                "app_name": app_name,
-                "app_id": app_id,
-                "app_url": app_url,
-            }
-        )
+        return {
+            "ip": getattr(client, "ip", "unknown"),
+            "app_name": app_name,
+            "app_id": app_id,
+            "app_url": app_url,
+        }
 
-    return {
-        "app": app or requested_app_id,
-        "targets": launched,
-        "count": len(launched),
-    }
+    launched, failures = await async_dispatch_to_clients(target_clients, _run, SERVICE_LAUNCH_APP)
+    return _with_failures(
+        {"app": app or requested_app_id, "targets": launched, "count": len(launched)},
+        failures,
+    )
 
 
 async def handle_set_picture_setting(hass: HomeAssistant, call: ServiceCall) -> dict[str, Any]:
@@ -257,7 +264,8 @@ async def handle_set_picture_setting(hass: HomeAssistant, call: ServiceCall) -> 
     menu_id = call.data.get(ATTR_MENU_ID)
     menu_val = call.data.get(ATTR_MENU_VALUE)
     target_clients = _resolve_service_targets(hass, call)
-    for client in target_clients:
+
+    async def _run(client: Any) -> str:
         check_client_command_readiness(client, require_on=True)
         try:
             res = await client.async_set_picture_setting(menu_id, menu_val)
@@ -270,12 +278,13 @@ async def handle_set_picture_setting(hass: HomeAssistant, call: ServiceCall) -> 
                 translation_key="set_picture_setting_failed",
                 translation_placeholders={"menu_id": str(menu_id), "error": str(err)},
             ) from err
-    return {
-        "menu_id": menu_id,
-        "menu_value": menu_val,
-        "targets": [getattr(c, "ip", "unknown") for c in target_clients],
-        "count": len(target_clients),
-    }
+        return getattr(client, "ip", "unknown")
+
+    succeeded, failures = await async_dispatch_to_clients(target_clients, _run, SERVICE_SET_PICTURE_SETTING)
+    return _with_failures(
+        {"menu_id": menu_id, "menu_value": menu_val, "targets": succeeded, "count": len(succeeded)},
+        failures,
+    )
 
 
 async def handle_set_sound_setting(hass: HomeAssistant, call: ServiceCall) -> dict[str, Any]:
@@ -283,7 +292,8 @@ async def handle_set_sound_setting(hass: HomeAssistant, call: ServiceCall) -> di
     menu_id = call.data.get(ATTR_MENU_ID)
     menu_val = call.data.get(ATTR_MENU_VALUE)
     target_clients = _resolve_service_targets(hass, call)
-    for client in target_clients:
+
+    async def _run(client: Any) -> str:
         check_client_command_readiness(client, require_on=True)
         try:
             res = await client.async_set_sound_setting(menu_id, menu_val)
@@ -296,12 +306,13 @@ async def handle_set_sound_setting(hass: HomeAssistant, call: ServiceCall) -> di
                 translation_key="set_sound_setting_failed",
                 translation_placeholders={"menu_id": str(menu_id), "error": str(err)},
             ) from err
-    return {
-        "menu_id": menu_id,
-        "menu_value": menu_val,
-        "targets": [getattr(c, "ip", "unknown") for c in target_clients],
-        "count": len(target_clients),
-    }
+        return getattr(client, "ip", "unknown")
+
+    succeeded, failures = await async_dispatch_to_clients(target_clients, _run, SERVICE_SET_SOUND_SETTING)
+    return _with_failures(
+        {"menu_id": menu_id, "menu_value": menu_val, "targets": succeeded, "count": len(succeeded)},
+        failures,
+    )
 
 
 async def handle_send_text_input(hass: HomeAssistant, call: ServiceCall) -> dict[str, Any]:
@@ -309,7 +320,8 @@ async def handle_send_text_input(hass: HomeAssistant, call: ServiceCall) -> dict
     text = call.data.get(ATTR_TEXT, "")
     action = call.data.get(ATTR_ACTION, "insert")
     target_clients = _resolve_service_targets(hass, call)
-    for client in target_clients:
+
+    async def _run(client: Any) -> str:
         check_client_command_readiness(client, require_on=True)
         try:
             res = await client.async_send_text_input(text, action)
@@ -322,9 +334,10 @@ async def handle_send_text_input(hass: HomeAssistant, call: ServiceCall) -> dict
                 translation_key="send_text_input_failed",
                 translation_placeholders={"error": str(err)},
             ) from err
-    return {
-        "text": text,
-        "action": action,
-        "targets": [getattr(c, "ip", "unknown") for c in target_clients],
-        "count": len(target_clients),
-    }
+        return getattr(client, "ip", "unknown")
+
+    succeeded, failures = await async_dispatch_to_clients(target_clients, _run, SERVICE_SEND_TEXT_INPUT)
+    return _with_failures(
+        {"text": text, "action": action, "targets": succeeded, "count": len(succeeded)},
+        failures,
+    )

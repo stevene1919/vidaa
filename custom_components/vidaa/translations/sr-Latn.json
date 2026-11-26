@@ -22,7 +22,7 @@
       },
       "auth": {
         "title": "Unesite PIN kod sa televizora",
-        "description": "Četvorocifreni PIN kod bi sada trebalo da bude prikazan na ekranu vašeg televizora. Unesite ga ispod.",
+        "description": "Četvorocifreni PIN kod bi sada trebalo da bude prikazan na uređaju {name} ({ip_address}). Unesite ga ispod.",
         "data": {
           "pin_code": "PIN kod"
         }
@@ -477,12 +477,12 @@
   },
   "issues": {
     "certificate_missing": {
-      "title": "Nedostaju VIDAA klijentski sertifikati",
+      "title": "Nedostaju VIDAA klijentski sertifikati ({name})",
       "fix_flow": {
         "step": {
           "confirm": {
             "title": "Verifikujte klijentske sertifikate",
-            "description": "Nakon što kopirate datoteke hisense.crt i hisense.key u /config/ssl ili /ssl, pošaljite ovaj obrazac radi verifikacije.",
+            "description": "Otpremite ili proverite klijentske sertifikate za {name} ({ip_address}). Kada su sertifikati instalirani, pošaljite ovaj obrazac radi verifikacije.",
             "data": {
               "cert_file": "Paket aplikacije ili datoteka skladišta ključeva (.apk / .p12 / .pem)"
             }

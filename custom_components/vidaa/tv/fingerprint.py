@@ -316,8 +316,11 @@ def query_mdns_fingerprint(ip: str, timeout: float = 2.0, zc: Zeroconf | None = 
                 with contextlib.suppress(Exception):
                     s_info = zc_inst.get_service_info(type_, name)
                     if s_info:
-                        addrs = [socket.inet_ntoa(a) for a in s_info.addresses]
-                        if target_ip in addrs or "Smart TV" in name:
+                        addrs: list[str] = []
+                        for a in getattr(s_info, "addresses", ()) or ():
+                            with contextlib.suppress(OSError, TypeError):
+                                addrs.append(socket.inet_ntoa(a))
+                        if target_ip in addrs:
                             discovered[type_] = s_info.properties
 
             def update_service(self, zc_inst: Zeroconf, type_: str, name: str) -> None:

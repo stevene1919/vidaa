@@ -18,6 +18,19 @@ __all__ = [
 ]
 
 
+def _append_storage_cert_subdirs(search_dirs: list[str], cert_root: str) -> None:
+    """Append per-TV scoped certificate subdirectories under ``cert_root``."""
+    if not os.path.isdir(cert_root):
+        return
+    try:
+        entries = sorted(os.scandir(cert_root), key=lambda e: e.name)
+    except OSError:
+        return
+    for entry in entries:
+        if entry.is_dir() and entry.path not in search_dirs:
+            search_dirs.append(entry.path)
+
+
 def _get_default_search_dirs(config_dir: str | None = None) -> list[str]:
     """Build list of candidate certificate search paths, scanning upwards to repo root."""
     search_dirs: list[str] = []
@@ -27,6 +40,8 @@ def _get_default_search_dirs(config_dir: str | None = None) -> list[str]:
             candidate = os.path.join(cfg_root, sub)
             if candidate not in search_dirs:
                 search_dirs.append(candidate)
+            if sub == ".storage/vidaa/certs":
+                _append_storage_cert_subdirs(search_dirs, candidate)
 
     static_dirs = [
         "/config/.storage/vidaa/certs",
@@ -42,6 +57,8 @@ def _get_default_search_dirs(config_dir: str | None = None) -> list[str]:
     for d in static_dirs:
         if d not in search_dirs:
             search_dirs.append(d)
+        if d.endswith(os.path.join(".storage", "vidaa", "certs")):
+            _append_storage_cert_subdirs(search_dirs, d)
 
     cur = os.path.dirname(os.path.abspath(__file__))
     while cur and cur != os.path.dirname(cur):

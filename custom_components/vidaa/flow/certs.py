@@ -47,6 +47,7 @@ from .helpers import (
     async_process_uploaded_cert_file,
     resolve_ssl_certs,
 )
+from .isolation import cert_path_in_use_by_other_entries
 
 if TYPE_CHECKING:
     from ..config_flow import VidaaConfigFlow
@@ -59,12 +60,25 @@ class CertsFlowMixin:
 
     def _cleanup_installed_certs(self: VidaaConfigFlow) -> None:
         """Removes installed certificates from storage if client auth fails after upload."""
-        for path_str in (getattr(self, "certfile", None), getattr(self, "keyfile", None)):
+        entry_id = self._reauth_entry.entry_id if getattr(self, "_reauth_entry", None) else None
+        candidates = getattr(self, "_uploaded_cert_paths", None) or (
+            getattr(self, "certfile", None),
+            getattr(self, "keyfile", None),
+        )
+        for path_str in candidates:
             if path_str:
                 path = Path(path_str)
-                if ".storage" in path.parts and "vidaa" in path.parts and path.is_file():
+                if (
+                    ".storage" in path.parts
+                    and "vidaa" in path.parts
+                    and path.is_file()
+                    and not cert_path_in_use_by_other_entries(
+                        getattr(self, "hass", None), path_str, exclude_entry_id=entry_id
+                    )
+                ):
                     with contextlib.suppress(OSError):
                         path.unlink()
+        self._uploaded_cert_paths = None
         self.certfile = None
         self.keyfile = None
 
@@ -120,6 +134,9 @@ class CertsFlowMixin:
     ) -> config_entries.ConfigFlowResult:
         """Handle certificate file upload step."""
         errors: dict[str, str] = {}
+        if getattr(self, "_upload_error", None):
+            errors["base"] = self._upload_error
+            self._upload_error = None
         if user_input is not None:
             if user_input.get(CONF_MANUAL_PATHS):
                 return await self.async_step_certs()
@@ -129,9 +146,16 @@ class CertsFlowMixin:
                 errors["base"] = "invalid_cert_archive"
             else:
                 try:
-                    self.certfile, self.keyfile, upload_hint = await async_process_uploaded_cert_file(
-                        self.hass, uploaded_file_id
+                    reauth_entry = getattr(self, "_reauth_entry", None)
+                    cert_scope = (
+                        (reauth_entry.entry_id if reauth_entry else None)
+                        or getattr(self, "mac_address", None)
+                        or getattr(self, "ip_address", None)
                     )
+                    self.certfile, self.keyfile, upload_hint = await async_process_uploaded_cert_file(
+                        self.hass, uploaded_file_id, scope=cert_scope
+                    )
+                    self._uploaded_cert_paths = (self.certfile, self.keyfile)
                     self.use_ssl = True
                 except UploadedCertProcessingError as ex:
                     errors["base"] = ex.error_key

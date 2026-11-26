@@ -652,8 +652,8 @@ async def test_upload_step_success(tmp_path, monkeypatch):
     result = await flow.async_step_upload(user_input={"cert_file": str(apk_path)})
     assert result["type"] == "form"
     assert result["step_id"] == "auth"
-    assert flow.certfile == str(target_certs_dir / "hisense.crt")
-    assert flow.keyfile == str(target_certs_dir / "hisense.key")
+    assert flow.certfile == str(target_certs_dir / "192_168_1_100" / "hisense.crt")
+    assert flow.keyfile == str(target_certs_dir / "192_168_1_100" / "hisense.key")
     assert flow.use_ssl is True
 
 

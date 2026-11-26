@@ -78,7 +78,9 @@ class OptionsSecurityMixin:
             uploaded_file_id = user_input.pop(CONF_CERT_FILE, None)
             if uploaded_file_id:
                 try:
-                    extracted = await async_process_uploaded_cert_file(self.hass, uploaded_file_id)
+                    extracted = await async_process_uploaded_cert_file(
+                        self.hass, uploaded_file_id, scope=self.config_entry.entry_id
+                    )
                     user_input[CONF_CERTFILE] = extracted[0]
                     user_input[CONF_KEYFILE] = extracted[1]
                 except UploadedCertProcessingError as ex:

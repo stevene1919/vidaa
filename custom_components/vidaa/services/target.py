@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ServiceValidationError
 
 from ..const import ATTR_APP, ATTR_APP_ID, DOMAIN
+from ..flow.isolation import entry_mac_addresses, normalize_mac_str
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -123,7 +124,8 @@ def _get_target_clients(hass: HomeAssistant, call: ServiceCall) -> list[Any]:
     loaded_entries = _get_loaded_entries(hass)
 
     target_ip = call.data.get("ip_address") or call.data.get("ip")
-    target_mac = call.data.get("mac_address") or call.data.get("mac")
+    raw_target_mac = call.data.get("mac_address") or call.data.get("mac")
+    target_mac = normalize_mac_str(raw_target_mac) if raw_target_mac else None
     target_entry_id = call.data.get("entry_id")
 
     target_entry_ids: set[str] = set()
@@ -181,7 +183,7 @@ def _get_target_clients(hass: HomeAssistant, call: ServiceCall) -> list[Any]:
                 clients.append(client)
         return clients
 
-    selector_given = bool(target_entry_ids or target_ip or target_mac or registry_ids_given)
+    selector_given = bool(target_entry_ids or target_ip or raw_target_mac or registry_ids_given)
 
     if selector_given:
         for entry in loaded_entries:
@@ -194,7 +196,7 @@ def _get_target_clients(hass: HomeAssistant, call: ServiceCall) -> list[Any]:
                 continue
             if target_ip and getattr(client, "ip", None) != target_ip:
                 continue
-            if target_mac and getattr(client, "mac", None) != target_mac:
+            if raw_target_mac and (not target_mac or target_mac not in entry_mac_addresses(entry)):
                 continue
             clients.append(client)
         return clients

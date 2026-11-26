@@ -22,7 +22,7 @@
       },
       "auth": {
         "title": "输入电视屏幕上的 PIN 码",
-        "description": "您的电视屏幕上现在应该显示一个 4 位数 PIN 码。请在下方输入。",
+        "description": "{name} ({ip_address}) 屏幕上现在应该显示一个 4 位数 PIN 码。请在下方输入。",
         "data": {
           "pin_code": "PIN 码"
         }
@@ -477,12 +477,12 @@
   },
   "issues": {
     "certificate_missing": {
-      "title": "缺少 VIDAA 客户端证书",
+      "title": "缺少 VIDAA 客户端证书 ({name})",
       "fix_flow": {
         "step": {
           "confirm": {
             "title": "验证客户端证书",
-            "description": "将 hisense.crt 和 hisense.key 复制到 /config/ssl 或 /ssl 目录后，提交此表单进行验证。",
+            "description": "上传或验证 {name} ({ip_address}) 的客户端证书。安装证书后，提交此表单进行验证。",
             "data": {
               "cert_file": "应用程序包或密钥库文件 (.apk / .p12 / .pem)"
             }

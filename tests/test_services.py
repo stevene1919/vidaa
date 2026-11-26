@@ -666,22 +666,39 @@ async def test_service_action_exceptions_on_command_failure():
 
 @pytest.mark.anyio
 async def test_service_action_exceptions_on_disconnected_target():
-    """Verify handlers raise HomeAssistantError when a targeted client in a multi-client call is disconnected."""
+    """Verify multi-TV calls succeed on connected TVs, report partial failures, and raise if all targets fail."""
     hass, client_living, client_kitchen = _two_tv_hass()
     client_living.connected = True
+    client_living.is_on = True
+    client_living.auth_failed = False
+    client_living.async_send_command = AsyncMock(return_value=True)
     client_kitchen.connected = False  # Kitchen is disconnected
     handlers = await _register_handlers(hass)
 
-    # Calling 'all' targets both clients; kitchen is disconnected
+    # Calling 'all' targets both clients; living room succeeds while kitchen reports partial failure
     call_key = ServiceCall(
         domain=DOMAIN,
         service=SERVICE_SEND_KEY,
         data={ATTR_KEY: "KEY_POWER", "entity_id": "all"},
     )
+    res = await handlers[SERVICE_SEND_KEY](call_key)
+    assert res["targets"] == ["192.168.1.100"]
+    assert res["count"] == 1
+    assert len(res["failed"]) == 1
+    assert res["failed"][0]["ip"] == "192.168.1.105"
+    assert "TV is disconnected" in res["failed"][0]["error"]
+    client_living.async_send_command.assert_awaited_once_with("KEY_POWER")
+
+    # If all targeted TVs fail (living room off + kitchen disconnected), raise HomeAssistantError
+    client_living.is_on = False
+    call_vol = ServiceCall(
+        domain=DOMAIN,
+        service=SERVICE_SEND_KEY,
+        data={ATTR_KEY: "KEY_VOLUMEUP", "entity_id": "all"},
+    )
     with pytest.raises(HomeAssistantError) as exc_info:
-        await handlers[SERVICE_SEND_KEY](call_key)
-    assert exc_info.value.translation_key == "send_key_failed"
-    assert "TV is disconnected" in str(exc_info.value)
+        await handlers[SERVICE_SEND_KEY](call_vol)
+    assert exc_info.value.translation_key in ("device_off", "send_key_failed")
 
 
 @pytest.mark.anyio

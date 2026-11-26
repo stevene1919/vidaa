@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import ssl
 import sys
 from typing import TYPE_CHECKING, Any
 
@@ -40,6 +41,7 @@ from .helpers import (
     collect_client_auth_data,
     unwrap_section_data,
 )
+from .isolation import find_conflicting_entry
 
 if TYPE_CHECKING:
     from ..config_flow import VidaaConfigFlow
@@ -119,6 +121,15 @@ class UserFlowMixin:
         if self.mac_address and self._reauth_entry is None:
             await self.async_set_unique_id(self.mac_address)
             self._abort_if_unique_id_configured()
+
+        if self._reauth_entry is None and hasattr(self, "_async_current_entries"):
+            existing, _ = find_conflicting_entry(
+                self._async_current_entries(),
+                ip_address=self.ip_address,
+                macs=(self.mac_address, getattr(self, "secondary_mac_address", None)),
+            )
+            if existing is not None:
+                return self.async_abort(reason="already_configured")
 
         detected_brand: str | None = None
         if (
@@ -218,6 +229,12 @@ class UserFlowMixin:
                         return await self._async_init_client_and_auth()
                     except AbortFlow:
                         raise
+                    except ssl.SSLError as e:
+                        _LOGGER.warning("[%s] SSL handshake failed with existing certificates: %s", self.ip_address, e)
+                        self.certfile = None
+                        self.keyfile = None
+                        self._upload_error = "invalid_ssl_cert"
+                        return await self.async_step_upload()
                     except Exception as e:
                         _LOGGER.warning("[%s] Failed to connect or initiate auth with TV: %s", self.ip_address, e)
                         errors["base"] = "cannot_connect"

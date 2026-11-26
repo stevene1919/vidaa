@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import ssl
 from typing import TYPE_CHECKING, Any
 
 from homeassistant import config_entries
@@ -13,6 +14,7 @@ from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 from ..const import CONF_IP_ADDRESS
 from ..protocol import DiscoveredTvInfo, parse_ssdp_discovery, parse_zeroconf_discovery
 from .helpers import async_resolve_mac
+from .isolation import find_conflicting_entry
 
 if TYPE_CHECKING:
     from ..config_flow import VidaaConfigFlow
@@ -46,9 +48,23 @@ class DiscoveryFlowMixin:
             self._abort_if_unique_id_configured(updates={CONF_IP_ADDRESS: self.ip_address})
 
         if hasattr(self, "_async_current_entries"):
-            for existing in self._async_current_entries():
-                if getattr(existing, "data", {}).get(CONF_IP_ADDRESS) == self.ip_address:
-                    return self.async_abort(reason="already_configured")
+            existing, match_reason = find_conflicting_entry(
+                self._async_current_entries(),
+                ip_address=self.ip_address,
+                macs=(self.mac_address, self.secondary_mac_address),
+            )
+            if existing is not None:
+                if (
+                    match_reason == "mac"
+                    and self.ip_address
+                    and getattr(existing, "data", {}).get(CONF_IP_ADDRESS) != self.ip_address
+                    and hasattr(getattr(self, "hass", None), "config_entries")
+                ):
+                    self.hass.config_entries.async_update_entry(
+                        existing,
+                        data={**existing.data, CONF_IP_ADDRESS: self.ip_address},
+                    )
+                return self.async_abort(reason="already_configured")
 
         return await self.async_step_discovery_confirm()
 
@@ -102,6 +118,12 @@ class DiscoveryFlowMixin:
                     # HA flow control (e.g. already_configured) must never be
                     # turned into cannot_connect.
                     raise
+                except ssl.SSLError as e:
+                    _LOGGER.warning("[%s] SSL handshake failed with existing certificates: %s", self.ip_address, e)
+                    self.certfile = None
+                    self.keyfile = None
+                    self._upload_error = "invalid_ssl_cert"
+                    return await self.async_step_upload()
                 except Exception as e:
                     _LOGGER.warning(
                         "[%s] Failed to connect or initiate auth with TV: %s",

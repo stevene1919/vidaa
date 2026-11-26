@@ -22,7 +22,7 @@
       },
       "auth": {
         "title": "Enter TV PIN Code",
-        "description": "A 4-digit PIN code should now be displayed on your TV screen. Please enter it below.",
+        "description": "A 4-digit PIN code should now be displayed on {name} ({ip_address}). Please enter it below.",
         "data": {
           "pin_code": "PIN Code"
         }
@@ -481,12 +481,12 @@
       "description": "The integration has successfully upgraded to VIDAA Smart TV (`{new_domain}`). The old folder `custom_components/{legacy_domain}` is still present on your storage. Please remove `custom_components/{legacy_domain}` and restart Home Assistant to avoid potential component collisions."
     },
     "certificate_missing": {
-      "title": "Missing VIDAA Client Certificates",
+      "title": "Missing VIDAA Client Certificates ({name})",
       "fix_flow": {
         "step": {
           "confirm": {
             "title": "Verify Client Certificates",
-            "description": "Once you have copied hisense.crt and hisense.key into /config/ssl or /ssl, submit this form to verify.",
+            "description": "Upload or verify client certificates for {name} ({ip_address}). Once certificates are installed, submit this form to verify.",
             "data": {
               "cert_file": "Application Package or Keystore File (.apk / .p12 / .pem)"
             }

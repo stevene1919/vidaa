@@ -67,6 +67,8 @@ class VidaaConfigFlow(
         self.sw_version: str | None = None
         self._reauth_entry: config_entries.ConfigEntry | None = None
         self._pairing_error: str | None = None
+        self._upload_error: str | None = None
+        self._uploaded_cert_paths: tuple[str, str] | None = None
 
     @staticmethod
     @callback

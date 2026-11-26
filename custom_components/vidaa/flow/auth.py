@@ -153,6 +153,14 @@ class AuthFlowMixin:
                     self.brand = self.client.brand
                 return await self.async_step_options()
 
+        reauth_entry = getattr(self, "_reauth_entry", None)
+        entry_title = getattr(reauth_entry, "title", None) if reauth_entry else None
+        tv_name = (
+            getattr(self, "discovered_title", None)
+            or (entry_title if isinstance(entry_title, str) and entry_title else None)
+            or self.ip_address
+            or "VIDAA TV"
+        )
         return self.async_show_form(
             step_id="auth",
             data_schema=vol.Schema(
@@ -160,5 +168,9 @@ class AuthFlowMixin:
                     vol.Required("pin_code"): str,
                 }
             ),
+            description_placeholders={
+                "name": str(tv_name),
+                "ip_address": str(self.ip_address or ""),
+            },
             errors=errors,
         )

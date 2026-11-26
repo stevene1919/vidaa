@@ -33,6 +33,7 @@ PARALLEL_UPDATES = 0
 AUDIO_ONLY_KEY = "KEY_AUDIO"
 WAKE_KEY = "KEY_INFO"
 KEY_GAP_SECONDS = 0.5
+_DEBUG_SWITCHES_KEY = f"{DOMAIN}_debug_logging_switches"
 
 
 class VidaaAudioOnlySwitch(VidaaEntity, SwitchEntity):
@@ -141,6 +142,28 @@ class VidaaDebugLoggingSwitch(VidaaEntity, SwitchEntity):
     def unique_id(self) -> str:
         return self._attr_unique_id
 
+    async def async_added_to_hass(self) -> None:
+        """Register this debug logging switch for cross-TV state synchronization."""
+        hass_data = getattr(getattr(self, "hass", None), "data", None)
+        if isinstance(hass_data, dict):
+            hass_data.setdefault(_DEBUG_SWITCHES_KEY, set()).add(self)
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Unregister this debug logging switch."""
+        hass_data = getattr(getattr(self, "hass", None), "data", None)
+        if isinstance(hass_data, dict) and _DEBUG_SWITCHES_KEY in hass_data:
+            hass_data[_DEBUG_SWITCHES_KEY].discard(self)
+
+    def _notify_all_debug_switches(self) -> None:
+        """Refresh state on every VIDAA debug logging switch on this HA instance."""
+        hass_data = getattr(getattr(self, "hass", None), "data", None)
+        switches = list(hass_data.get(_DEBUG_SWITCHES_KEY, ())) if isinstance(hass_data, dict) else []
+        if self not in switches:
+            switches.append(self)
+        for sw in switches:
+            if getattr(sw, "hass", None) is not None or sw is self:
+                sw.async_write_ha_state()
+
     @property
     def is_on(self) -> bool:
         """Return True if debug logging is enabled for this integration."""
@@ -150,13 +173,13 @@ class VidaaDebugLoggingSwitch(VidaaEntity, SwitchEntity):
         """Enable debug logging."""
         logging.getLogger("custom_components.vidaa").setLevel(logging.DEBUG)
         _LOGGER.info("Debug logging enabled for custom_components.vidaa")
-        self.async_write_ha_state()
+        self._notify_all_debug_switches()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Disable debug logging."""
         logging.getLogger("custom_components.vidaa").setLevel(logging.NOTSET)
         _LOGGER.info("Debug logging disabled for custom_components.vidaa")
-        self.async_write_ha_state()
+        self._notify_all_debug_switches()
 
 
 # Backwards-compatible aliases during migration

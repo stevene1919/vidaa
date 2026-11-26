@@ -65,10 +65,26 @@ async def async_ensure_entry_mac(hass: HomeAssistant, entry: ConfigEntry) -> str
         raw_mac = await hass.async_add_executor_job(get_arp_mac, data[CONF_IP_ADDRESS])
         if raw_mac:
             mac = dr.format_mac(raw_mac)
+            new_unique_id = entry.unique_id or mac
+            if (
+                not entry.unique_id
+                and hasattr(hass, "config_entries")
+                and hasattr(hass.config_entries, "async_entries")
+            ):
+                for other in hass.config_entries.async_entries(DOMAIN):
+                    if other.entry_id != entry.entry_id and getattr(other, "unique_id", None) == mac:
+                        _LOGGER.warning(
+                            "[%s] Resolved MAC %s already belongs to entry '%s'; keeping existing unique_id",
+                            data.get(CONF_IP_ADDRESS),
+                            mac,
+                            other.title,
+                        )
+                        new_unique_id = entry.unique_id
+                        break
             hass.config_entries.async_update_entry(
                 entry,
                 data={**entry.data, CONF_MAC_ADDRESS: mac},
-                unique_id=entry.unique_id or mac,
+                unique_id=new_unique_id,
             )
     return mac
 
@@ -131,6 +147,8 @@ async def async_sync_certificate_repair_issue(
 
     issue_id = f"certificate_missing_{entry.entry_id}"
     if use_ssl and not is_legacy_static and not certs_valid:
+        ip_addr = str(entry.data.get(CONF_IP_ADDRESS, ""))
+        tv_name = str(entry.title or ip_addr or "VIDAA TV")
         ir.async_create_issue(
             hass,
             DOMAIN,
@@ -139,6 +157,7 @@ async def async_sync_certificate_repair_issue(
             is_persistent=True,
             severity=ir.IssueSeverity.ERROR,
             translation_key="certificate_missing",
+            translation_placeholders={"name": tv_name, "ip_address": ip_addr},
             data={"entry_id": entry.entry_id},
         )
     else:

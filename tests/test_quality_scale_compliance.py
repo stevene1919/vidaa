@@ -296,3 +296,12 @@ def test_translations_exceptions_and_icons_compliance() -> None:
         VidaaActiveSourceSensor,
     ):
         assert "_attr_icon" not in cls.__dict__
+
+
+def test_manifest_keys_sorted_for_hassfest() -> None:
+    """Hassfest requires manifest.json keys to start with domain, name, then alphabetical order."""
+    manifest = json.loads((INTEGRATION_DIR / "manifest.json").read_text(encoding="utf-8"))
+    keys = list(manifest.keys())
+    assert keys[:2] == ["domain", "name"]
+    assert keys[2:] == sorted(keys[2:]), f"Manifest keys not sorted: {keys}"
+    assert isinstance(manifest.get("version"), str) and manifest["version"]

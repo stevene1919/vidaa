@@ -44,45 +44,57 @@ Please report any issues or feedback on [GitHub Issues](https://github.com/steve
 
 ## [Unreleased]
 
+---
+
+## [3.6.1] - 2026-11-27
+
+### ☕ Support the Project
+
+If this integration makes controlling your smart home entertainment a breeze, consider supporting continued open-source development and reverse-engineering:
+
+[![Support on Ko-fi](https://img.shields.io/badge/Support%20on-Ko--fi-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/stevene_)
+
+---
+
+Hey everyone! 👋
+
+Welcome to **v3.6.1**! 🎉 This release makes setting up and living with your VIDAA Smart TV in Home Assistant smoother than ever—bringing effortless in-UI certificate uploads, a visual Media Browser, Remote Activity support, faster re-authentication recovery, stronger multi-TV isolation, and important fixes for older Hisense models and slow-booting laser projectors.
+
+---
+
 ### 🌟 What's New & Highlights
 
-- **Startup Certificate & CA Auto-Discovery Fix**:
-  - Fixed a positional argument bug during integration startup (`resolve_certificates` / `resolve_ca_certificate`) where Home Assistant's `config_dir` string was passed into `search_dirs`, preventing auto-discovery of TLS client and CA certificates inside `<config>/.storage/vidaa/certs`, `<config>/ssl`, and `<config>/certs`.
-- **Wake-on-LAN & Power-On Consistency**:
-  - Fixed `enable_wol = false` being silently ignored by distinguishing disabled WoL (`[]`) from omitted targets and removing the fallback that still sent Wake-on-LAN packets using stored MAC addresses.
-  - Stopped spraying Wake-on-LAN UDP broadcasts and scheduling executor jobs when the TV is already connected and awake.
-  - Unified custom **Turn On** device trigger (`PluggableAction`) and `enable_wol` handling across `media_player.turn_on`, `remote.turn_on`, and `vidaa.launch_app`.
-- **Faster Re-authentication Recovery (~40s vs 6 min) & Single Clean Repair Card**:
-  - When a TV wipes its volatile RAM session tokens (e.g. after a cold shutdown or power cut), the integration now retries active broker auth rejections (`rc: 4/5/134/135`) on a tight `15s → 25s` cadence (~40 seconds total across 3 attempts, safely clearing slow projector cold-boot windows) instead of waiting 6 minutes before surfacing a Repair.
-  - Eliminated the duplicate custom Repair card and duplicate persistent notification during automatic auth failures—Home Assistant now shows only the single native Core repair card (**Authentication expired for \<TV\>**), which launches the 4-digit PIN flow directly.
-- **Local-Only App Icon Option & Automatic CDN Fallback**:
-  - Added the **`enable_app_icons`** toggle (default enabled) under **Options → Playback & Sources** to disable remote `img.vidaahub.com` artwork on the Media Player, Active App sensor, and Media Browser for privacy-focused or offline setups.
-  - Added an automatic, 1-hour cached reachability check (`HEAD`, with DNS-sinkhole HTML blockpage detection and ranged `GET` fallback) so entities automatically fall back to expanded Material Design Icons (`mdi:apple`, `mdi:twitch`, `mdi:music`, `mdi:trophy`, `mdi:gamepad-variant`, `mdi:television-play`, etc.) instead of showing broken images when the artwork CDN is blocked or unreachable.
-- **Media Player & Sensor Startup State Sync, Canonical App Names & Input Labels**:
-  - Fixed split-brain state desync where `media_player` attributes (volume, mute, source, channel, app) and `active_app` / `active_source` / `session_status` sensors could lag behind the live client on startup (stuck on `Standby` with `0` apps when telemetry arrived before platform setup) or stay stale when returning to the Home Launcher.
-  - Resolved lowercase TV app broadcasts (e.g. `"netflix"` with no `appId`) case-insensitively against the TV's `applist` catalog so `media_player` and `active_app` display canonical names (`Netflix`, `YouTube`, etc.), populate `app_id`, and match app artwork reliably.
-  - Refined `sensor.<tv>_active_app` to display **`HDMI Input`** (`mdi:video-input-hdmi`) and **`AV Input`** (`mdi:video-input-component`) instead of generic `TV Input` when on physical inputs.
-  - Consistently gated app name, artwork, and media titles behind active power state (`is_on`) and expanded payload key fallbacks (`sourceid`, `sourcename`, `appname`, `appid`, `vol_type`).
-- **Auto-Detect Legacy TVs in Discovery & Hardened Certificate Uploads**:
-  - Automatically probes legacy static authentication during SSDP/Zeroconf discovery when no client certificates are present, streamlining setup for older TVs.
-  - Improved certificate upload validation and automatic temporary file cleanup on failed uploads, and documented picture-setting firmware constraints ([#78](https://github.com/stevene1919/vidaa/issues/78)).
-- **Non-Blocking Startup & Lifecycle Hardening**:
-  - Deferred certificate resolution out of synchronous client initialization to a non-blocking executor and consolidated Wake-on-LAN helpers across platforms.
-  - Tracked all background token-lifecycle tasks to guarantee clean cancellation on reload or teardown.
-  - Added clock-sync coalescing/cooldown (`5s`) and eliminated redundant synchronous `urllib` UPnP retries, cutting ~4 seconds of wasted stall during cold-boot wake and token recovery.
-- **Multi-TV Isolation, Resilient Service Dispatch & Diagnostics**:
-  - Scoped uploaded TLS certificates per TV so adding, repairing, or failing setup for one TV never overwrites or deletes another TV's certificates, and automatically falls back to certificate upload if an existing cert fails TLS handshake on a second TV.
-  - Dispatched multi-TV service calls concurrently so an offline or standby TV no longer blocks other targeted TVs (surfacing partial failures cleanly and raising only when all targets fail), and normalized MAC / secondary-MAC service targeting.
-  - Hardened duplicate-TV detection across dual-MAC (Wi-Fi/Ethernet) switches, routed/no-ARP subnets, Reconfigure flows, and startup MAC enrichment.
-  - Added TV names and IPs to Repair cards, Repair dialogs, and PIN prompts across all 14 translation files, synchronized the Debug Logging switch state across all configured TVs, and restricted synchronous mDNS fingerprinting strictly to the target TV's IP.
-- **Wake Reliability, Reconfigure Polish & Clean Disconnect Logging**:
-  - Updated `apply_state_update()` and `apply_device_info_update()` to update the wake event directly, and made wake-from-standby transitions bypass `playback_debounce` so `media_player.state` and `is_on` never diverge.
-  - Fixed modern PIN Reconfigure flows showing `"reauth_successful"` instead of `"reconfigure_successful"`, bumped `VidaaConfigFlow.MINOR_VERSION` to `3`, and hardened `async_submit_pin_code()` against non-numeric PINs, empty tokens, dangling futures, and clock-offset drift.
-  - Added a centralized `_schedule_ha_update()` guard on `VidaaEntity` across all platforms, deduplicated shared command/power/settings helpers, and added one-shot disconnect/reconnect logging so extended TV standby/outages don't spam logs.
-- **Bronze, Silver & Gold Quality Scale Compliance**:
-  - Updated service registration lifecycle to `action-setup` compliance (services registered in `async_setup` and preserved across entry unloads/reloads), raised translated `ConfigEntryAuthFailed` on missing credentials and translated `ConfigEntryNotReady` on setup failures, and guarded `async_remove_config_entry_device` against deleting the active TV device (`stale-devices`).
-  - Made operational sensors/binary sensors unavailable on `auth_failed` and `VidaaProbeCapabilitiesButton` unavailable when disconnected (`entity-unavailable`), deduplicated repeated MQTT connect/refresh retry warnings (`log-when-unavailable`), converted `VidaaSessionStatusSensor` to a translated `ENUM` sensor (`active`/`standby`/`reauth_required`), cleaned up redundant `_attr_icon` overrides in favor of `icons.json`, added `_attr_translation_key = "remote"` on `VidaaRemote`, and added `_airplay._tcp.local.` `zeroconf` matchers to `manifest.json`.
-  - Modernized reauthentication and reconfiguration flows to use Home Assistant Core's `_get_reauth_entry()`, `_get_reconfigure_entry()`, `_abort_if_unique_id_mismatch()`, and `async_update_reload_and_abort()` helpers, with localized `unique_id_mismatch`, `cannot_connect`, `missing_credentials`, and `session_status` state strings across all 14 translation files.
+- **Effortless UI Certificate & App Uploads**:
+  - No more SSH, Samba shares, terminal `openssl` commands, or manual folder setup! During setup, reconfiguration, or Repairs, you can now upload `.apk`, `.xapk`, `.p12`, `.pfx`, `.pem`, or `.crt` files directly inside Home Assistant.
+  - Certificates are safely extracted and stored in Home Assistant's managed storage so they are included in backups and survive updates, while existing `/config/ssl/` setups continue to work automatically.
+  - Fixed a startup discovery bug where certificates placed in `.storage/vidaa/certs`, `/config/ssl`, or `/config/certs` could be missed on boot.
+- **Interactive Media Browser & Remote Activity Support**:
+  - Browse all installed TV apps and physical inputs (HDMI, AV, Live TV) visually right inside Home Assistant's Media Browser and launch or switch with a single click.
+  - The Remote entity now tracks your active app or input as its current activity and supports launching activities directly from `remote.turn_on`.
+- **Optional Local-Only App Icons & Automatic Fallback**:
+  - Added a new **Enable App Icons** toggle (enabled by default under **Options → Playback & Sources**) if you prefer offline or privacy-focused setups without fetching remote app artwork.
+  - Even with artwork enabled, Home Assistant now automatically detects if the artwork CDN is blocked or offline and gracefully falls back to crisp Material Design Icons instead of showing broken images.
+- **Fixes for Older TVs & Slow Cold-Booting Projectors ([#71](https://github.com/stevene1919/vidaa/issues/71), [#76](https://github.com/stevene1919/vidaa/issues/76), [#77](https://github.com/stevene1919/vidaa/issues/77))**:
+  - Automatically migrates older Legacy Static TV configurations to use TLS on port `36669` and eliminates false "Certificate Missing" repair warnings, resolving connection hangs on older Hisense models like the H43B7100.
+  - Automatically probes legacy static authentication during auto-discovery when no client certificates are present.
+  - Fixed double-toggle power-on races and expanded cold-boot state polling to ~35 seconds so slow-booting devices (like the Hisense C2 Ultra laser projector) reliably sync volume, sources, and apps on startup.
+- **Faster Re-Authentication & Cleaner Repair Cards**:
+  - When a TV clears its temporary session after a full power cut or cold shutdown, Home Assistant now detects the expired session and prompts you to re-pair in ~40 seconds instead of waiting up to 6 minutes.
+  - Removed duplicate repair banners and notifications—you now see a single, clean Home Assistant repair card that launches the 4-digit PIN screen directly, complete with your TV's name and IP address.
+- **Accurate Startup State, App Names & Input Labels**:
+  - Fixed startup state lag where the Media Player and sensors could briefly show `Standby` or missing apps right after Home Assistant starts, and ensured returning to the Home Launcher clears stale app or channel details cleanly.
+  - Lowercase app broadcasts from the TV (like `netflix`) now match your TV's app catalog cleanly for proper capitalization (`Netflix`) and artwork.
+  - The Active App sensor now shows clear **`HDMI Input`** and **`AV Input`** labels when using physical inputs, and Session Status now reports clean, translated states (`Active`, `Standby`, `Re-authentication required`).
+- **Reliable Wake-on-LAN & Clean Standby Logging**:
+  - Turning off the **Enable Wake-on-LAN** option is now strictly respected (no hidden fallback packets), and Wake-on-LAN broadcasts are skipped when your TV is already awake.
+  - Waking your TV from standby updates its power state immediately without bouncing back to `off`, and extended TV power-offs no longer spam your Home Assistant logs with repeated connection warnings.
+- **Stronger Multi-TV Isolation & Service Reliability**:
+  - Uploaded TLS certificates are now isolated per TV so adding or repairing one TV never affects another, and duplicate-TV detection works reliably even across dual Wi-Fi/Ethernet setups or routed networks.
+  - Service calls targeting multiple TVs now run in parallel so an unplugged or sleeping TV won't delay or block commands to your other TVs.
+  - The Debug Logging switch stays synchronized across all configured TVs, and picture-setting firmware limitations are documented clearly ([#78](https://github.com/stevene1919/vidaa/issues/78)).
+- **Complete Translations & Home Assistant Quality Scale Polish**:
+  - Updated all 13 supported languages (`de`, `es`, `fr`, `it`, `pl`, `pt`, `pt-BR`, `ru`, `sr`, `sr-Latn`, `uk`, `zh-Hans`, plus `en`) with localized error messages, repair prompts, and sensor states.
+  - Improved entity availability handling, AirPlay/Zeroconf auto-discovery matching, device deletion safety, and Home Assistant Bronze/Silver/Gold Quality Scale alignment.
 
 ---
 
@@ -100,9 +112,15 @@ Please report any issues or feedback on [GitHub Issues](https://github.com/steve
 - **Multi-TV Hardening (`flow/isolation.py`, `services/dispatch.py`, `services/handlers.py`, `services/target.py`, `flow/certs.py`, `flow/user.py`, `flow/discovery.py`, `flow/reauth.py`, `flow/auth.py`, `protocol/cert_profiles.py`, `repairs.py`, `lifecycle.py`, `switch.py`, `tv/fingerprint.py`, `strings.json`, `translations/*.json`)**: Added per-TV certificate storage scoping, `cert_path_in_use_by_other_entries()` rollback protection, `ssl.SSLError` upload fallback, concurrent `async_dispatch_to_clients()`, normalized MAC/secondary-MAC targeting, `find_conflicting_entry()` duplicate guards, per-TV Repairs/PIN `description_placeholders` across all 14 translation files, cross-TV `VidaaDebugLoggingSwitch` state sync, and strict IP matching in `query_mdns_fingerprint()`.
 - **Wake, Pairing, Platform Guards & Disconnect Logging (`tv/state.py`, `tv/actions_input.py`, `tv/actions_power.py`, `media_player/state_handler.py`, `flow/auth.py`, `config_flow.py`, `protocol/pairing.py`, `protocol/connection.py`, `entity.py`, `select.py`, `number.py`, `remote.py`, `binary_sensor.py`, `switch.py`, `sensor/diagnostic.py`)**: Wired `_update_wake_event()` into `apply_state_update()`/`apply_device_info_update()`, bypassed `playback_debounce` on wake from `STATE_OFF`, used `_reauth_reason` in `flow/auth.py`, bumped `MINOR_VERSION = 3`, validated/cleaned futures & applied `clock_offset` in `async_submit_pin_code()`, added `VidaaEntity._schedule_ha_update()`, deduplicated `_upsert_setting_item`, `_parse_command_intent`, `_resolve_mac_targets`, and `_is_confirmed_standby`, and added one-shot disconnect/reconnect logging.
 - **Bronze `docs-triggers` & Flow/Platform Coverage Expansion (`docs/services_and_automations.md`, `quality_scale.yaml`, `__init__.py`, `tests/test_flow_coverage.py`, `tests/test_platform_coverage.py`)**: Documented `vidaa.turn_on` automation trigger syntax and fields in `docs/services_and_automations.md` (marking `docs-triggers: done` in `quality_scale.yaml`), updated `ConfigEntryNotReady` message to brand-neutral `"VIDAA TV"`, and added targeted flow and platform branch coverage tests.
-- **Tests**: Expanded suite to 547 passing unit tests (**96%** overall code coverage across 9,061 statements, 24 modules at 100%), including comprehensive behavioral boundary tests (`tests/test_behavioral_boundaries.py`), fast rejection cadence, exponential fallback, duplicate repair suppression, clock-sync cooldown/coalescing, startup cert/CA resolution, WoL & `PluggableAction` dispatch, sensor startup hydration, `HDMI Input`/`AV Input` labels, canonical app-name resolution, app artwork toggle/CDN fallback (`tests/test_artwork.py`), multi-TV options isolation (`tests/test_multi_tv_options.py`), multi-TV isolation/dispatch/deduplication (`tests/test_multi_tv_handling.py`), wake/PIN/entity-guard lifecycle (`tests/test_reliability_and_lifecycle.py`), flow/platform/protocol/lifecycle Silver coverage (`tests/test_flow_coverage.py`, `tests/test_platform_coverage.py`, `tests/test_protocol_connection_coverage.py`, `tests/test_protocol_certs_auth_coverage.py`, `tests/test_tv_and_sensor_coverage.py`, `tests/test_silver_protocol_coverage.py`, `tests/test_silver_lifecycle_coverage.py`), and launcher transitions.
+- **Bronze, Silver & Gold Quality Scale (`__init__.py`, `services/__init__.py`, `flow/reauth.py`, `sensor/__init__.py`, `sensor/diagnostic.py`, `binary_sensor.py`, `button.py`, `remote.py`, `icons.json`, `protocol/connection.py`, `protocol/auth.py`, `protocol/auth_lifecycle.py`, `manifest.json`, `strings.json`, `translations/*.json`)**: Kept service registration strictly in `async_setup`, raised translated `ConfigEntryAuthFailed` / `ConfigEntryNotReady`, guarded `async_remove_config_entry_device`, marked operational entities unavailable on `auth_failed`, deduplicated MQTT connect/refresh retry warnings, converted `VidaaSessionStatusSensor` to `SensorDeviceClass.ENUM` (`active`/`standby`/`reauth_required`), moved redundant `_attr_icon` overrides into `icons.json`, added `_attr_translation_key = "remote"` on `VidaaRemote`, added `_airplay._tcp.local.` `zeroconf` matchers, and migrated reauth/reconfigure to Core helpers (`_get_reauth_entry`, `_get_reconfigure_entry`, `_abort_if_unique_id_mismatch`, `async_update_reload_and_abort`).
+- **Tests**: Expanded suite to 552 passing unit tests (**96%** overall code coverage across 9,086 statements, 24 modules at 100%), including comprehensive behavioral boundary tests (`tests/test_behavioral_boundaries.py`), fast rejection cadence, exponential fallback, duplicate repair suppression, clock-sync cooldown/coalescing, startup cert/CA resolution, WoL & `PluggableAction` dispatch, sensor startup hydration, `HDMI Input`/`AV Input` labels, canonical app-name resolution, app artwork toggle/CDN fallback (`tests/test_artwork.py`), multi-TV options isolation (`tests/test_multi_tv_options.py`), multi-TV isolation/dispatch/deduplication (`tests/test_multi_tv_handling.py`), wake/PIN/entity-guard lifecycle (`tests/test_reliability_and_lifecycle.py`), flow/platform/protocol/lifecycle Silver coverage (`tests/test_flow_coverage.py`, `tests/test_platform_coverage.py`, `tests/test_protocol_connection_coverage.py`, `tests/test_protocol_certs_auth_coverage.py`, `tests/test_tv_and_sensor_coverage.py`, `tests/test_silver_protocol_coverage.py`, `tests/test_silver_lifecycle_coverage.py`), Quality Scale compliance (`tests/test_quality_scale_compliance.py`), and launcher transitions.
 
 </details>
+
+---
+
+### 💬 Feedback & Bug Reports
+Please report any issues or feedback on [GitHub Issues](https://github.com/stevene1919/vidaa/issues) or Discussions!
 
 ---
 

@@ -119,7 +119,7 @@ Home Assistant verifies that the files exist, validates that the private key mat
 
 ## 🏷️ Optional OEM Brand Hinting via Filenames
 
-While the certificate is universal, naming your certificate or upload file can optionally provide a manufacturer hint to pre-select your TV brand:
+While the certificate is universal, naming your certificate or upload file can optionally provide a manufacturer hint to preselect your TV brand:
 
 | Filename Keyword | Detected Brand Code | Manufacturer |
 | :--- | :--- | :--- |

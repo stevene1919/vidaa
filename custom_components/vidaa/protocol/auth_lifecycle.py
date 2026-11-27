@@ -229,7 +229,10 @@ class TokenLifecycleManager:
                     self.refreshing_token = True
                     self.last_refresh_attempt = current_time
             if should_refresh:
-                _LOGGER.info("[%s] Authentication failed on connect. Refreshing token in background...", client.ip)
+                if self.broker_rejection_failures == 0 and self.rejected_refresh_failures == 0:
+                    _LOGGER.info("[%s] Authentication failed on connect. Refreshing token in background...", client.ip)
+                else:
+                    _LOGGER.debug("[%s] Authentication failed on connect. Refreshing token in background...", client.ip)
                 self.auth_refresh_task = self._spawn_task(self.async_refresh_token_and_update_creds())
             else:
                 self.client._schedule_rejected_retry(max(5.0, retry_after - (current_time - self.last_refresh_attempt)))
@@ -353,12 +356,20 @@ class TokenLifecycleManager:
                     delay_str = f"{int(backoff // 60)} min" if backoff >= 60 else f"{int(backoff)}s"
                     attempt_str = str(self.rejected_refresh_failures)
 
-                _LOGGER.warning(
-                    "[%s] Token refresh after rejected connection failed (attempt %s); next retry in %s",
-                    client.ip,
-                    attempt_str,
-                    delay_str,
-                )
+                if self.broker_rejection_failures <= 1 and self.rejected_refresh_failures == 1:
+                    _LOGGER.warning(
+                        "[%s] Token refresh after rejected connection failed (attempt %s); next retry in %s",
+                        client.ip,
+                        attempt_str,
+                        delay_str,
+                    )
+                else:
+                    _LOGGER.debug(
+                        "[%s] Token refresh after rejected connection failed (attempt %s); next retry in %s",
+                        client.ip,
+                        attempt_str,
+                        delay_str,
+                    )
 
                 if hasattr(self.client, "_schedule_rejected_retry"):
                     self.client._schedule_rejected_retry(backoff)

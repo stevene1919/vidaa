@@ -115,6 +115,7 @@ class ConnectionManagerMixin:
         self.connected = True
         self._connected_time = time.time()
         self.auth_failed = False
+        self._logged_connect_failure = False
         if getattr(self, "_logged_unavailable", False):
             self._logged_unavailable = False
             _LOGGER.info("[%s] Reconnected to TV MQTT broker", self.ip)
@@ -272,7 +273,11 @@ class ConnectionManagerMixin:
                 except MqttConnectError as err:
                     rc = extract_connect_rc(err)
                     self.connected = False
-                    _LOGGER.warning("[%s] Failed to connect to TV MQTT broker (return code: %d)", self.ip, rc)
+                    if not getattr(self, "_logged_connect_failure", False):
+                        self._logged_connect_failure = True
+                        _LOGGER.warning("[%s] Failed to connect to TV MQTT broker (return code: %d)", self.ip, rc)
+                    else:
+                        _LOGGER.debug("[%s] Failed to connect to TV MQTT broker (return code: %d)", self.ip, rc)
                     rejected = Exception(
                         f"MQTT connection rejected with code {rc} (Not authorized / invalid credentials)"
                     )

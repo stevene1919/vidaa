@@ -87,7 +87,8 @@
       "reauth_successful": "Reautenticación completada con éxito.",
       "reconfigure_successful": "Reconfiguración completada con éxito.",
       "already_configured": "Este dispositivo ya está configurado.",
-      "not_vidaa_tv": "El dispositivo detectado no es un VIDAA Smart TV compatible."
+      "not_vidaa_tv": "El dispositivo detectado no es un VIDAA Smart TV compatible.",
+      "unique_id_mismatch": "El televisor en esta dirección IP no coincide con el dispositivo configurado para esta entrada."
     }
   },
   "options": {
@@ -191,7 +192,12 @@
   "entity": {
     "sensor": {
       "session_status": {
-        "name": "Estado de la sesión"
+        "name": "Estado de la sesión",
+        "state": {
+          "active": "Activo",
+          "standby": "En espera",
+          "reauth_required": "Reautenticación requerida"
+        }
       },
       "active_app": {
         "name": "Aplicación activa"
@@ -435,6 +441,12 @@
     },
     "unhandled_trigger_type": {
       "message": "Trigger type {trigger_type} is not handled."
+    },
+    "cannot_connect": {
+      "message": "No se puede conectar al VIDAA TV en {ip}: {error}"
+    },
+    "missing_credentials": {
+      "message": "Faltan credenciales o tokens de autenticación. Vuelve a autenticar tu televisor."
     }
   },
   "selector": {

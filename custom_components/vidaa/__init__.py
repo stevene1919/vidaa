@@ -10,7 +10,7 @@ try:
     from homeassistant.components import persistent_notification
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
-    from homeassistant.exceptions import ConfigEntryNotReady
+    from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
     from homeassistant.helpers import (
         config_validation as cv,
         device_registry as dr,
@@ -26,6 +26,7 @@ except ImportError:
     _HAS_HA = False
     ConfigEntry = Any  # type: ignore[misc,assignment]
     HomeAssistant = Any  # type: ignore[misc,assignment]
+    ConfigEntryAuthFailed = Exception  # type: ignore[misc,assignment]
     ConfigEntryNotReady = Exception  # type: ignore[misc,assignment]
     PluggableAction = Any  # type: ignore[misc,assignment]
 
@@ -71,7 +72,7 @@ from .migration import (
     async_migrate_entry,
 )
 from .protocol import resolve_ca_certificate, resolve_certificates
-from .services import async_setup_services, async_unload_services
+from .services import async_setup_services
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -153,9 +154,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
     minor_version = getattr(entry, "minor_version", 1)
     if isinstance(version, int) and (version < 2 or (version == 2 and minor_version < 3)):
         await async_migrate_entry(hass, entry)
-
-    # Services are removed when the last entry unloads; re-assert idempotently on every setup.
-    await async_setup_services(hass)
 
     data = entry.data
     mac = await async_ensure_entry_mac(hass, entry)
@@ -248,8 +246,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
     if not client.access_token or not client.client_id or not client.username:
         _LOGGER.warning("[%s] Missing credentials or authentication tokens; starting reauthentication", client.ip)
         client.auth_failed = True
-        _handle_auth_failed(client)
-    elif await client.async_check_and_refresh_token():
+        ir.async_delete_issue(hass, DOMAIN, f"auth_token_invalidated_{entry.entry_id}")
+        raise ConfigEntryAuthFailed(
+            "Missing credentials or authentication tokens; reauthentication required.",
+            translation_domain=DOMAIN,
+            translation_key="missing_credentials",
+        )
+    if await client.async_check_and_refresh_token():
         update_entry_tokens(client)
 
     platforms_to_setup = [p for p in PLATFORMS if p != "number"]
@@ -260,8 +263,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
 
     try:
         await client.async_connect_and_run()
+    except (ConfigEntryAuthFailed, ConfigEntryNotReady):
+        raise
     except Exception as err:
-        raise ConfigEntryNotReady(f"Cannot connect to VIDAA TV at {client.ip}: {err}") from err
+        raise ConfigEntryNotReady(
+            f"Cannot connect to VIDAA TV at {client.ip}: {err}",
+            translation_domain=DOMAIN,
+            translation_key="cannot_connect",
+            translation_placeholders={"ip": str(client.ip), "error": str(err)},
+        ) from err
 
     artwork_tracker = ArtworkReachabilityTracker(
         enabled=entry.options.get(CONF_ENABLE_APP_ICONS, DEFAULT_ENABLE_APP_ICONS)
@@ -288,8 +298,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> boo
 async def async_remove_config_entry_device(
     hass: HomeAssistant, config_entry: VidaaConfigEntry, device_entry: Any
 ) -> bool:
-    """Remove a config entry from a device (stale device cleanup)."""
-    return True
+    """Allow removing a device only if it is no longer the active device for this entry."""
+    raw_identifiers = getattr(device_entry, "identifiers", None)
+    identifiers = set(raw_identifiers) if isinstance(raw_identifiers, (set, list, tuple, frozenset)) else set()
+    active_identifiers = {(DOMAIN, config_entry.entry_id), (LEGACY_DOMAIN, config_entry.entry_id)}
+    return not bool(active_identifiers & identifiers)
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> None:
@@ -314,8 +327,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: VidaaConfigEntry) -> bo
     client = runtime_data.client if runtime_data else None
 
     unload_ok = await hass.config_entries.async_unload_platforms(entry, platforms)
-    if unload_ok:
-        if client:
-            await client.async_disconnect()
-        await async_unload_services(hass, current_entry=entry)
+    if unload_ok and client:
+        await client.async_disconnect()
     return unload_ok

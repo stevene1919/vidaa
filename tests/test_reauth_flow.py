@@ -81,7 +81,7 @@ async def test_reauth_flow_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert result_auth["type"] == "abort"
     assert result_auth["reason"] == "reauth_successful"
     assert hass.config_entries.async_update_entry.called
-    assert hass.config_entries.async_reload.called
+    assert hass.config_entries.async_schedule_reload.called
 
 
 @pytest.mark.anyio
@@ -170,7 +170,7 @@ async def test_finish_reauth_disconnects_client() -> None:
     assert result["reason"] == "reauth_successful"
     assert mock_client.async_disconnect.called or mock_client.disconnect.called
     assert flow.client is None
-    assert hass.config_entries.async_reload.called
+    assert hass.config_entries.async_schedule_reload.called
 
 
 @pytest.mark.anyio
@@ -191,7 +191,7 @@ async def test_finish_reauth_without_client() -> None:
     result = await flow._async_finish_reauth(reason="reauth_successful")
     assert result["type"] == "abort"
     assert result["reason"] == "reauth_successful"
-    assert hass.config_entries.async_reload.called
+    assert hass.config_entries.async_schedule_reload.called
 
 
 @pytest.mark.anyio

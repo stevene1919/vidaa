@@ -59,7 +59,6 @@ class VidaaForceReconnectButton(VidaaBaseButton):
     """Button to force reconnect the MQTT client."""
 
     _attr_translation_key = "force_reconnect"
-    _attr_icon = "mdi:lan-connect"
 
     def __init__(self, client: VidaaClient, entry: ConfigEntry) -> None:
         super().__init__(client, entry)
@@ -122,7 +121,6 @@ class VidaaSyncClockButton(VidaaBaseButton):
     """Button to query and verify the TV's UPnP clock time."""
 
     _attr_translation_key = "sync_clock"
-    _attr_icon = "mdi:clock-outline"
 
     def __init__(self, client: VidaaClient, entry: ConfigEntry) -> None:
         super().__init__(client, entry)
@@ -150,12 +148,29 @@ class VidaaProbeCapabilitiesButton(VidaaBaseButton):
     """Button to actively query and probe live TV picture and sound menu capabilities."""
 
     _attr_translation_key = "probe_capabilities"
-    _attr_icon = "mdi:television-guide"
     _attr_entity_registry_enabled_default = False
 
     def __init__(self, client: VidaaClient, entry: ConfigEntry) -> None:
         super().__init__(client, entry)
         self._attr_unique_id = f"{self._entry_id}_probe_capabilities"
+
+    @property
+    def available(self) -> bool:
+        """Return True when TV MQTT connection is active."""
+        return super().available and bool(self._client and self._client.connected)
+
+    async def async_added_to_hass(self) -> None:
+        """Register connection callbacks when added."""
+        self._client.register_connected_callback(self._handle_connection_change)
+        self._client.register_disconnected_callback(self._handle_connection_change)
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Unregister connection callbacks."""
+        self._client.unregister_connected_callback(self._handle_connection_change)
+        self._client.unregister_disconnected_callback(self._handle_connection_change)
+
+    def _handle_connection_change(self, *args: object) -> None:
+        self._schedule_ha_update()
 
     async def async_press(self) -> None:
         """Handle button press to probe capabilities."""
@@ -193,7 +208,6 @@ class VidaaTriggerReauthButton(VidaaBaseButton):
     """Button to manually initiate re-pairing and re-authentication with the TV."""
 
     _attr_translation_key = "trigger_reauth"
-    _attr_icon = "mdi:cellphone-key"
 
     def __init__(self, client: VidaaClient, entry: ConfigEntry) -> None:
         super().__init__(client, entry)

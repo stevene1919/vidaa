@@ -5,11 +5,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 
 from custom_components.vidaa import (
     DOMAIN,
+    LEGACY_DOMAIN,
     async_remove_entry,
+    async_setup,
     async_setup_entry,
     async_unload_entry,
     update_listener,
@@ -103,25 +105,25 @@ def _setup_hass(mock_entry, mock_client, monkeypatch):
 
 @pytest.mark.anyio
 async def test_services_are_registered_again_after_last_entry_is_reloaded(mock_entry, mock_client, monkeypatch):
-    """[F2-leg2/F2-leg4/F2-leg6] unloading the last entry unregisters the services; the next setup must restore them."""
+    """Per HA action-setup, services are registered in async_setup and persist across entry unloads/reloads."""
     hass = _setup_hass(mock_entry, mock_client, monkeypatch)
 
-    # 1. Entry setup registers every service (idempotent with async_setup)
+    await async_setup(hass, {})
     await async_setup_entry(hass, mock_entry)
     assert {service for _, service in hass.services.registered} == set(ALL_SERVICES)
 
-    # 2. Removing the last entry tears the services down...
+    # Unloading the last entry preserves domain services
     assert await async_unload_entry(hass, mock_entry) is True
-    assert hass.services.registered == {}
+    assert {service for _, service in hass.services.registered} == set(ALL_SERVICES)
 
-    # 3. ...so the next setup (an options-change reload) must register them again
+    # Reloading entry keeps services intact
     await async_setup_entry(hass, mock_entry)
     assert {service for _, service in hass.services.registered} == set(ALL_SERVICES)
 
 
 @pytest.mark.anyio
 async def test_multi_tv_services_persist_until_last_entry_unloaded(mock_entry, mock_client, monkeypatch):
-    """When multiple TV entries are configured, unloading one preserves domain services until the last entry unloads."""
+    """When multiple TV entries are configured, domain services persist across entry unloads."""
     hass = _setup_hass(mock_entry, mock_client, monkeypatch)
 
     # Create second entry double
@@ -139,18 +141,16 @@ async def test_multi_tv_services_persist_until_last_entry_unloaded(mock_entry, m
     entry_2.options = {"enable_remote": True}
     entry_2.runtime_data = None
 
-    # Setup both entries
+    await async_setup(hass, {})
     await async_setup_entry(hass, mock_entry)
     await async_setup_entry(hass, entry_2)
     assert {service for _, service in hass.services.registered} == set(ALL_SERVICES)
 
-    # Unload first entry: services must REMAIN because entry_2 is still loaded
     assert await async_unload_entry(hass, mock_entry) is True
     assert {service for _, service in hass.services.registered} == set(ALL_SERVICES)
 
-    # Unload second (last) entry: services are cleanly unregistered
     assert await async_unload_entry(hass, entry_2) is True
-    assert hass.services.registered == {}
+    assert {service for _, service in hass.services.registered} == set(ALL_SERVICES)
 
 
 @pytest.mark.anyio
@@ -161,9 +161,11 @@ async def test_connect_failure_raises_config_entry_not_ready(mock_entry, mock_cl
     mock_client.connect_and_run = MagicMock(side_effect=FileNotFoundError(2, "No such file or directory"))
     mock_client.async_connect_and_run = AsyncMock(side_effect=FileNotFoundError(2, "No such file or directory"))
 
-    with pytest.raises(ConfigEntryNotReady):
+    with pytest.raises(ConfigEntryNotReady) as exc_info:
         await async_setup_entry(hass, mock_entry)
 
+    assert exc_info.value.translation_domain == DOMAIN
+    assert exc_info.value.translation_key == "cannot_connect"
     assert getattr(mock_entry, "runtime_data", None) is None
 
 
@@ -180,6 +182,9 @@ async def test_entry_setup_legacy_auth_suppresses_certificate_missing_issue(mock
         "ip_address": "192.168.1.100",
         "auth_profile": "legacy",
         "use_ssl": False,
+        "access_token": "legacy_token",
+        "client_id": "hisenseservice",
+        "username": "hisenseservice",
     }
     mock_entry.options = {}
     mock_entry.version = 2
@@ -439,13 +444,21 @@ async def test_periodic_and_wake_clock_sync(mock_entry, mock_client, monkeypatch
 
 @pytest.mark.anyio
 async def test_async_remove_config_entry_device(mock_entry):
-    """Test stale device removal handler."""
+    """Test stale device removal handler blocks active TV removal and allows stale devices."""
     from custom_components.vidaa import async_remove_config_entry_device
 
     hass = MagicMock()
-    device_entry = MagicMock()
-    result = await async_remove_config_entry_device(hass, mock_entry, device_entry)
-    assert result is True
+    active_device = MagicMock()
+    active_device.identifiers = {(DOMAIN, mock_entry.entry_id)}
+    assert await async_remove_config_entry_device(hass, mock_entry, active_device) is False
+
+    legacy_device = MagicMock()
+    legacy_device.identifiers = {(LEGACY_DOMAIN, mock_entry.entry_id)}
+    assert await async_remove_config_entry_device(hass, mock_entry, legacy_device) is False
+
+    stale_device = MagicMock()
+    stale_device.identifiers = {(DOMAIN, "some_old_entry_id")}
+    assert await async_remove_config_entry_device(hass, mock_entry, stale_device) is True
 
 
 @pytest.mark.anyio
@@ -723,14 +736,17 @@ async def test_setup_entry_prunes_retired_diagnostic_sensors():
 
 @pytest.mark.anyio
 async def test_setup_entry_missing_credentials_sets_auth_failed(mock_entry, mock_client, monkeypatch):
-    """Test that missing credentials during setup marks client.auth_failed = True."""
+    """Test that missing credentials during setup marks client.auth_failed = True and raises ConfigEntryAuthFailed."""
     mock_entry.data = {**mock_entry.data, "access_token": "", "client_id": ""}
     hass = _setup_hass(mock_entry, mock_client, monkeypatch)
     mock_client.access_token = ""
     mock_client.client_id = ""
     mock_client.auth_failed = False
 
-    await async_setup_entry(hass, mock_entry)
+    with pytest.raises(ConfigEntryAuthFailed) as exc_info:
+        await async_setup_entry(hass, mock_entry)
+    assert exc_info.value.translation_domain == DOMAIN
+    assert exc_info.value.translation_key == "missing_credentials"
     assert mock_client.auth_failed is True
 
 

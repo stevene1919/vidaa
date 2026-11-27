@@ -191,7 +191,7 @@ To cleanly remove and uninstall the **VIDAA Smart TV** integration from Home Ass
 5. Confirm the deletion when prompted.
 
 > [!NOTE]
-> Deleting the config entry automatically unregisters associated entity devices, unloads custom services (when no other TVs remain configured), and cancels active background MQTT network loops.
+> Deleting the config entry automatically unregisters associated entity devices and cancels active background MQTT network loops.
 
 ### 6.2 Clean Up Certificates (Optional)
 If you placed client certificates or key files in `/config/ssl/vidaa/` (or `/config/ssl/` / `/ssl/`), and no other tools or TV instances require them:

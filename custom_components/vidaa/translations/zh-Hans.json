@@ -87,7 +87,8 @@
       "reauth_successful": "重新认证成功。",
       "reconfigure_successful": "重新配置成功。",
       "already_configured": "该设备已配置过。",
-      "not_vidaa_tv": "发现的设备不是兼容的海信 VIDAA 电视。"
+      "not_vidaa_tv": "发现的设备不是兼容的海信 VIDAA 电视。",
+      "unique_id_mismatch": "此 IP 地址的电视与该条目配置的设备不匹配。"
     }
   },
   "options": {
@@ -191,7 +192,12 @@
   "entity": {
     "sensor": {
       "session_status": {
-        "name": "会话状态"
+        "name": "会话状态",
+        "state": {
+          "active": "活动",
+          "standby": "待机",
+          "reauth_required": "需要重新验证"
+        }
       },
       "active_app": {
         "name": "当前应用"
@@ -435,6 +441,12 @@
     },
     "send_text_input_failed": {
       "message": "Failed to send text input: {error}"
+    },
+    "cannot_connect": {
+      "message": "无法连接到位于 {ip} 的 VIDAA 电视：{error}"
+    },
+    "missing_credentials": {
+      "message": "缺少身份验证凭据或令牌。请重新对您的电视进行身份验证。"
     }
   },
   "selector": {

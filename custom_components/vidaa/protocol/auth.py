@@ -130,6 +130,7 @@ async def async_perform_token_refresh(
     timeout: float = 10.0,
     out_status: dict[str, Any] | None = None,
     use_ssl: bool = True,
+    log_warnings: bool = True,
 ) -> dict[str, Any] | None:
     """Connects asynchronously using refresh_token to obtain new token credentials from TV."""
     if not refresh_token or not client_id or not username:
@@ -200,7 +201,7 @@ async def async_perform_token_refresh(
                         _LOGGER.debug("[%s] Error parsing refreshed token: %s", ip, err)
     except MqttConnectError as err:
         connect_rc = extract_connect_rc(err)
-        _LOGGER.warning("[%s] Refresh client connection rejected (rc: %d)", ip, connect_rc)
+        _LOGGER.debug("[%s] Refresh client connection rejected (rc: %d)", ip, connect_rc)
     except TimeoutError:
         _LOGGER.debug("[%s] Token refresh timed out after %s s", ip, timeout)
     except (OSError, MqttError) as err:
@@ -212,7 +213,10 @@ async def async_perform_token_refresh(
         out_status["connect_rc"] = connect_rc
 
     if connect_rc is not None and connect_rc != 0:
-        _LOGGER.warning("[%s] Failed to refresh token (Connect RC: %d)", ip, connect_rc)
+        if log_warnings:
+            _LOGGER.warning("[%s] Failed to refresh token (Connect RC: %d)", ip, connect_rc)
+        else:
+            _LOGGER.debug("[%s] Failed to refresh token (Connect RC: %d)", ip, connect_rc)
 
     return None
 

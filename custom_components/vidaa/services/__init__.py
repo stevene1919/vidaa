@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
 import functools
 import logging
 from typing import Any
@@ -65,7 +64,6 @@ __all__ = [
     "_target_selector_fields",
     "_validate_launch_app_data",
     "async_setup_services",
-    "async_unload_services",
     "parse_key_sequence",
 ]
 
@@ -193,39 +191,3 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                     async_set_service_schema(hass, LEGACY_DOMAIN, service_name, legacy_schema_desc)
                 except Exception as err:
                     _LOGGER.debug("Could not register legacy service description schema for %s: %s", service_name, err)
-
-
-async def async_unload_services(hass: HomeAssistant, current_entry: Any | None = None) -> None:
-    """Unregister all custom services if no active entries remain."""
-    loaded_entries: list[Any] = []
-    if hasattr(hass, "config_entries") and hasattr(hass.config_entries, "async_loaded_entries"):
-        with contextlib.suppress(Exception):
-            res = hass.config_entries.async_loaded_entries(DOMAIN)
-            if isinstance(res, list):
-                loaded_entries = res
-
-    # If another entry remains loaded, do not unregister shared services
-    if current_entry is not None:
-        remaining = [
-            e for e in loaded_entries if getattr(e, "entry_id", None) != getattr(current_entry, "entry_id", None)
-        ]
-        if remaining:
-            return
-    elif len(loaded_entries) > 1:
-        return
-
-    services_to_remove = [
-        SERVICE_SEND_KEY,
-        SERVICE_SEND_KEY_SEQUENCE,
-        SERVICE_CHANGE_CHANNEL,
-        SERVICE_LAUNCH_APP,
-        SERVICE_SET_PICTURE_SETTING,
-        SERVICE_SET_SOUND_SETTING,
-        SERVICE_SEND_TEXT_INPUT,
-    ]
-
-    for service_name in services_to_remove:
-        if hass.services.has_service(DOMAIN, service_name):
-            hass.services.async_remove(DOMAIN, service_name)
-        if hass.services.has_service(LEGACY_DOMAIN, service_name):
-            hass.services.async_remove(LEGACY_DOMAIN, service_name)

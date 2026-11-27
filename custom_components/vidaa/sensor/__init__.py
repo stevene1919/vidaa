@@ -96,6 +96,7 @@ class VidaaMqttTrackingSensor(VidaaBaseSensor):
         self._client.register_connected_callback(self._handle_connected)
         self._client.register_state_callback(self._handle_state_update)
         self._client.register_disconnected_callback(self._handle_disconnected)
+        self._client.register_auth_failed_callback(self._handle_auth_failed)
         self._register_custom_callbacks()
         self._sync_from_client()
 
@@ -103,7 +104,16 @@ class VidaaMqttTrackingSensor(VidaaBaseSensor):
         self._client.unregister_connected_callback(self._handle_connected)
         self._client.unregister_state_callback(self._handle_state_update)
         self._client.unregister_disconnected_callback(self._handle_disconnected)
+        self._client.unregister_auth_failed_callback(self._handle_auth_failed)
         self._unregister_custom_callbacks()
+
+    @property
+    def available(self) -> bool:
+        """Return True if the TV entity is available."""
+        return super().available and getattr(self._client, "auth_failed", False) is not True
+
+    def _handle_auth_failed(self, *args: Any) -> None:
+        self._schedule_state_update()
 
     def _sync_from_client(self) -> None:
         """Hydrate cached client telemetry when entity initializes or attaches."""
@@ -146,7 +156,6 @@ class VidaaActiveAppSensor(VidaaMqttTrackingSensor):
     """Sensor reporting the foreground active application."""
 
     _attr_translation_key = "active_app"
-    _attr_icon = "mdi:application"
 
     def __init__(self, client: VidaaClient, entry: ConfigEntry) -> None:
         super().__init__(client, entry, default_on="Standby", default_off="Off")
@@ -288,7 +297,6 @@ class VidaaActiveSourceSensor(VidaaMqttTrackingSensor):
     """Sensor reporting current physical input source."""
 
     _attr_translation_key = "active_source"
-    _attr_icon = "mdi:video-input-hdmi"
 
     def __init__(self, client: VidaaClient, entry: ConfigEntry) -> None:
         super().__init__(client, entry, default_on="Standby", default_off="Off")

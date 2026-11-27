@@ -87,7 +87,8 @@
       "reauth_successful": "Ponowne uwierzytelnienie powiodło się.",
       "reconfigure_successful": "Zmiana konfiguracji powiodła się.",
       "already_configured": "To urządzenie jest już skonfigurowane.",
-      "not_vidaa_tv": "Wykryte urządzenie nie jest zgodnym telewizorem VIDAA Smart TV."
+      "not_vidaa_tv": "Wykryte urządzenie nie jest zgodnym telewizorem VIDAA Smart TV.",
+      "unique_id_mismatch": "Telewizor pod tym adresem IP nie pasuje do urządzenia skonfigurowanego dla tego wpisu."
     }
   },
   "options": {
@@ -191,7 +192,12 @@
   "entity": {
     "sensor": {
       "session_status": {
-        "name": "Status sesji"
+        "name": "Status sesji",
+        "state": {
+          "active": "Aktywny",
+          "standby": "Czuwanie",
+          "reauth_required": "Wymagane ponowne uwierzytelnienie"
+        }
       },
       "active_app": {
         "name": "Aktywna aplikacja"
@@ -435,6 +441,12 @@
     },
     "device_off": {
       "message": "Nie można wykonać działania: telewizor jest obecnie wyłączony."
+    },
+    "cannot_connect": {
+      "message": "Nie można połączyć się z telewizorem VIDAA pod adresem {ip}: {error}"
+    },
+    "missing_credentials": {
+      "message": "Brak danych uwierzytelniających lub tokenów. Uwierzytelnij telewizor ponownie."
     }
   },
   "selector": {

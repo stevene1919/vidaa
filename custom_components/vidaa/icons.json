@@ -59,7 +59,12 @@
     },
     "sensor": {
       "session_status": {
-        "default": "mdi:shield-check"
+        "default": "mdi:shield-lock-outline",
+        "state": {
+          "active": "mdi:shield-check",
+          "standby": "mdi:shield-lock-outline",
+          "reauth_required": "mdi:shield-alert"
+        }
       },
       "reported_name": {
         "default": "mdi:television-ambient-light"

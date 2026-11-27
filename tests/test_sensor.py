@@ -34,7 +34,8 @@ async def test_sensor_entities(mock_client, mock_entry):
     """Test operational and diagnostic sensor entities."""
     s_status = VidaaSessionStatusSensor(mock_client, mock_entry)
     s_status._update_state()
-    assert s_status.native_value == "Active"
+    assert s_status.native_value == "active"
+    assert s_status._attr_options == ["active", "standby", "reauth_required"]
     assert s_status.extra_state_attributes["encryption"] == "TLSv1.2 (Port 36669)"
     assert s_status.extra_state_attributes["local_only"] is True
     assert "paired_at" in s_status.extra_state_attributes
@@ -43,10 +44,10 @@ async def test_sensor_entities(mock_client, mock_entry):
 
     mock_client.connected = False
     s_status._update_state()
-    assert s_status.native_value == "Standby"
+    assert s_status.native_value == "standby"
 
     s_status._handle_auth_failed(mock_client)
-    assert s_status.native_value == "Reauth Required"
+    assert s_status.native_value == "reauth_required"
 
     mock_client.connected = True
     assert s_status.extra_state_attributes["configured_auth_profile"] == "VIDAA 2.0 (Newer Firmware / 2024+)"
@@ -170,23 +171,23 @@ def test_session_status_auth_and_brand_profile_attributes(mock_client, mock_entr
 
 
 def test_session_status_latches_reauth_required(mock_client, mock_entry):
-    """[F8-leg4] "Reauth Required" survives a disconnect until a successful connect."""
+    """[F8-leg4] 'reauth_required' survives a disconnect until a successful connect."""
     mock_client.connected = True
     sensor = VidaaSessionStatusSensor(mock_client, mock_entry)
-    assert sensor.native_value == "Active"
+    assert sensor.native_value == "active"
 
     sensor._handle_auth_failed(mock_client)
-    assert sensor.native_value == "Reauth Required"
+    assert sensor.native_value == "reauth_required"
 
     # A subsequent disconnect must NOT overwrite the latch.
     mock_client.connected = False
     sensor._handle_disconnected()
-    assert sensor.native_value == "Reauth Required"
+    assert sensor.native_value == "reauth_required"
 
     # A successful reconnect clears the latch.
     mock_client.connected = True
     sensor._handle_connected()
-    assert sensor.native_value == "Active"
+    assert sensor.native_value == "active"
 
 
 def test_session_status_sensor_masks_client_id_and_applies_offset():
@@ -394,4 +395,4 @@ async def test_sensors_hydrate_from_cached_client_state_on_startup(mock_entry):
     client.connected = False
     client.auth_failed = True
     status_sensor = VidaaSessionStatusSensor(client, mock_entry)
-    assert status_sensor.native_value == "Reauth Required"
+    assert status_sensor.native_value == "reauth_required"

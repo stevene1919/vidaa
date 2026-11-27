@@ -87,7 +87,8 @@
       "reauth_successful": "Повторна автентифікація пройшла успішно.",
       "reconfigure_successful": "Переналаштування пройшло успішно.",
       "already_configured": "Цей пристрій уже налаштовано.",
-      "not_vidaa_tv": "Виявлений пристрій не є сумісним телевізором VIDAA."
+      "not_vidaa_tv": "Виявлений пристрій не є сумісним телевізором VIDAA.",
+      "unique_id_mismatch": "Телевізор за цією IP-адресою не відповідає пристрою, налаштованому для цього запису."
     }
   },
   "options": {
@@ -191,7 +192,12 @@
   "entity": {
     "sensor": {
       "session_status": {
-        "name": "Статус сесії"
+        "name": "Статус сесії",
+        "state": {
+          "active": "Активний",
+          "standby": "Режим очікування",
+          "reauth_required": "Потрібна повторна автентифікація"
+        }
       },
       "active_app": {
         "name": "Активний додаток"
@@ -435,6 +441,12 @@
     },
     "send_text_input_failed": {
       "message": "Failed to send text input: {error}"
+    },
+    "cannot_connect": {
+      "message": "Не вдалося підключитися до VIDAA TV за адресою {ip}: {error}"
+    },
+    "missing_credentials": {
+      "message": "Відсутні облікові дані або токени автентифікації. Повторно автентифікуйте телевізор."
     }
   },
   "selector": {

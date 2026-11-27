@@ -22,6 +22,22 @@
       "st": "urn:schemas-upnp-org:device:MediaRenderer:1"
     }
   ],
+  "zeroconf": [
+    {
+      "type": "_airplay._tcp.local.",
+      "properties": {
+        "manufacturer": "hisense*"
+      }
+    },
+    {
+      "type": "_airplay._tcp.local.",
+      "name": "*hisense*"
+    },
+    {
+      "type": "_airplay._tcp.local.",
+      "name": "*vidaa*"
+    }
+  ],
   "version": "3.6.1-beta.1"
 }
 

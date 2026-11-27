@@ -100,6 +100,11 @@ class VidaaInUseBinarySensor(VidaaEntity, BinarySensorEntity):
         self._attr_unique_id = f"{self._entry_id}_in_use"
 
     @property
+    def available(self) -> bool:
+        """Return True if the TV entity is available."""
+        return super().available and getattr(self._client, "auth_failed", False) is not True
+
+    @property
     def is_on(self) -> bool:
         """Return True when TV display is actively in use and not dormant/standby."""
         if not (self._client and self._client.connected and self._client.is_on):
@@ -115,6 +120,7 @@ class VidaaInUseBinarySensor(VidaaEntity, BinarySensorEntity):
         self._client.register_state_callback(self._handle_update)
         self._client.register_volume_callback(self._handle_update)
         self._client.register_disconnected_callback(self._handle_update)
+        self._client.register_auth_failed_callback(self._handle_update)
 
     async def async_will_remove_from_hass(self) -> None:
         """Unregister callbacks."""
@@ -122,6 +128,7 @@ class VidaaInUseBinarySensor(VidaaEntity, BinarySensorEntity):
         self._client.unregister_state_callback(self._handle_update)
         self._client.unregister_volume_callback(self._handle_update)
         self._client.unregister_disconnected_callback(self._handle_update)
+        self._client.unregister_auth_failed_callback(self._handle_update)
 
     def _handle_update(self, *args: Any) -> None:
         self._schedule_ha_update()

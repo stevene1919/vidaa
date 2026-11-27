@@ -124,6 +124,50 @@ if "homeassistant.config_entries" not in sys.modules:
         def _abort_if_unique_id_configured(self, updates=None, error="already_configured"):
             pass
 
+        def _get_reauth_entry(self):
+            return self.hass.config_entries.async_get_entry(self.context["entry_id"])
+
+        def _get_reconfigure_entry(self):
+            return self.hass.config_entries.async_get_entry(self.context["entry_id"])
+
+        def _abort_if_unique_id_mismatch(self, *, reason="unique_id_mismatch", description_placeholders=None):
+            entry = None
+            if isinstance(getattr(self, "context", None), dict) and "entry_id" in self.context:
+                entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+            if entry is None:
+                entry = getattr(self, "_reauth_entry", None)
+            flow_uid = getattr(self, "unique_id", None)
+            entry_uid = getattr(entry, "unique_id", None) if entry is not None else None
+            if flow_uid and entry_uid and str(flow_uid).lower() != str(entry_uid).lower():
+                raise data_entry_flow.AbortFlow(reason)
+
+        def async_update_reload_and_abort(
+            self,
+            entry,
+            *,
+            unique_id=None,
+            title=None,
+            data=None,
+            data_updates=None,
+            options=None,
+            reason="reconfigure_successful",
+            reload_even_if_entry_is_unchanged=True,
+        ):
+            update_kwargs = {}
+            if data is not None:
+                update_kwargs["data"] = data
+            elif data_updates is not None:
+                update_kwargs["data"] = {**getattr(entry, "data", {}), **data_updates}
+            if options is not None:
+                update_kwargs["options"] = options
+            if title is not None:
+                update_kwargs["title"] = title
+            if unique_id is not None:
+                update_kwargs["unique_id"] = unique_id
+            self.hass.config_entries.async_update_entry(entry, **update_kwargs)
+            self.hass.config_entries.async_schedule_reload(entry.entry_id)
+            return self.async_abort(reason=reason)
+
         def async_show_form(self, *, step_id, data_schema=None, errors=None, description_placeholders=None):
             return {
                 "type": "form",
@@ -209,11 +253,15 @@ if "homeassistant.exceptions" not in sys.modules:
     class ConfigEntryNotReady(HomeAssistantError):
         pass
 
+    class ConfigEntryAuthFailed(HomeAssistantError):
+        pass
+
     class ServiceValidationError(HomeAssistantError):
         pass
 
     exceptions.HomeAssistantError = HomeAssistantError
     exceptions.ConfigEntryNotReady = ConfigEntryNotReady
+    exceptions.ConfigEntryAuthFailed = ConfigEntryAuthFailed
     exceptions.ServiceValidationError = ServiceValidationError
     ha.exceptions = exceptions
     sys.modules["homeassistant.exceptions"] = exceptions

@@ -41,10 +41,12 @@ class VidaaSessionStatusSensor(VidaaBaseSensor):
     """Sensor displaying current authentication and session status."""
 
     _attr_translation_key = "session_status"
+    _attr_device_class = SensorDeviceClass.ENUM
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     def __init__(self, client: VidaaClient, entry: ConfigEntry) -> None:
         super().__init__(client, entry)
+        self._attr_options = ["active", "standby", "reauth_required"]
         self._attr_unique_id = f"{self._entry_id}_session_status"
         self._reauth_required = getattr(client, "auth_failed", False) is True
         self._update_state()
@@ -83,20 +85,16 @@ class VidaaSessionStatusSensor(VidaaBaseSensor):
 
     def _handle_auth_failed(self, client: VidaaClient) -> None:
         self._reauth_required = True
-        self._attr_native_value = "Reauth Required"
-        self._attr_icon = "mdi:shield-alert"
+        self._attr_native_value = "reauth_required"
         self._schedule_state_update()
 
     def _update_state(self) -> None:
         if self._reauth_required:
-            self._attr_native_value = "Reauth Required"
-            self._attr_icon = "mdi:shield-alert"
+            self._attr_native_value = "reauth_required"
         elif self._client.connected:
-            self._attr_native_value = "Active"
-            self._attr_icon = "mdi:shield-check"
+            self._attr_native_value = "active"
         else:
-            self._attr_native_value = "Standby"
-            self._attr_icon = "mdi:shield-lock-outline"
+            self._attr_native_value = "standby"
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -146,7 +144,6 @@ class VidaaReportedNameSensor(VidaaBaseSensor):
     """Sensor displaying live reported friendly TV name and system hardware details."""
 
     _attr_translation_key = "reported_name"
-    _attr_icon = "mdi:television-guide"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_entity_registry_enabled_default = False
 
@@ -155,11 +152,17 @@ class VidaaReportedNameSensor(VidaaBaseSensor):
         self._attr_unique_id = f"{self._entry_id}_reported_name"
         self._update_value()
 
+    @property
+    def available(self) -> bool:
+        """Return True if the TV entity is available."""
+        return super().available and getattr(self._client, "auth_failed", False) is not True
+
     async def async_added_to_hass(self) -> None:
         self._client.register_connected_callback(self._handle_update)
         self._client.register_state_callback(self._handle_state_or_info)
         self._client.register_device_info_callback(self._handle_update)
         self._client.register_disconnected_callback(self._handle_update)
+        self._client.register_auth_failed_callback(self._handle_update)
         self._update_value()
 
     async def async_will_remove_from_hass(self) -> None:
@@ -167,6 +170,7 @@ class VidaaReportedNameSensor(VidaaBaseSensor):
         self._client.unregister_state_callback(self._handle_state_or_info)
         self._client.unregister_device_info_callback(self._handle_update)
         self._client.unregister_disconnected_callback(self._handle_update)
+        self._client.unregister_auth_failed_callback(self._handle_update)
 
     def _handle_state_or_info(self, data: dict[str, Any]) -> None:
         if isinstance(data, dict) and any(
@@ -221,16 +225,23 @@ class VidaaClockDriftSensor(VidaaBaseSensor):
         self._attr_unique_id = f"{self._entry_id}_clock_drift"
         self._update_state()
 
+    @property
+    def available(self) -> bool:
+        """Return True if the TV entity is available."""
+        return super().available and getattr(self._client, "auth_failed", False) is not True
+
     async def async_added_to_hass(self) -> None:
         self._client.register_connected_callback(self._handle_update)
         self._client.register_clock_drift_callback(self._handle_update)
         self._client.register_disconnected_callback(self._handle_update)
+        self._client.register_auth_failed_callback(self._handle_update)
         self._update_state()
 
     async def async_will_remove_from_hass(self) -> None:
         self._client.unregister_connected_callback(self._handle_update)
         self._client.unregister_clock_drift_callback(self._handle_update)
         self._client.unregister_disconnected_callback(self._handle_update)
+        self._client.unregister_auth_failed_callback(self._handle_update)
 
     def _handle_update(self, *args: Any) -> None:
         self._update_state()

@@ -87,7 +87,8 @@
       "reauth_successful": "Ponovna autentifikacija je bila uspešna.",
       "reconfigure_successful": "Ponovna konfiguracija je bila uspešna.",
       "already_configured": "Ovaj uređaj je već konfigurisan.",
-      "not_vidaa_tv": "Pronađeni uređaj nije kompatibilan VIDAA televizor."
+      "not_vidaa_tv": "Pronađeni uređaj nije kompatibilan VIDAA televizor.",
+      "unique_id_mismatch": "Televizor na ovoj IP adresi ne odgovara uređaju konfigurisanom za ovaj unos."
     }
   },
   "options": {
@@ -191,7 +192,12 @@
   "entity": {
     "sensor": {
       "session_status": {
-        "name": "Status sesije"
+        "name": "Status sesije",
+        "state": {
+          "active": "Aktivan",
+          "standby": "Pripravnost",
+          "reauth_required": "Potrebna ponovna autentifikacija"
+        }
       },
       "active_app": {
         "name": "Aktivna aplikacija"
@@ -435,6 +441,12 @@
     },
     "unhandled_trigger_type": {
       "message": "Trigger type {trigger_type} is not handled."
+    },
+    "cannot_connect": {
+      "message": "Nije moguće povezivanje sa VIDAA TV-om na {ip}: {error}"
+    },
+    "missing_credentials": {
+      "message": "Nedostaju akreditivi ili tokeni za autentifikaciju. Ponovo autentifikujte televizor."
     }
   },
   "selector": {

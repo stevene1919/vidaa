@@ -48,6 +48,7 @@ class VidaaRemote(VidaaEntity, RemoteEntity):
     """VIDAA Remote entity."""
 
     _attr_name = None
+    _attr_translation_key = "remote"
     _attr_supported_features = RemoteEntityFeature.ACTIVITY
 
     def __init__(

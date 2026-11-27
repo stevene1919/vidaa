@@ -72,11 +72,6 @@ class ReauthFlowMixin:
                 if opt_key in orig_options and opt_key in auth_data:
                     new_options[opt_key] = auth_data[opt_key]
 
-            self.hass.config_entries.async_update_entry(
-                self._reauth_entry,
-                data={**self._reauth_entry.data, **auth_data},
-                options=new_options,
-            )
             # [F4-leg2/F5-leg6]: the credentials are fresh again, so the
             # persistent "reauthentication required" card must go away.
             ir.async_delete_issue(
@@ -88,7 +83,12 @@ class ReauthFlowMixin:
                 self.hass,
                 f"vidaa_reauth_{self._reauth_entry.entry_id}",
             )
-            await self.hass.config_entries.async_reload(self._reauth_entry.entry_id)
+            return self.async_update_reload_and_abort(
+                self._reauth_entry,
+                data={**self._reauth_entry.data, **auth_data},
+                options=new_options,
+                reason=reason,
+            )
         return self.async_abort(reason=reason)
 
     def _async_mac_is_configured_elsewhere(
@@ -112,7 +112,7 @@ class ReauthFlowMixin:
 
     async def async_step_reauth(self: VidaaConfigFlow, entry_data: dict[str, Any]) -> config_entries.ConfigFlowResult:
         """Handle reauthorization initiated by Home Assistant."""
-        self._reauth_entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+        self._reauth_entry = self._get_reauth_entry()
         self._reauth_reason = "reauth_successful"
         current_options = (
             dict(self._reauth_entry.options)
@@ -238,7 +238,7 @@ class ReauthFlowMixin:
         self: VidaaConfigFlow, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         """Handle reconfigure initiated from 3-dots menu in HA UI."""
-        self._reauth_entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+        self._reauth_entry = self._get_reconfigure_entry()
         self._reauth_reason = "reconfigure_successful"
         errors: dict[str, str] = {}
         entry = self._reauth_entry
@@ -267,6 +267,18 @@ class ReauthFlowMixin:
             # [F7-leg6]: only the entry being reconfigured may keep this MAC or IP.
             if self._async_mac_is_configured_elsewhere():
                 return self.async_abort(reason="already_configured")
+
+            if self.mac_address and entry is not None:
+                entry_uid = getattr(entry, "unique_id", None)
+                sec_mac = current_data.get(CONF_SECONDARY_MAC_ADDRESS)
+                uid_clean = str(entry_uid or "").replace(":", "").replace("-", "")
+                if (
+                    len(uid_clean) == 12
+                    and all(c in "0123456789abcdefABCDEF" for c in uid_clean)
+                    and self.mac_address.lower() not in {str(entry_uid).lower(), str(sec_mac or "").lower()}
+                ):
+                    await self.async_set_unique_id(self.mac_address)
+                    self._abort_if_unique_id_mismatch(reason="unique_id_mismatch")
 
             if not self.mac_address:
                 self.mac_address = current_data.get(CONF_MAC_ADDRESS)

@@ -8,8 +8,6 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import AbortFlow
-from homeassistant.helpers.service_info.ssdp import SsdpServiceInfo
-from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
 from ..const import CONF_IP_ADDRESS
 from ..protocol import DiscoveredTvInfo, parse_ssdp_discovery, parse_zeroconf_discovery
@@ -17,6 +15,9 @@ from .helpers import async_resolve_mac
 from .isolation import find_conflicting_entry
 
 if TYPE_CHECKING:
+    from homeassistant.helpers.service_info.ssdp import SsdpServiceInfo
+    from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
+
     from ..config_flow import VidaaConfigFlow
 
 _LOGGER = logging.getLogger(__name__)

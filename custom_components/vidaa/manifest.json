@@ -22,6 +22,7 @@
       "st": "urn:schemas-upnp-org:device:MediaRenderer:1"
     }
   ],
+  "version": "3.6.1",
   "zeroconf": [
     {
       "type": "_airplay._tcp.local.",
@@ -37,7 +38,6 @@
       "type": "_airplay._tcp.local.",
       "name": "*vidaa*"
     }
-  ],
-  "version": "3.6.1"
+  ]
 }
 

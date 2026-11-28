@@ -2,47 +2,55 @@
   "config": {
     "step": {
       "user": {
-        "title": "Konfigurišite VIDAA Smart TV",
-        "description": "Unesite IP adresu svog VIDAA televizora.",
+        "title": "Konfiguriši VIDAA Smart TV",
+        "description": "Unesite IP adresu vašeg VIDAA TV-a.",
         "data": {
           "ip_address": "IP adresa",
           "auth_profile": "Profil autentifikacije / sertifikata",
-          "brand": "Marka televizora (VIDAA OS ekosistem)"
+          "brand": "Brend TV-a (VIDAA OS ekosistem)"
         },
         "sections": {
           "advanced_options": {
-            "name": "Advanced Connection & OEM Brand",
-            "description": "Optional: override automatic profile negotiation and OEM manufacturer brand detection."
+            "name": "Napredno povezivanje i OEM brend",
+            "description": "Opciono: zamenite automatsko prilagođavanje profila i otkrivanje OEM proizvođača."
           }
         }
       },
       "discovery_confirm": {
-        "title": "Pronađen VIDAA Smart TV",
+        "title": "Otkriven VIDAA Smart TV",
         "description": "Da li želite da podesite {name} na adresi {ip_address}?"
       },
       "auth": {
-        "title": "Unesite PIN kod sa televizora",
-        "description": "Četvorocifreni PIN kod bi sada trebalo da bude prikazan na uređaju {name} ({ip_address}). Unesite ga ispod.",
+        "title": "Unesite PIN kod TV-a",
+        "description": "Četvorocifreni PIN kod bi sada trebalo da bude prikazan na {name} ({ip_address}). Unesite ga ispod.",
         "data": {
           "pin_code": "PIN kod"
         }
       },
       "reauth_confirm": {
-        "title": "Ponovna autentifikacija VIDAA televizora",
-        "description": "Home Assistant mora ponovo da se upari sa vašim VIDAA televizorom ({ip_address}). Pritisnite Pošalji da biste prikazali PIN na ekranu televizora."
+        "title": "Ponovna autentifikacija VIDAA TV-a",
+        "description": "Home Assistant mora ponovo da se upari sa vašim VIDAA TV-om ({ip_address}). Pritisnite Potvrdi: ako je TV u režimu pripravnosti, Home Assistant će pokušati da ga probudi, a zatim će se na ekranu TV-a pojaviti PIN."
       },
       "reconfigure": {
-        "title": "Ponovna konfiguracija VIDAA televizora",
-        "description": "Ažurirajte podešavanja veze ili ponovo uparite svoj VIDAA televizor.",
+        "title": "Ponovno konfigurisanje VIDAA Smart TV-a",
+        "description": "Ažurirajte podešavanja veze ili se ponovo uparite sa vašim VIDAA TV-om.",
         "data": {
           "ip_address": "IP adresa",
           "auth_profile": "Profil autentifikacije / sertifikata",
-          "brand": "Marka televizora (VIDAA OS ekosistem)"
+          "brand": "Brend TV-a (VIDAA OS ekosistem)"
+        }
+      },
+      "upload": {
+        "title": "Otpremi klijentski sertifikat ili aplikaciju",
+        "description": "VIDAA televizori zahtevaju TLS klijentske sertifikate za bezbednu komunikaciju. Otpremite zvanični paket Android aplikacije VIDAA / RemoteNOW (.apk / .xapk) ili izdvojeno skladište ključeva (.p12 / .pfx / .pem / .crt). Home Assistant će automatski izdvojiti i obezbediti sertifikate.",
+        "data": {
+          "cert_file": "Paket aplikacije ili datoteka skladišta ključeva",
+          "manual_paths": "Unesite putanje do datoteka ručno"
         }
       },
       "certs": {
         "title": "Klijentski sertifikati",
-        "description": "Konfigurišite TLS/SSL klijentske sertifikate za komunikaciju sa vašim VIDAA televizorom. Postavite svoje sertifikate u {cert_dir} ({cert_file} i {key_file}).",
+        "description": "Konfigurišite TLS/SSL klijentske sertifikate za komunikaciju sa vašim VIDAA Smart TV-om. Postavite sertifikate u {cert_dir} ({cert_file} i {key_file}).",
         "data": {
           "use_ssl": "Koristi šifrovanu SSL/TLS vezu",
           "certfile": "Putanja do datoteke sertifikata (.crt / .pem)",
@@ -51,142 +59,134 @@
       },
       "options": {
         "title": "Funkcije i opcije uređaja",
-        "description": "Prilagodite funkcije za svoj VIDAA televizor.",
+        "description": "Prilagodite funkcije za vaš VIDAA Smart TV.",
         "data": {
-          "enable_wol": "Omogući uključivanje putem Wake-on-LAN-a",
-          "include_apps_in_sources": "Uključi Smart TV aplikacije u listu izvora medijskog plejera",
-          "enable_media_controls": "Omogući kontrole za upravljanje medijima (pusti/pauziraj, zaustavi, preskoči)",
-          "enable_picture_controls": "Omogući režim slike i klizače za kalibraciju (pozadinsko osvetljenje, svetlina, kontrast)",
-          "enable_sound_controls": "Omogući izbor ekvilajzera za režim zvuka",
-          "enable_audio_only": "Omogući prekidač za režim 'Samo audio' (isključen ekran)"
-        }
-      },
-      "upload": {
-        "title": "Otpremite sertifikat klijenta ili aplikaciju",
-        "description": "VIDAA televizorima su potrebni TLS sertifikati klijenta za bezbednu komunikaciju. Otpremite zvanični paket VIDAA / RemoteNOW Android aplikacije (.apk / .xapk) ili ekstrahovani ključ (.p12 / .pfx / .pem / .crt). Home Assistant će automatski ekstrahovati i obezbediti sertifikate.",
-        "data": {
-          "cert_file": "Paket aplikacije ili datoteka ključa",
-          "manual_paths": "Ručno unesite putanje do datoteka"
+          "enable_wol": "Omogući Wake-on-LAN (WoL)",
+          "include_apps_in_sources": "Uključi striming aplikacije u listu izvora",
+          "enable_media_controls": "Omogući kontrole reprodukcije medija",
+          "enable_picture_controls": "Omogući kontrole režima i kalibracije slike",
+          "enable_sound_controls": "Omogući birač režima zvuka",
+          "enable_audio_only": "Omogući prekidač Samo zvuk (isključen ekran)"
         }
       }
     },
     "error": {
-      "cannot_connect": "Povezivanje sa televizorom nije uspelo.",
-      "invalid_auth": "Nevažeći PIN kod. Pokušajte ponovo.",
-      "certs_not_found": "Sertifikat ili datoteka privatnog ključa nisu pronađeni na navedenoj putanji. Proverite lokaciju datoteke i dozvole.",
+      "cannot_connect": "Povezivanje sa TV-om nije uspelo.",
+      "tv_not_awake": "TV nije odgovorio. Uključite ga daljinskim upravljačem, sačekajte da se pojavi slika, a zatim ponovo pritisnite Potvrdi.",
+      "invalid_auth": "Neispravan PIN kod. Pokušajte ponovo.",
+      "certs_not_found": "Datoteka sertifikata ili privatnog ključa nije pronađena na navedenoj putanji. Proverite lokaciju datoteke i dozvole.",
       "unknown": "Došlo je do nepoznate greške.",
-      "invalid_ssl_cert": "Validacija SSL sertifikata ili privatnog ključa nije uspela. Proverite da li su datoteke u ispravnom nešifrovanom PEM ili podržanom PKCS#12 formatu i da li odgovaraju jedna drugoj.",
-      "tv_not_awake": "Televizor nije odgovorio. Uključite ga daljinskim upravljačem, sačekajte da se pojavi slika, a zatim ponovo kliknite na Pošalji.",
-      "invalid_cert_archive": "Nije bilo moguće izdvojiti važeće VIDAA spremište sertifikata iz otpremljene datoteke. Proverite APK ili P12 datoteku.",
+      "invalid_ssl_cert": "Provera SSL sertifikata ili privatnog ključa nije uspela. Uverite se da su datoteke u važećem nešifrovanom PEM ili podržanom PKCS#12 formatu i da se međusobno podudaraju.",
+      "invalid_cert_archive": "Nije moguće izdvojiti važeće VIDAA skladište sertifikata iz otpremljene datoteke. Proverite APK ili P12 datoteku.",
       "file_too_large": "Otpremljena datoteka premašuje ograničenje veličine od 150 MB.",
-      "no_p12_found": "U otpremljenoj arhivi nije pronađeno kompatibilno VIDAA PKCS#12 spremište ključeva.",
-      "p12_decrypt_failed": "Dešifrovanje spremišta sertifikata nije uspelo. Nije bilo moguće verifikovati lozinku arhive.",
-      "invalid_pem_bundle": "Otpremljena PEM/CRT datoteka mora da sadrži i sertifikat i odgovarajući nešifrovani privatni ključ."
+      "no_p12_found": "U otpremljenoj arhivi nije pronađeno kompatibilno VIDAA PKCS#12 skladište ključeva.",
+      "p12_decrypt_failed": "Dešifrovanje skladišta sertifikata nije uspelo. Lozinka arhive nije mogla biti potvrđena.",
+      "invalid_pem_bundle": "Otpremljena PEM/CRT datoteka mora da sadrži i sertifikat i nešifrovani privatni ključ."
     },
     "abort": {
       "reauth_successful": "Ponovna autentifikacija je bila uspešna.",
-      "reconfigure_successful": "Ponovna konfiguracija je bila uspešna.",
+      "reconfigure_successful": "Ponovno konfigurisanje je bilo uspešno.",
       "already_configured": "Ovaj uređaj je već konfigurisan.",
-      "not_vidaa_tv": "Pronađeni uređaj nije kompatibilan VIDAA televizor.",
-      "unique_id_mismatch": "Televizor na ovoj IP adresi ne odgovara uređaju konfigurisanom za ovaj unos."
+      "not_vidaa_tv": "Otkriveni uređaj nije kompatibilan VIDAA Smart TV.",
+      "unique_id_mismatch": "TV na ovoj IP adresi se ne podudara sa uređajem konfigurisanim za ovu stavku."
     }
   },
   "options": {
     "step": {
       "init": {
         "title": "Opcije za VIDAA Smart TV",
-        "description": "Izaberite kategoriju opcija za konfiguraciju:",
+        "description": "Izaberite kategoriju opcija za konfigurisanje:",
         "menu_options": {
           "power_network": "⚡ Napajanje i mreža",
           "playback_sources": "📺 Reprodukcija i izvori",
-          "features_remote": "🎛️ Entiteti i daljinski upravljači",
-          "security": "🔒 Veza i bezbednost"
+          "features_remote": "🎛️ Entiteti i daljinski upravljač",
+          "security": "🔒 Povezivanje i bezbednost"
         }
       },
       "power_network": {
         "title": "Opcije napajanja i mreže",
-        "description": "Konfigurišite Wake-on-LAN i sekundarni mrežni interfejs (Wi-Fi ili Ethernet). Aktivni primarni MAC: {primary_mac}.",
+        "description": "Konfigurišite uključivanje putem Wake-on-LAN-a i sekundarni mrežni interfejs (Wi-Fi ili Ethernet). Aktivna primarna MAC adresa: {primary_mac}.",
         "data": {
-          "enable_wol": "Omogući uključivanje putem Wake-on-LAN-a",
+          "enable_wol": "Omogući Wake-on-LAN (WoL)",
           "secondary_mac_address": "Sekundarna MAC adresa (Wi-Fi ili Ethernet)"
         },
         "data_description": {
-          "enable_wol": "Broadcasts magic packets to wake the TV from deep sleep or standby when network interfaces power down.",
-          "secondary_mac_address": "Enter the TV's second physical network interface MAC (e.g. Ethernet MAC if connected via Wi-Fi, or vice-versa). WoL magic packets will be broadcast simultaneously to both MAC addresses."
+          "enable_wol": "Šalje „magične pakete“ za buđenje TV-a iz dubokog sna ili pripravnosti kada se mrežni interfejsi isključe.",
+          "secondary_mac_address": "Unesite MAC adresu drugog fizičkog mrežnog interfejsa TV-a (npr. Ethernet MAC ako je povezan putem Wi-Fi mreže, ili obrnuto). WoL paketi će se slati istovremeno na obe MAC adrese."
         }
       },
       "playback_sources": {
         "title": "Reprodukcija i izvori",
-        "description": "Konfigurišite ulazne izvore, listu aplikacija i kontrole za reprodukciju medija.",
+        "description": "Konfigurišite ulazne izvore, listu aplikacija i kontrole reprodukcije medija.",
         "data": {
-          "include_apps_in_sources": "Uključi Smart TV aplikacije u listu izvora medijskog plejera",
-          "enable_media_controls": "Omogući kontrole za upravljanje medijima (pusti/pauziraj, zaustavi, preskoči)",
-          "enable_cec_names": "Prikaži nazive povezanih HDMI-CEC uređaja u izvorima (npr. 'HDMI 2 (PlayStation 5)')",
-          "enable_app_icons": "Prikaži slike aplikacija na mreži (img.vidaahub.com)",
-          "playback_debounce": "Prozor za stabilizaciju stanja reprodukcije / debounce (sekunde)",
-          "sources": "Enabled Sources & Applications"
+          "include_apps_in_sources": "Uključi striming aplikacije u listu izvora",
+          "sources": "Omogućeni izvori i aplikacije",
+          "enable_media_controls": "Omogući kontrole reprodukcije medija",
+          "enable_cec_names": "Prikaži nazive povezanih HDMI-CEC uređaja",
+          "enable_app_icons": "Prikaži onlajn ikonice aplikacija (img.vidaahub.com)",
+          "playback_debounce": "Vreme stabilizacije stanja reprodukcije / debounce (sekunde)"
         },
         "data_description": {
-          "playback_debounce": "Trajanje u sekundama za filtriranje brzih, prolaznih treperenja stanja pri pokretanju aplikacija za striming ili baferovanju.",
-          "include_apps_in_sources": "Displays installed streaming apps (Netflix, YouTube, Prime Video, etc.) alongside physical HDMI inputs in the Media Player source dropdown.",
-          "sources": "Select which inputs and apps appear in the source selector. Leave empty or select all to display every detected source.",
-          "enable_media_controls": "Exposes media transport controls (Play, Pause, Stop, Previous, Next) on the Media Player card for supported apps and media playback.",
-          "enable_cec_names": "Replaces generic input labels like 'HDMI 2' with active device names reported over HDMI-CEC (e.g. 'PlayStation 5', 'Apple TV').",
-          "enable_app_icons": "Prikazuje udaljene logotipe aplikacija sa VIDAA CDN-a na medija plejeru, senzoru aktivne aplikacije i pregledaču medija. Automatski prelazi na Material Design Icons ako nije dostupan; isključite za 100% lokalan rad."
+          "include_apps_in_sources": "Prikazuje instalirane striming aplikacije (Netflix, YouTube, Prime Video itd.) pored fizičkih HDMI ulaza u padajućem meniju izvora medija plejera.",
+          "sources": "Izaberite koji ulazi i aplikacije se prikazuju u biraču izvora. Ostavite prazno ili izaberite sve da bi se prikazao svaki otkriveni izvor.",
+          "enable_media_controls": "Prikazuje kontrole reprodukcije (Pusti, Pauziraj, Zaustavi, Prethodno, Sledeće) na kartici medija plejera za podržane aplikacije i sadržaj.",
+          "enable_cec_names": "Zamenjuje generičke oznake ulaza poput 'HDMI 2' nazivima aktivnih uređaja prijavljenih putem HDMI-CEC-a (npr. 'PlayStation 5', 'Apple TV').",
+          "enable_app_icons": "Prikazuje logotipe aplikacija sa VIDAA CDN-a na medija plejeru, senzoru aktivne aplikacije i pregledaču medija. Automatski prelazi na Material Design ikonice ako nije dostupno; onemogućite za 100% lokalni rad.",
+          "playback_debounce": "Trajanje u sekundama za filtriranje brzih prolaznih promena stanja prilikom pokretanja ili baferovanja striming aplikacija."
         }
       },
       "features_remote": {
-        "title": "Entiteti i daljinski upravljači",
-        "description": "Konfigurišite prekidače entiteta, kalibraciju slike, unapred podešene režime zvuka i tajminge tastera daljinskog upravljača.",
+        "title": "Entiteti i daljinski upravljač",
+        "description": "Konfigurišite prekidače entiteta, kalibraciju slike, podešavanja zvuka i tajminge tastera daljinskog upravljača.",
         "data": {
-          "enable_picture_controls": "Omogući izbor režima slike i klizače za kalibraciju (pozadinsko osvetljenje, svetlina, kontrast)",
-          "enable_sound_controls": "Omogući izbor unapred podešenih režima ekvilajzera za zvuk",
-          "enable_audio_only": "Omogući prekidač za režim 'Samo audio' (isključen ekran)",
-          "key_delay": "Podrazumevano kašnjenje tastera (sekunde)",
-          "key_repeat": "Podrazumevani broj ponavljanja tastera"
+          "enable_picture_controls": "Omogući kontrole režima i kalibracije slike",
+          "enable_sound_controls": "Omogući birač režima zvuka",
+          "enable_audio_only": "Omogući prekidač Samo zvuk (isključen ekran)",
+          "key_delay": "Odlaganje između pritisaka tastera (sekunde)",
+          "key_repeat": "Broj ponavljanja tastera"
         },
         "data_description": {
-          "enable_picture_controls": "Creates picture mode selector and backlight, brightness, and contrast slider entities. Disabling removes these entities from Home Assistant.",
-          "enable_sound_controls": "Creates an equalizer sound preset selector entity (Standard, Theatre, Music, Speech, Late Night, Sports).",
-          "enable_audio_only": "Creates a switch entity to turn off the display panel while keeping audio streaming active (ideal for music, radio, and podcasts).",
-          "key_delay": "Delay between sequential keystrokes when sending remote button sequences or automated commands.",
-          "key_repeat": "Number of times a keystroke is transmitted per command when no explicit repeat count is specified."
+          "enable_picture_controls": "Kreira birač režima slike i klizače za pozadinsko osvetljenje, osvetljenost i kontrast. Podrazumevano je onemogućeno; podržano samo na određenim modelima TV-a sa MQTT menijima slike. Prvo pokrenite „Proveri mogućnosti“.",
+          "enable_sound_controls": "Kreira entitet za izbor zvučnih profila ekvilajzera (Standard, Bioskop, Muzika, Govor, Kasno uveče, Sport). Podrazumevano je onemogućeno; zavisi od modela.",
+          "enable_audio_only": "Kreira prekidač za isključivanje ekrana dok reprodukcija zvuka ostaje aktivna (idealno za muziku, radio i podkaste).",
+          "key_delay": "Pauza između uzastopnih pritisaka tastera prilikom slanja sekvenci komandi ili automatizacija.",
+          "key_repeat": "Broj puta koliko se pritisak tastera šalje po komandi kada nije naveden izričit broj ponavljanja."
         }
       },
       "security": {
-        "title": "Veza i bezbednost",
-        "description": "Izaberite profil autentifikacije, šifrovanje i opcionalne klijentske sertifikate.",
+        "title": "Povezivanje i bezbednost",
+        "description": "Izaberite proizvođača TV-a, profil autentifikacije, šifrovanje i opcione klijentske sertifikate.",
         "data": {
-          "auth_profile": "Profil autentifikacije / sertifikata",
-          "brand": "OEM marka televizora",
+          "auth_profile": "Profil autentifikacije i sertifikata",
+          "brand": "Proizvođač / brend TV-a",
           "use_ssl": "Koristi šifrovanu SSL/TLS vezu",
+          "cert_file": "Otpremi novi sertifikat ili aplikaciju (.apk / .p12 / .pem)",
           "certfile": "Putanja do datoteke sertifikata (.crt / .pem / .p12)",
-          "keyfile": "Putanja do datoteke privatnog ključa (.key / .pem)",
-          "cert_file": "Otpremite novi sertifikat ili aplikaciju (.apk / .p12 / .pem)"
+          "keyfile": "Putanja do datoteke privatnog ključa (.key / .pem)"
         },
         "data_description": {
-          "auth_profile": "Select the encryption and pairing protocol. 'Auto Detect' automatically negotiates based on TV model and firmware version.",
-          "brand": "Select the TV manufacturer brand to load OEM-specific MQTT topics and client IDs. Use 'Auto Detect' unless pairing fails.",
-          "use_ssl": "Enables TLS/SSL encryption on port 36669. Required for all modern VIDAA TVs (VIDAA U4+). Only disable for older pre-2022 firmware on port 3160.",
-          "cert_file": "Upload an updated VIDAA APK, XAPK, or .p12 keystore to extract and install new certificates into Home Assistant storage."
+          "auth_profile": "Izaberite protokol šifrovanja i uparivanja. 'Automatsko otkrivanje' automatski prilagođava protokol na osnovu modela TV-a i verzije firmvera.",
+          "brand": "Izaberite brend proizvođača TV-a za učitavanje specifičnih MQTT tema i ID-jeva klijenta. Koristite 'Automatsko otkrivanje' osim ako uparivanje ne uspe.",
+          "use_ssl": "Omogućava TLS/SSL šifrovanje na portu 36669. Obavezno za sve moderne VIDAA televizore (VIDAA U4+). Onemogućite samo za stariji firmver pre 2022. godine na portu 3160.",
+          "cert_file": "Otpremite ažurirani VIDAA APK, XAPK ili .p12 skladište ključeva da biste izdvojili i instalirali nove sertifikate u skladište Home Assistant-a."
         },
         "sections": {
           "manual_certificates": {
-            "name": "Ručne putanje do sertifikata (napredno)",
+            "name": "Ručne putanje sertifikata (napredno)",
             "description": "Unesite prilagođene putanje sistema datoteka za klijentski sertifikat i privatni ključ."
           }
         }
       }
     },
     "error": {
-      "certs_not_found": "Sertifikat ili datoteka privatnog ključa nisu pronađeni na navedenoj putanji. Proverite lokaciju datoteke i dozvole.",
-      "invalid_ssl_cert": "Validacija SSL sertifikata ili privatnog ključa nije uspela. Proverite da li su datoteke u ispravnom nešifrovanom PEM ili podržanom PKCS#12 formatu i da li odgovaraju jedna drugoj.",
-      "invalid_mac": "Nevažeća MAC adresa. Mora biti heksadecimalna adresa od 12 cifara (npr. AA:BB:CC:DD:EE:FF).",
-      "invalid_cert_archive": "Nije bilo moguće izdvojiti važeće VIDAA spremište sertifikata iz otpremljene datoteke. Proverite APK ili P12 datoteku.",
+      "certs_not_found": "Datoteka sertifikata ili privatnog ključa nije pronađena na navedenoj putanji. Proverite lokaciju datoteke i dozvole.",
+      "invalid_ssl_cert": "Provera SSL sertifikata ili privatnog ključa nije uspela. Uverite se da su datoteke u važećem nešifrovanom PEM ili podržanom PKCS#12 formatu i da se međusobno podudaraju.",
+      "invalid_mac": "Neispravna MAC adresa. Mora biti 12-cifrena heksadecimalna adresa (npr. AA:BB:CC:DD:EE:FF).",
+      "invalid_cert_archive": "Nije moguće izdvojiti važeće VIDAA skladište sertifikata iz otpremljene datoteke. Proverite APK ili P12 datoteku.",
       "file_too_large": "Otpremljena datoteka premašuje ograničenje veličine od 150 MB.",
-      "no_p12_found": "U otpremljenoj arhivi nije pronađeno kompatibilno VIDAA PKCS#12 spremište ključeva.",
-      "p12_decrypt_failed": "Dešifrovanje spremišta sertifikata nije uspelo. Nije bilo moguće verifikovati lozinku arhive.",
-      "invalid_pem_bundle": "Otpremljena PEM/CRT datoteka mora da sadrži i sertifikat i odgovarajući nešifrovani privatni ključ."
+      "no_p12_found": "U otpremljenoj arhivi nije pronađeno kompatibilno VIDAA PKCS#12 skladište ključeva.",
+      "p12_decrypt_failed": "Dešifrovanje skladišta sertifikata nije uspelo. Lozinka arhive nije mogla biti potvrđena.",
+      "invalid_pem_bundle": "Otpremljena PEM/CRT datoteka mora da sadrži i sertifikat i nešifrovani privatni ključ."
     }
   },
   "entity": {
@@ -194,7 +194,7 @@
       "session_status": {
         "name": "Status sesije",
         "state": {
-          "active": "Aktivan",
+          "active": "Aktivno",
           "standby": "Pripravnost",
           "reauth_required": "Potrebna ponovna autentifikacija"
         }
@@ -203,7 +203,7 @@
         "name": "Aktivna aplikacija"
       },
       "active_source": {
-        "name": "Aktivni izvor"
+        "name": "Aktivan izvor"
       },
       "reported_name": {
         "name": "Prijavljeni naziv"
@@ -214,13 +214,13 @@
     },
     "binary_sensor": {
       "mqtt_connected": {
-        "name": "MQTT povezan"
+        "name": "MQTT veza"
       },
       "in_use": {
         "name": "U upotrebi"
       },
       "auth_problem": {
-        "name": "Authentication problem"
+        "name": "Problem sa autentifikacijom"
       }
     },
     "button": {
@@ -231,7 +231,7 @@
         "name": "Sinhronizuj sat"
       },
       "probe_capabilities": {
-        "name": "Ispitaj mogućnosti"
+        "name": "Proveri mogućnosti"
       },
       "trigger_reauth": {
         "name": "Pokreni ponovnu autentifikaciju"
@@ -250,7 +250,7 @@
         "name": "Pozadinsko osvetljenje"
       },
       "brightness": {
-        "name": "Svetlina"
+        "name": "Osvetljenost"
       },
       "contrast": {
         "name": "Kontrast"
@@ -258,10 +258,10 @@
     },
     "switch": {
       "audio_only": {
-        "name": "Samo audio"
+        "name": "Samo zvuk"
       },
       "debug_logging": {
-        "name": "Protokolisanje debagovanja"
+        "name": "Evidentiranje za otklanjanje grešaka (Debug)"
       }
     }
   },
@@ -383,22 +383,28 @@
   },
   "exceptions": {
     "ambiguous_target": {
-      "message": "Konfigurisano je više VIDAA televizora. Navedite ciljni televizor ili koristite 'all' da biste obuhvatili sve televizore."
+      "message": "Konfigurisano je više VIDAA Smart TV uređaja. Navedite ciljni TV ili koristite 'all' da biste ciljali sve televizore."
     },
     "no_target_device": {
-      "message": "Nije pronađen odgovarajući VIDAA televizor za navedeni cilj servisnog poziva."
+      "message": "Nije pronađen nijedan odgovarajući VIDAA Smart TV za navedeno odredište poziva servisa."
+    },
+    "auth_required": {
+      "message": "Potrebna je autentifikacija: Ponovo uparite TV u Podešavanja > Integracije."
+    },
+    "turn_on_failed": {
+      "message": "Wake-on-LAN nije uspeo: TV se nije probudio."
     },
     "not_connected": {
-      "message": "Nije moguće poslati komandu: televizor je trenutno isključen sa mreže."
+      "message": "TV je van mreže: Uređaj je nedostupan."
     },
     "send_key_failed": {
       "message": "Slanje tastera {key} nije uspelo: {error}"
     },
     "empty_key_sequence": {
-      "message": "Sekvenca mora da sadrži najmanje jedan taster."
+      "message": "Sekvenca mora sadržati najmanje jedan taster."
     },
     "send_key_sequence_failed": {
-      "message": "Slanje tastera iz sekvence {key} nije uspelo: {error}"
+      "message": "Slanje tastera {key} iz sekvence nije uspelo: {error}"
     },
     "invalid_channel_digits": {
       "message": "Kanal {channel} ne sadrži važeće cifre."
@@ -413,40 +419,34 @@
       "message": "Pokretanje aplikacije {app_name} nije uspelo: {error}"
     },
     "set_picture_setting_failed": {
-      "message": "Postavljanje podešavanja slike nije uspelo (menu_id={menu_id}): {error}"
+      "message": "Postavljanje podešavanja slike (menu_id={menu_id}) nije uspelo: {error}"
     },
     "set_sound_setting_failed": {
-      "message": "Postavljanje podešavanja zvuka nije uspelo (menu_id={menu_id}): {error}"
+      "message": "Postavljanje podešavanja zvuka (menu_id={menu_id}) nije uspelo: {error}"
     },
     "send_text_input_failed": {
       "message": "Slanje unosa teksta nije uspelo: {error}"
     },
-    "auth_required": {
-      "message": "Authentication required: Re-pair TV in Settings > Integrations."
-    },
-    "turn_on_failed": {
-      "message": "Wake-on-LAN failed: TV did not wake up."
-    },
-    "device_off": {
-      "message": "Nije moguće izvršiti radnju: televizor je trenutno isključen."
-    },
     "device_config_entry_not_loaded": {
-      "message": "The VIDAA integration for device {device_id} is not loaded."
+      "message": "VIDAA integracija za uređaj {device_id} nije učitana."
     },
     "device_not_valid": {
-      "message": "Device {device_id} is not a valid VIDAA device."
+      "message": "Uređaj {device_id} nije važeći VIDAA uređaj."
     },
     "invalid_entity_id": {
-      "message": "Entity {entity_id} is not a valid VIDAA entity."
+      "message": "Entitet {entity_id} nije važeći VIDAA entitet."
     },
     "unhandled_trigger_type": {
-      "message": "Trigger type {trigger_type} is not handled."
+      "message": "Tip okidača {trigger_type} nije podržan."
+    },
+    "device_off": {
+      "message": "Nije moguće izvršiti radnju: TV je trenutno isključen."
     },
     "cannot_connect": {
-      "message": "Nije moguće povezivanje sa VIDAA TV-om na {ip}: {error}"
+      "message": "Povezivanje sa VIDAA TV-om na adresi {ip} nije uspelo: {error}"
     },
     "missing_credentials": {
-      "message": "Nedostaju akreditivi ili tokeni za autentifikaciju. Ponovo autentifikujte televizor."
+      "message": "Nedostaju podaci za autentifikaciju ili tokeni. Ponovo izvršite autentifikaciju vašeg TV-a."
     }
   },
   "selector": {
@@ -488,63 +488,63 @@
     }
   },
   "issues": {
+    "legacy_folder_detected": {
+      "title": "Otkriven je stari folder integracije",
+      "description": "Integracija je uspešno nadograđena na VIDAA Smart TV (`{new_domain}`). Stari folder `custom_components/{legacy_domain}` je i dalje prisutan na vašem skladištu. Uklonite `custom_components/{legacy_domain}` i ponovo pokrenite Home Assistant kako biste izbegli moguće konflikte komponenti."
+    },
     "certificate_missing": {
       "title": "Nedostaju VIDAA klijentski sertifikati ({name})",
       "fix_flow": {
         "step": {
           "confirm": {
-            "title": "Verifikujte klijentske sertifikate",
-            "description": "Otpremite ili proverite klijentske sertifikate za {name} ({ip_address}). Kada su sertifikati instalirani, pošaljite ovaj obrazac radi verifikacije.",
+            "title": "Provera klijentskih sertifikata",
+            "description": "Otpremite ili proverite klijentske sertifikate za {name} ({ip_address}). Kada sertifikati budu instalirani, potvrdite ovaj obrazac radi provere.",
             "data": {
               "cert_file": "Paket aplikacije ili datoteka skladišta ključeva (.apk / .p12 / .pem)"
             }
           }
         },
         "error": {
-          "certificates_still_missing": "Sertifikati i dalje nedostaju. Proverite da li datoteke hisense.crt i hisense.key postoje.",
-          "file_too_large": "The uploaded file exceeds the 150 MB size limit.",
-          "invalid_cert_archive": "Could not extract a valid VIDAA certificate keystore from the uploaded file.",
-          "no_p12_found": "No compatible VIDAA PKCS#12 keystore was found inside the uploaded archive.",
-          "p12_decrypt_failed": "Failed to decrypt the certificate keystore. The archive password could not be verified.",
-          "invalid_pem_bundle": "Uploaded PEM/CRT file must contain both a certificate and an unencrypted private key."
+          "certificates_still_missing": "Sertifikati i dalje nedostaju. Uverite se da postoje datoteke hisense.crt i hisense.key.",
+          "file_too_large": "Otpremljena datoteka premašuje ograničenje veličine od 150 MB.",
+          "invalid_cert_archive": "Nije moguće izdvojiti važeće VIDAA skladište sertifikata iz otpremljene datoteke.",
+          "no_p12_found": "U otpremljenoj arhivi nije pronađeno kompatibilno VIDAA PKCS#12 skladište ključeva.",
+          "p12_decrypt_failed": "Dešifrovanje skladišta sertifikata nije uspelo. Lozinka arhive nije mogla biti potvrđena.",
+          "invalid_pem_bundle": "Otpremljena PEM/CRT datoteka mora da sadrži i sertifikat i nešifrovani privatni ključ."
         }
       }
     },
     "auth_token_invalidated": {
-      "title": "VIDAA TV: Potrebna ponovna autentifikacija",
+      "title": "VIDAA TV: Potrebna je ponovna autentifikacija",
       "fix_flow": {
         "step": {
           "confirm": {
-            "title": "Ponovno uparivanje sa VIDAA televizorom",
-            "description": "Home Assistant više ne može da se autentifikuje sa vašim VIDAA televizorom ({ip_address}). TV broker je odbio sačuvane tokene za pristup i osvežavanje (ovo se obično dešava nakon ažuriranja firmvera ili potpunog gašenja iz struje).\n\nKliknite na **Pošalji** da biste pokrenuli proces uparivanja. Proverite da li je vaš televizor **uključen** (ne u režimu mirovanja) — PIN kod će se pojaviti na ekranu."
+            "title": "Ponovno uparivanje sa VIDAA TV-om",
+            "description": "Home Assistant više ne može da izvrši autentifikaciju sa vašim VIDAA TV-om ({ip_address}). Broker televizora je odbio sačuvane tokene za pristup i osvežavanje (ovo se obično dešava nakon ažuriranja firmvera ili potpunog isključivanja iz struje).\n\nKliknite na **Potvrdi** da biste pokrenuli proces uparivanja. Uverite se da je vaš TV **uključen** (nije u režimu pripravnosti) — na ekranu će se pojaviti PIN kod."
           }
         }
       }
-    },
-    "legacy_folder_detected": {
-      "title": "Legacy integration folder detected",
-      "description": "The integration has successfully upgraded to VIDAA Smart TV (`{new_domain}`). The old folder `custom_components/{legacy_domain}` is still present on your storage. Please remove `custom_components/{legacy_domain}` and restart Home Assistant to avoid potential component collisions."
     }
   },
   "device_automation": {
     "trigger_type": {
-      "vidaa.turn_on": "Device is requested to turn on"
+      "vidaa.turn_on": "Zatraženo je uključivanje uređaja"
     }
   },
   "triggers": {
     "turn_on": {
-      "description": "Triggers when one or more VIDAA Smart TVs are requested to turn on.",
+      "description": "Pokreće se kada se zatraži uključivanje jednog ili više VIDAA Smart TV uređaja.",
       "fields": {
         "device_id": {
-          "description": "The TVs to listen to. At least one device or entity is required.",
-          "name": "Devices"
+          "description": "Televizori koje treba pratiti. Potreban je najmanje jedan uređaj ili entitet.",
+          "name": "Uređaji"
         },
         "entity_id": {
-          "description": "The TV media players to listen to. At least one device or entity is required.",
-          "name": "Entities"
+          "description": "Medija plejeri televizora koje treba pratiti. Potreban je najmanje jedan uređaj ili entitet.",
+          "name": "Entiteti"
         }
       },
-      "name": "Turn on"
+      "name": "Uključi"
     }
   }
 }
